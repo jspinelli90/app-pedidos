@@ -523,4 +523,3 @@ server.listen(PORT, HOST, () => {
   console.log(`Datos: ${USE_SUPABASE ? "Supabase online" : "archivos locales"}`);
   localIps().forEach(ip => console.log(`Desde otra PC: http://${ip}:${PORT}`));
 });
-
