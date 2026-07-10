@@ -3,8 +3,62 @@ const message = document.querySelector("#clientMessage");
 const prepDate = document.querySelector("#clientPrepDate");
 const deliveryType = document.querySelector("#clientDeliveryType");
 const address = document.querySelector("#clientAddress");
+const district = document.querySelector("#clientDistrict");
 const locality = document.querySelector("#clientLocality");
 const successBox = document.querySelector("#clientSuccess");
+
+const LOCALITIES_BY_DISTRICT = {
+  "Tigre": [
+    "Benavidez",
+    "Dique Lujan",
+    "Don Torcuato",
+    "El Talar",
+    "General Pacheco",
+    "Nordelta",
+    "Ricardo Rojas",
+    "Rincon de Milberg",
+    "Tigre",
+    "Troncos del Talar"
+  ],
+  "San Fernando": [
+    "San Fernando",
+    "Victoria",
+    "Virreyes",
+    "Islas del Delta del Parana"
+  ],
+  "San Isidro": [
+    "Acassuso",
+    "Beccar",
+    "Boulogne Sur Mer",
+    "Martinez",
+    "San Isidro",
+    "Villa Adelina"
+  ],
+  "Vicente Lopez": [
+    "Carapachay",
+    "Florida",
+    "Florida Oeste",
+    "La Lucila",
+    "Munro",
+    "Olivos",
+    "Vicente Lopez",
+    "Villa Adelina",
+    "Villa Martelli"
+  ],
+  "San Martin": [
+    "Barrio Parque General San Martin",
+    "Billinghurst",
+    "Ciudad Jardin El Libertador",
+    "Jose Leon Suarez",
+    "Loma Hermosa",
+    "San Andres",
+    "San Martin",
+    "Villa Ballester",
+    "Villa Libertad",
+    "Villa Lynch",
+    "Villa Maipu"
+  ]
+};
 
 function todayDate() {
   const date = new Date();
@@ -33,8 +87,23 @@ function showSuccess(orderNumber) {
 function updateAddressRequirement() {
   const isDelivery = deliveryType.value === "DELIVERY";
   address.required = isDelivery;
+  district.required = isDelivery;
   locality.required = isDelivery;
   address.placeholder = isDelivery ? "Direccion obligatoria para delivery" : "Direccion si es delivery";
+}
+
+function updateLocalityOptions() {
+  const selectedDistrict = district.value;
+  const localities = LOCALITIES_BY_DISTRICT[selectedDistrict] || [];
+  const currentLocality = locality.value;
+  locality.innerHTML = '<option value="">Seleccionar localidad</option>';
+  localities.forEach(name => {
+    const option = document.createElement("option");
+    option.value = name;
+    option.textContent = name;
+    locality.append(option);
+  });
+  locality.value = localities.includes(currentLocality) ? currentLocality : "";
 }
 
 async function sendOrder(event) {
@@ -42,7 +111,7 @@ async function sendOrder(event) {
   setMessage("Enviando pedido...");
   successBox.hidden = true;
 
-  const addressText = [address.value.trim(), locality.value.trim()].filter(Boolean).join(" - ");
+  const addressText = [address.value.trim(), locality.value.trim(), district.value.trim()].filter(Boolean).join(" - ");
 
   const payload = {
     customer: document.querySelector("#clientCustomer").value,
@@ -77,5 +146,7 @@ async function sendOrder(event) {
 
 prepDate.value = todayDate();
 deliveryType.addEventListener("change", updateAddressRequirement);
+district.addEventListener("change", updateLocalityOptions);
 form.addEventListener("submit", sendOrder);
+updateLocalityOptions();
 updateAddressRequirement();
