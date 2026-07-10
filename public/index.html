@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sistema de pedidos</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Mostrador y entregas</p>
+        <h1 id="moduleTitle">Pedidos</h1>
+      </div>
+      <div class="top-actions">
+        <select id="currentUserSelect" title="Usuario activo"></select>
+        <button id="addUserBtn" class="ghost" type="button">Agregar usuario</button>
+        <button id="ordersViewBtn" class="primary" type="button">Pedidos</button>
+        <button id="deliveryViewBtn" class="ghost" type="button">Delivery</button>
+        <a class="ghost button-link" href="/cliente.html" target="_blank" rel="noopener">Formulario cliente</a>
+        <button id="refreshBtn" class="icon-btn" title="Actualizar" type="button">Actualizar</button>
+        <button id="newBtn" class="primary" type="button">Nuevo pedido</button>
+      </div>
+    </header>
+
+    <main id="ordersModule" class="module-view layout active-module">
+      <section class="panel form-panel" aria-label="Formulario de pedido">
+        <div class="section-title">
+          <h2 id="formTitle">Nuevo pedido</h2>
+          <button id="clearBtn" class="ghost" type="button">Limpiar</button>
+        </div>
+
+        <form id="orderForm">
+          <input id="orderId" type="hidden">
+
+          <div class="grid two">
+            <label>Cliente
+              <input id="customer" required autocomplete="off" list="customersList" placeholder="Nombre del cliente">
+            </label>
+            <label>Telefono
+              <input id="phone" autocomplete="tel" placeholder="Numero o WhatsApp">
+            </label>
+          </div>
+          <datalist id="customersList"></datalist>
+
+          <label>Direccion
+            <input id="address" autocomplete="street-address" placeholder="Direccion, barrio o referencia">
+          </label>
+
+          <label>Tipo de cliente
+            <select id="saleType">
+              <option>Minorista</option>
+              <option>Mayorista</option>
+            </select>
+          </label>
+
+          <div class="grid three">
+            <label>Tipo
+              <select id="deliveryType">
+                <option>RETIRO</option>
+                <option>DELIVERY</option>
+              </select>
+            </label>
+            <label>Estado
+              <select id="status">
+                <option>Provisorio</option>
+                <option>Nuevo</option>
+                <option>Preparado</option>
+                <option>Despachado</option>
+              </select>
+            </label>
+            <label>Pago
+              <select id="payment">
+                <option value="">Sin definir</option>
+                <option>Efectivo</option>
+                <option>Transferencia</option>
+                <option>Tarjeta de debito</option>
+                <option>Tarjeta de credito</option>
+                <option>Mercado Pago</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="grid two">
+            <label>Prioridad
+              <select id="priority">
+                <option>Media</option>
+                <option>Alta</option>
+                <option>Baja</option>
+              </select>
+            </label>
+            <label>Fecha
+              <input id="prepDate" type="date" required>
+            </label>
+          </div>
+
+          <div class="grid two">
+            <label>Horario
+              <input id="scheduledTime" type="time">
+            </label>
+            <label>Vehiculo delivery
+              <select id="routeVehicle">
+                <option>Sin asignar</option>
+                <option>Camion</option>
+                <option>Camioneta</option>
+              </select>
+            </label>
+          </div>
+
+          <label>Detalle del pedido
+            <textarea id="detail" class="order-detail-input" required rows="8" placeholder="Pega aca el pedido de WhatsApp o escribilo completo"></textarea>
+          </label>
+
+          <label>Notas
+            <textarea id="notes" rows="3" placeholder="Aclaraciones, horarios, cambios, etc."></textarea>
+          </label>
+
+          <p id="formMessage" class="message" role="status"></p>
+
+          <div class="form-actions">
+            <button id="deleteBtn" class="danger" type="button" hidden>Eliminar</button>
+            <button class="primary" type="submit">Guardar pedido</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="orders-area" aria-label="Listado de pedidos">
+        <div class="summary-strip">
+          <div><span id="countProvisional">0</span><small>Provisorios</small></div>
+          <div><span id="countNew">0</span><small>Nuevos</small></div>
+          <div><span id="countPreparing">0</span><small>Preparados</small></div>
+          <div><span id="countReady">0</span><small>Despachados</small></div>
+          <div><span id="countWholesale">0</span><small>Mayoristas</small></div>
+          <div><span id="countRetail">0</span><small>Minoristas</small></div>
+        </div>
+
+        <div class="filters">
+          <input id="prepDateFilter" type="date" title="Fecha de preparacion">
+          <input id="search" placeholder="Buscar por cliente, telefono, detalle, prioridad, horario o numero">
+          <select id="saleTypeFilter">
+            <option value="">Mayorista y minorista</option>
+            <option>Mayorista</option>
+            <option>Minorista</option>
+          </select>
+          <select id="statusFilter">
+            <option value="">Todos los estados</option>
+            <option>Provisorio</option>
+            <option>Nuevo</option>
+            <option>Preparado</option>
+            <option>Despachado</option>
+          </select>
+          <button id="printSummaryBtn" class="primary" type="button">Resumen día</button>
+        </div>
+
+        <div id="ordersList" class="orders-list"></div>
+      </section>
+    </main>
+
+    <main id="deliveryModule" class="module-view delivery-module" hidden>
+      <section class="delivery-head">
+        <div>
+          <p class="eyebrow dark">Modulo separado</p>
+          <h2>Delivery</h2>
+        </div>
+        <div class="delivery-actions">
+          <input id="deliveryDateFilter" type="date" title="Fecha de reparto">
+          <select id="deliveryVehicleFilter">
+            <option value="">Todos los vehiculos</option>
+            <option>Sin asignar</option>
+            <option>Camion</option>
+            <option>Camioneta</option>
+          </select>
+          <select id="deliveryStatusFilter">
+            <option value="">Todos</option>
+            <option>Nuevo</option>
+            <option>Preparado</option>
+          </select>
+          <button id="mapsRouteBtn" class="ghost" type="button">Abrir en Maps</button>
+          <button id="printRouteBtn" class="primary" type="button">Imprimir recorrido</button>
+        </div>
+      </section>
+
+      <section class="route-summary">
+        <div><span id="routeCount">0</span><small>Entregas</small></div>
+        <div><span id="routeHigh">0</span><small>Alta prioridad</small></div>
+        <div><span id="routeNext">-</span><small>Proximo horario</small></div>
+      </section>
+
+      <section class="route-layout">
+        <div>
+          <h3>Recorrido sugerido</h3>
+          <div id="routeList" class="route-list"></div>
+        </div>
+        <aside class="route-note">
+          <h3>Para el chofer</h3>
+          <p>El recorrido se arma con pedidos de DELIVERY que tienen direccion. Primero ordena por estado pendiente, prioridad alta y horario mas temprano. Las direcciones quedan visibles para organizar la salida sin mezclar con la toma de pedidos.</p>
+        </aside>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

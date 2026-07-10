@@ -1,0 +1,11 @@
+{
+  "name": "app-pedidos",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sistema local para tomar y seguir pedidos.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "migrar:supabase": "node scripts/migrar-supabase.js"
+  }
+}

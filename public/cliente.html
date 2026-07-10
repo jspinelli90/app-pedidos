@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Enviar pedido</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body class="client-page">
+    <main class="client-shell">
+      <section class="panel client-panel">
+        <div class="client-head">
+          <p class="eyebrow">Formulario de pedido</p>
+          <h1>Enviar pedido</h1>
+        </div>
+
+        <form id="clientOrderForm">
+          <div class="grid two">
+            <label>Nombre
+              <input id="clientCustomer" required autocomplete="name" placeholder="Nombre y apellido">
+            </label>
+            <label>Telefono
+              <input id="clientPhone" autocomplete="tel" placeholder="WhatsApp o telefono">
+            </label>
+          </div>
+
+          <label>Direccion
+            <input id="clientAddress" autocomplete="street-address" placeholder="Direccion si es delivery">
+          </label>
+
+          <div class="grid two">
+            <label>Tipo de cliente
+              <select id="clientSaleType">
+                <option>Minorista</option>
+                <option>Mayorista</option>
+              </select>
+            </label>
+            <label>Tipo de entrega
+              <select id="clientDeliveryType">
+                <option>RETIRO</option>
+                <option>DELIVERY</option>
+              </select>
+            </label>
+          </div>
+
+          <label>Forma de pago
+            <select id="clientPayment">
+              <option>Efectivo</option>
+              <option>Transferencia</option>
+              <option>Tarjeta de debito</option>
+              <option>Tarjeta de credito</option>
+            </select>
+          </label>
+
+          <div class="grid two">
+            <label>Fecha
+              <input id="clientPrepDate" type="date" required>
+            </label>
+            <label>Horario
+              <input id="clientScheduledTime" type="time">
+            </label>
+          </div>
+
+          <label>Detalle del pedido
+            <textarea id="clientDetail" class="order-detail-input" required rows="8" placeholder="Escribi aca tu pedido completo"></textarea>
+          </label>
+
+          <label>Aclaraciones
+            <textarea id="clientNotes" rows="3" placeholder="Cambios, referencias, horarios o comentarios"></textarea>
+          </label>
+
+          <div class="client-notice">
+            Los pedidos son provisorios hasta que el local los confirme por WhatsApp. Los pedidos para delivery recibidos luego de las 11 de la mañana seran enviados el dia siguiente.
+          </div>
+
+          <p id="clientMessage" class="message" role="status"></p>
+
+          <button class="primary client-submit" type="submit">Enviar pedido</button>
+        </form>
+      </section>
+    </main>
+
+    <script src="/cliente.js"></script>
+  </body>
+</html>
