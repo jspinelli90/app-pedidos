@@ -28,20 +28,12 @@
             <input id="clientAddress" autocomplete="street-address" placeholder="Direccion si es delivery">
           </label>
 
-          <div class="grid two">
-            <label>Tipo de cliente
-              <select id="clientSaleType">
-                <option>Minorista</option>
-                <option>Mayorista</option>
-              </select>
-            </label>
-            <label>Tipo de entrega
-              <select id="clientDeliveryType">
-                <option>RETIRO</option>
-                <option>DELIVERY</option>
-              </select>
-            </label>
-          </div>
+          <label>Tipo de entrega
+            <select id="clientDeliveryType">
+              <option>RETIRO</option>
+              <option>DELIVERY</option>
+            </select>
+          </label>
 
           <label>Forma de pago
             <select id="clientPayment">
@@ -52,13 +44,12 @@
             </select>
           </label>
 
-          <div class="grid two">
-            <label>Fecha
-              <input id="clientPrepDate" type="date" required>
-            </label>
-            <label>Horario
-              <input id="clientScheduledTime" type="time">
-            </label>
+          <label>Fecha
+            <input id="clientPrepDate" type="date" required>
+          </label>
+
+          <div class="client-notice">
+            El rango de entrega para delivery es de 11 a 15 hs.
           </div>
 
           <label>Detalle del pedido
@@ -70,7 +61,7 @@
           </label>
 
           <div class="client-notice">
-            Los pedidos son provisorios hasta que el local los confirme por WhatsApp. Los pedidos para delivery recibidos luego de las 11 de la mañana seran enviados el dia siguiente.
+            Los pedidos son provisorios hasta que el local los confirme por WhatsApp. El rango de entrega para delivery es de 11 a 15 hs. Los pedidos para delivery recibidos luego de las 11 de la manana seran enviados el dia siguiente.
           </div>
 
           <p id="clientMessage" class="message" role="status"></p>
