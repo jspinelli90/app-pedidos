@@ -24,9 +24,25 @@
             </label>
           </div>
 
-          <label>Direccion
-            <input id="clientAddress" autocomplete="street-address" placeholder="Direccion si es delivery">
-          </label>
+          <div class="grid two">
+            <label>Direccion
+              <input id="clientAddress" autocomplete="street-address" placeholder="Calle, numero, piso o referencia">
+            </label>
+            <label>Localidad
+              <select id="clientLocality">
+                <option value="">Seleccionar localidad</option>
+                <option>Tigre</option>
+                <option>San Fernando</option>
+                <option>San Isidro</option>
+                <option>Vicente Lopez</option>
+                <option>San Martin</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="client-notice">
+            Los envios se realizan solamente a los partidos de Tigre, San Fernando, San Isidro, Vicente Lopez y San Martin.
+          </div>
 
           <label>Tipo de entrega
             <select id="clientDeliveryType">
@@ -65,6 +81,7 @@
           </div>
 
           <p id="clientMessage" class="message" role="status"></p>
+          <div id="clientSuccess" class="client-success" role="status" hidden></div>
 
           <button class="primary client-submit" type="submit">Enviar pedido</button>
         </form>
@@ -74,3 +91,4 @@
     <script src="/cliente.js"></script>
   </body>
 </html>
+
