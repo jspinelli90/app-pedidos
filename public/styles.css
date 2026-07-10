@@ -441,6 +441,26 @@ textarea:focus {
   padding: 12px;
 }
 
+.client-success {
+  display: grid;
+  gap: 8px;
+  border: 2px solid #0f6b5f;
+  border-radius: 8px;
+  background: #edf8f5;
+  color: #0f3f38;
+  font-size: 15px;
+  line-height: 1.35;
+  padding: 16px;
+}
+
+.client-success strong {
+  font-size: 20px;
+}
+
+.client-success span {
+  display: block;
+}
+
 .client-submit {
   width: 100%;
 }
