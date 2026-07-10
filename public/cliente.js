@@ -1,77 +1,61 @@
-<!doctype html>
-<html lang="es">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Enviar pedido</title>
-    <link rel="stylesheet" href="/styles.css">
-  </head>
-  <body class="client-page">
-    <main class="client-shell">
-      <section class="panel client-panel">
-        <div class="client-head">
-          <p class="eyebrow">Formulario de pedido</p>
-          <h1>Enviar pedido</h1>
-        </div>
+const form = document.querySelector("#clientOrderForm");
+const message = document.querySelector("#clientMessage");
+const prepDate = document.querySelector("#clientPrepDate");
+const deliveryType = document.querySelector("#clientDeliveryType");
+const address = document.querySelector("#clientAddress");
 
-        <form id="clientOrderForm">
-          <div class="grid two">
-            <label>Nombre
-              <input id="clientCustomer" required autocomplete="name" placeholder="Nombre y apellido">
-            </label>
-            <label>Telefono
-              <input id="clientPhone" autocomplete="tel" placeholder="WhatsApp o telefono">
-            </label>
-          </div>
+function todayDate() {
+  const date = new Date();
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+}
 
-          <label>Direccion
-            <input id="clientAddress" autocomplete="street-address" placeholder="Direccion si es delivery">
-          </label>
+function setMessage(text, isError = false) {
+  message.textContent = text;
+  message.style.color = isError ? "#b83232" : "#0f6b5f";
+}
 
-          <label>Tipo de entrega
-            <select id="clientDeliveryType">
-              <option>RETIRO</option>
-              <option>DELIVERY</option>
-            </select>
-          </label>
+function updateAddressRequirement() {
+  address.required = deliveryType.value === "DELIVERY";
+  address.placeholder = address.required ? "Direccion obligatoria para delivery" : "Direccion si es delivery";
+}
 
-          <label>Forma de pago
-            <select id="clientPayment">
-              <option>Efectivo</option>
-              <option>Transferencia</option>
-              <option>Tarjeta de debito</option>
-              <option>Tarjeta de credito</option>
-            </select>
-          </label>
+async function sendOrder(event) {
+  event.preventDefault();
+  setMessage("Enviando pedido...");
 
-          <label>Fecha
-            <input id="clientPrepDate" type="date" required>
-          </label>
+  const payload = {
+    customer: document.querySelector("#clientCustomer").value,
+    phone: document.querySelector("#clientPhone").value,
+    address: address.value,
+    saleType: "Minorista",
+    deliveryType: deliveryType.value,
+    payment: document.querySelector("#clientPayment").value,
+    prepDate: prepDate.value,
+    scheduledTime: "",
+    detail: document.querySelector("#clientDetail").value,
+    notes: document.querySelector("#clientNotes").value
+  };
 
-          <div class="client-notice">
-            El rango de entrega para delivery es de 11 a 15 hs.
-          </div>
+  try {
+    const response = await fetch("/api/public-orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const text = await response.text();
+    const data = text ? JSON.parse(text) : {};
+    if (!response.ok) throw new Error(data.error || "No se pudo enviar el pedido.");
+    form.reset();
+    prepDate.value = todayDate();
+    updateAddressRequirement();
+    setMessage(`Gracias por tu pedido.\nQuedo cargado como provisorio con el numero #${data.number}.\nEl local lo va a confirmar por WhatsApp.\nEl rango de entrega para delivery es de 11 a 15 hs.\nLos pedidos para delivery recibidos luego de las 11 de la manana seran enviados el dia siguiente.`);
+  } catch (error) {
+    setMessage(error.message, true);
+  }
+}
 
-          <label>Detalle del pedido
-            <textarea id="clientDetail" class="order-detail-input" required rows="8" placeholder="Escribi aca tu pedido completo"></textarea>
-          </label>
-
-          <label>Aclaraciones
-            <textarea id="clientNotes" rows="3" placeholder="Cambios, referencias, horarios o comentarios"></textarea>
-          </label>
-
-          <div class="client-notice">
-            Los pedidos son provisorios hasta que el local los confirme por WhatsApp. El rango de entrega para delivery es de 11 a 15 hs. Los pedidos para delivery recibidos luego de las 11 de la manana seran enviados el dia siguiente.
-          </div>
-
-          <p id="clientMessage" class="message" role="status"></p>
-
-          <button class="primary client-submit" type="submit">Enviar pedido</button>
-        </form>
-      </section>
-    </main>
-
-    <script src="/cliente.js"></script>
-  </body>
-</html>
-
+prepDate.value = todayDate();
+deliveryType.addEventListener("change", updateAddressRequirement);
+form.addEventListener("submit", sendOrder);
+updateAddressRequirement();
