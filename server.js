@@ -84,7 +84,8 @@ async function supabaseRequest(pathname, options = {}) {
     throw new Error(`Supabase no respondio correctamente: ${response.status} ${detail}`);
   }
   if (response.status === 204) return null;
-  return response.json();
+  const text = await response.text();
+  return text ? JSON.parse(text) : null;
 }
 
 async function readStore(key, filePath) {
@@ -522,3 +523,4 @@ server.listen(PORT, HOST, () => {
   console.log(`Datos: ${USE_SUPABASE ? "Supabase online" : "archivos locales"}`);
   localIps().forEach(ip => console.log(`Desde otra PC: http://${ip}:${PORT}`));
 });
+
