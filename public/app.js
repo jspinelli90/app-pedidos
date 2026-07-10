@@ -200,7 +200,8 @@ async function api(path, options = {}) {
     headers: { "Content-Type": "application/json" },
     ...options
   });
-  const data = await response.json();
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : {};
   if (!response.ok) throw new Error(data.error || "No se pudo completar la accion.");
   return data;
 }
@@ -224,13 +225,13 @@ async function loadMovements() {
 async function loadCustomers() {
   state.customers = await api("/api/customers");
   renderCustomers();
-  renderSummary(state.orders);
 }
 
 async function refreshAll() {
+  renderLoadingState();
   await loadUsers();
-  await loadCustomers();
   await loadOrders();
+  await loadCustomers();
   await loadMovements();
 }
 
@@ -294,6 +295,24 @@ function renderSummary(orders) {
   els.countReady.textContent = orders.filter(order => order.status === "Despachado").length;
   els.countWholesale.textContent = orders.filter(order => orderSaleType(order) === "Mayorista").length;
   els.countRetail.textContent = orders.filter(order => orderSaleType(order) === "Minorista").length;
+}
+
+function renderLoadingState() {
+  [
+    els.countProvisional,
+    els.countNew,
+    els.countPreparing,
+    els.countReady,
+    els.countWholesale,
+    els.countRetail,
+    els.routeCount,
+    els.routeHigh
+  ].forEach(element => {
+    element.textContent = "...";
+  });
+  els.routeNext.textContent = "...";
+  els.ordersList.innerHTML = '<div class="empty">Cargando pedidos...</div>';
+  els.routeList.innerHTML = '<div class="empty">Cargando entregas...</div>';
 }
 
 function matchesOrder(order, text) {
@@ -936,3 +955,4 @@ resetForm();
 els.prepDateFilter.value = todayDate();
 els.deliveryDateFilter.value = todayDate();
 refreshAll().catch(error => setMessage(error.message, true));
+
