@@ -3,6 +3,8 @@ const message = document.querySelector("#clientMessage");
 const prepDate = document.querySelector("#clientPrepDate");
 const deliveryType = document.querySelector("#clientDeliveryType");
 const address = document.querySelector("#clientAddress");
+const locality = document.querySelector("#clientLocality");
+const successBox = document.querySelector("#clientSuccess");
 
 function todayDate() {
   const date = new Date();
@@ -13,21 +15,39 @@ function todayDate() {
 function setMessage(text, isError = false) {
   message.textContent = text;
   message.style.color = isError ? "#b83232" : "#0f6b5f";
+  if (text) successBox.hidden = true;
+}
+
+function showSuccess(orderNumber) {
+  message.textContent = "";
+  successBox.hidden = false;
+  successBox.innerHTML = `
+    <strong>Pedido enviado con exito</strong>
+    <span>Tu pedido quedo cargado como provisorio con el numero #${orderNumber}.</span>
+    <span>El local lo va a confirmar por WhatsApp.</span>
+    <span>El rango de entrega para delivery es de 11 a 15 hs.</span>
+  `;
+  successBox.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 function updateAddressRequirement() {
-  address.required = deliveryType.value === "DELIVERY";
-  address.placeholder = address.required ? "Direccion obligatoria para delivery" : "Direccion si es delivery";
+  const isDelivery = deliveryType.value === "DELIVERY";
+  address.required = isDelivery;
+  locality.required = isDelivery;
+  address.placeholder = isDelivery ? "Direccion obligatoria para delivery" : "Direccion si es delivery";
 }
 
 async function sendOrder(event) {
   event.preventDefault();
   setMessage("Enviando pedido...");
+  successBox.hidden = true;
+
+  const addressText = [address.value.trim(), locality.value.trim()].filter(Boolean).join(" - ");
 
   const payload = {
     customer: document.querySelector("#clientCustomer").value,
     phone: document.querySelector("#clientPhone").value,
-    address: address.value,
+    address: addressText,
     saleType: "Minorista",
     deliveryType: deliveryType.value,
     payment: document.querySelector("#clientPayment").value,
@@ -49,7 +69,7 @@ async function sendOrder(event) {
     form.reset();
     prepDate.value = todayDate();
     updateAddressRequirement();
-    setMessage(`Gracias por tu pedido.\nQuedo cargado como provisorio con el numero #${data.number}.\nEl local lo va a confirmar por WhatsApp.\nEl rango de entrega para delivery es de 11 a 15 hs.\nLos pedidos para delivery recibidos luego de las 11 de la manana seran enviados el dia siguiente.`);
+    showSuccess(data.number);
   } catch (error) {
     setMessage(error.message, true);
   }
