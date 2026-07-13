@@ -172,6 +172,7 @@
           </select>
           <select id="deliveryStatusFilter">
             <option value="">Todos</option>
+            <option>Provisorio</option>
             <option>Nuevo</option>
             <option>Preparado</option>
           </select>
@@ -193,7 +194,7 @@
         </div>
         <aside class="route-note">
           <h3>Para el chofer</h3>
-          <p>El recorrido se arma con pedidos de DELIVERY que tienen direccion. Primero ordena por estado pendiente, prioridad alta y horario mas temprano. Las direcciones quedan visibles para organizar la salida sin mezclar con la toma de pedidos.</p>
+          <p>El recorrido muestra todos los pedidos de DELIVERY pendientes. Si falta una direccion, queda indicado para poder completarla antes de la salida. Primero ordena por estado, prioridad alta y horario mas temprano.</p>
         </aside>
       </section>
     </main>
@@ -201,3 +202,4 @@
     <script src="/app.js"></script>
   </body>
 </html>
+
