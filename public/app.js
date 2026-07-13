@@ -428,7 +428,7 @@ function deliveryOrders() {
   const vehicle = els.deliveryVehicleFilter.value;
   const status = els.deliveryStatusFilter.value;
   return state.orders
-    .filter(order => order.deliveryType === "DELIVERY" && order.address && !["Provisorio", "Despachado"].includes(order.status))
+    .filter(order => order.deliveryType === "DELIVERY" && order.status !== "Despachado")
     .filter(order => !date || orderPrepDate(order) === date)
     .filter(order => !vehicle || orderRouteVehicle(order) === vehicle)
     .filter(order => !status || order.status === status)
@@ -443,7 +443,7 @@ function renderDelivery() {
   els.routeList.innerHTML = "";
 
   if (!orders.length) {
-    els.routeList.innerHTML = '<div class="empty">No hay entregas pendientes con direccion.</div>';
+    els.routeList.innerHTML = '<div class="empty">No hay entregas pendientes para los filtros seleccionados.</div>';
     return;
   }
 
@@ -461,7 +461,7 @@ function renderDelivery() {
             <span class="sale-type-banner">${escapeHtml(orderSaleType(order))}</span>
             <span class="priority-pill">${escapeHtml(orderPriority(order))}</span>
           </div>
-          <div class="route-address">${escapeHtml(order.address)} | ${escapeHtml(orderRouteVehicle(order))} | ${escapeHtml(order.status)} | ${escapeHtml(formatDate(orderPrepDate(order)))}${orderScheduledTime(order) ? ` | ${escapeHtml(orderScheduledTime(order))}` : ""}${order.phone ? ` | Tel: ${escapeHtml(order.phone)}` : ""}</div>
+          <div class="route-address">${escapeHtml(order.address || "FALTA CARGAR DIRECCION")} | ${escapeHtml(orderRouteVehicle(order))} | ${escapeHtml(order.status)} | ${escapeHtml(formatDate(orderPrepDate(order)))}${orderScheduledTime(order) ? ` | ${escapeHtml(orderScheduledTime(order))}` : ""}${order.phone ? ` | Tel: ${escapeHtml(order.phone)}` : ""}</div>
         </div>
         <div class="route-actions">
           <select class="route-vehicle" aria-label="Vehiculo">
@@ -955,4 +955,3 @@ resetForm();
 els.prepDateFilter.value = todayDate();
 els.deliveryDateFilter.value = todayDate();
 refreshAll().catch(error => setMessage(error.message, true));
-
