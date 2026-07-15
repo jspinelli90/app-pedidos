@@ -559,7 +559,10 @@ async function handleApi(req, res) {
     if (url.pathname === "/api/orders" && req.method === "POST") {
       const payload = await readBody(req);
       const orders = await readOrders();
-      const order = normalizeOrder(payload);
+      const order = normalizeOrder({
+        ...payload,
+        status: cleanText(payload.status) === "Provisorio" ? "Nuevo" : payload.status
+      });
       if (!order.customer || !order.detail) {
         return sendJson(res, 400, { error: "Completa cliente y detalle del pedido." });
       }
