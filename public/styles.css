@@ -354,8 +354,33 @@ textarea:focus {
 .order-line {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 7px;
   min-width: 0;
+}
+
+.origin-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  border-radius: 6px;
+  padding: 4px 9px;
+  background: #e8edf0;
+  color: #40515c;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.order-card[data-origin="cliente"] {
+  background: #fff7df;
+  box-shadow: 0 0 0 2px #f4b740, 0 8px 22px rgba(180, 111, 0, 0.16);
+}
+
+.order-card[data-origin="cliente"] .origin-badge {
+  background: #d97706;
+  color: #fff;
 }
 
 .sale-type-banner {
@@ -439,6 +464,32 @@ textarea:focus {
   font-weight: 700;
   line-height: 1.4;
   padding: 12px;
+}
+
+.client-cutoff-notice {
+  display: grid;
+  gap: 6px;
+  border: 3px solid #dc2626;
+  border-radius: 10px;
+  background: #fff1f1;
+  color: #8b1111;
+  padding: 16px;
+  box-shadow: 0 8px 24px rgba(185, 28, 28, 0.18);
+}
+
+.client-cutoff-notice[hidden] {
+  display: none;
+}
+
+.client-cutoff-notice strong {
+  font-size: 20px;
+  letter-spacing: 0.02em;
+}
+
+.client-cutoff-notice span {
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.45;
 }
 
 .client-success {
