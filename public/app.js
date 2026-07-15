@@ -386,6 +386,7 @@ function renderCustomerAgenda() {
         ${whatsapp ? `<a class="ghost button-link customer-whatsapp" href="https://wa.me/${whatsapp}" target="_blank" rel="noopener">WhatsApp</a>` : ""}
         <button class="ghost customer-history-toggle" type="button" ${history.length ? "" : "disabled"}>Historial</button>
         <button class="ghost customer-edit" type="button">Editar</button>
+        <button class="danger customer-delete" type="button">Eliminar</button>
         <button class="primary customer-new-order" type="button">Nuevo pedido</button>
       </div>
       <div class="customer-history" hidden>
@@ -400,6 +401,7 @@ function renderCustomerAgenda() {
       </div>
     `;
     card.querySelector(".customer-edit").addEventListener("click", () => openCustomerDialog(customer));
+    card.querySelector(".customer-delete").addEventListener("click", () => deleteCustomer(customer));
     card.querySelector(".customer-new-order").addEventListener("click", () => newOrderForCustomer(customer));
     const historyButton = card.querySelector(".customer-history-toggle");
     historyButton.addEventListener("click", () => {
@@ -467,6 +469,17 @@ function newOrderForCustomer(customer) {
   els.saleType.value = orderSaleType(customer);
   els.notes.value = customer.notes || "";
   els.detail.focus();
+}
+
+async function deleteCustomer(customer) {
+  const ok = confirm(`Eliminar a ${customer.name} de la agenda?\n\nSus pedidos historicos se conservaran.`);
+  if (!ok) return;
+  try {
+    await api(`/api/customers/${customer.id}`, { method: "DELETE" });
+    await loadCustomers();
+  } catch (error) {
+    alert(error.message);
+  }
 }
 
 function renderSummary(orders) {
