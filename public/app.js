@@ -651,8 +651,32 @@ function nextStatusButton(order) {
     Preparado: "Despachado"
   }[order.status];
   if (!next) return "";
-  const label = order.status === "Provisorio" ? "Confirmar" : `Pasar a ${next}`;
+  const label = order.status === "Provisorio"
+    ? (whatsappPhone(order.phone) ? "Confirmar y avisar" : "Confirmar (sin WhatsApp)")
+    : `Pasar a ${next}`;
   return `<button class="primary next-status" type="button">${label}</button>`;
+}
+
+function whatsappPhone(value) {
+  let digits = String(value || "").replace(/\D/g, "");
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  if (/^01115\d{8}$/.test(digits)) return `54911${digits.slice(5)}`;
+  if (digits.startsWith("549")) return digits;
+  if (digits.startsWith("54")) return `549${digits.slice(2).replace(/^0/, "")}`;
+  digits = digits.replace(/^0/, "");
+  if (digits.length === 10) return `549${digits}`;
+  return digits;
+}
+
+function whatsappConfirmationUrl(order) {
+  const phone = whatsappPhone(order.phone);
+  if (!phone) return "";
+  const message = [
+    `Hola ${order.customer}, tu pedido #${order.number} fue confirmado.`,
+    `Fecha: ${formatDate(orderPrepDate(order))}.`,
+    "Nos vamos a comunicar si necesitamos alguna aclaracion. Muchas gracias."
+  ].join("\n");
+  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }
 
 async function quickStatus(order) {
@@ -662,12 +686,39 @@ async function quickStatus(order) {
     Preparado: "Despachado"
   }[order.status];
   if (!next) return;
-  await api(`/api/orders/${order.id}`, {
-    method: "PUT",
-    body: JSON.stringify(withAudit({ ...order, detail: orderDetail(order), saleType: orderSaleType(order), priority: orderPriority(order), prepDate: orderPrepDate(order), scheduledTime: orderScheduledTime(order), routeVehicle: orderRouteVehicle(order), status: next }, `Estado cambiado a ${next}`))
-  });
-  await loadOrders();
-  await loadMovements();
+  const shouldNotify = order.status === "Provisorio";
+  const whatsappUrl = shouldNotify ? whatsappConfirmationUrl(order) : "";
+  let whatsappWindow = null;
+  if (whatsappUrl) {
+    whatsappWindow = window.open("", "confirmacion-whatsapp");
+    if (whatsappWindow) {
+      whatsappWindow.opener = null;
+      whatsappWindow.document.body.textContent = "Preparando mensaje de confirmacion...";
+    }
+  }
+
+  try {
+    await api(`/api/orders/${order.id}`, {
+      method: "PUT",
+      body: JSON.stringify(withAudit({ ...order, detail: orderDetail(order), saleType: orderSaleType(order), priority: orderPriority(order), prepDate: orderPrepDate(order), scheduledTime: orderScheduledTime(order), routeVehicle: orderRouteVehicle(order), status: next }, `Estado cambiado a ${next}`))
+    });
+
+    if (shouldNotify) {
+      if (!whatsappUrl) {
+        alert("El pedido fue confirmado, pero no tiene un telefono cargado para avisar por WhatsApp.");
+      } else if (whatsappWindow) {
+        whatsappWindow.location.href = whatsappUrl;
+      } else {
+        alert("El pedido fue confirmado. El navegador bloqueo WhatsApp; habilita las ventanas emergentes para poder avisar.");
+      }
+    }
+
+    await loadOrders();
+    await loadMovements();
+  } catch (error) {
+    if (whatsappWindow) whatsappWindow.close();
+    alert(error.message);
+  }
 }
 
 function escapeHtml(value) {
