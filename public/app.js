@@ -128,6 +128,10 @@ function orderSaleType(order) {
   return order.saleType === "Mayorista" ? "Mayorista" : "Minorista";
 }
 
+function orderOrigin(order) {
+  return String(order.createdBy || "").trim().toLowerCase() === "cliente" ? "cliente" : "administrativo";
+}
+
 function defaultPriorityForDeliveryType(deliveryType) {
   return deliveryType === "DELIVERY" ? "Baja" : "Media";
 }
@@ -364,6 +368,7 @@ function render() {
     card.dataset.status = order.status;
     card.dataset.priority = orderPriority(order);
     card.dataset.saleType = orderSaleType(order);
+    card.dataset.origin = orderOrigin(order);
     const timeText = orderScheduledTime(order) ? ` | Horario: ${escapeHtml(orderScheduledTime(order))}` : "";
     const vehicleText = order.deliveryType === "DELIVERY" ? ` | ${escapeHtml(orderRouteVehicle(order))}` : "";
     const trace = orderMovements(order).map(movement => `
@@ -379,6 +384,7 @@ function render() {
         <div class="order-main">
           <div class="order-line">
             <h3 class="order-title">#${order.number} - ${escapeHtml(order.customer)}</h3>
+            <span class="origin-badge">${orderOrigin(order) === "cliente" ? "CLIENTE ONLINE" : "CARGA INTERNA"}</span>
             <span class="sale-type-banner">${escapeHtml(orderSaleType(order))}</span>
             <span class="status-pill">${escapeHtml(order.status)}</span>
             <span class="priority-pill">${escapeHtml(orderPriority(order))}</span>
