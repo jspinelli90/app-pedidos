@@ -135,6 +135,7 @@ function normalizeCustomer(input, existing = {}) {
     address: cleanText(input.address),
     saleType: normalizeSaleType(input.saleType),
     notes: cleanText(input.notes),
+    active: existing.active !== false,
     createdAt: existing.createdAt || now,
     updatedAt: now
   };
@@ -354,6 +355,7 @@ async function saveCustomerFromOrder(order, options = {}) {
     phone: order.phone,
     address: order.address,
     saleType: normalizeSaleType(order.saleType),
+    active: true,
     createdAt: index === -1 ? new Date().toISOString() : customers[index].createdAt,
     updatedAt: new Date().toISOString()
   };
@@ -449,7 +451,9 @@ async function handleApi(req, res) {
 
     if (url.pathname === "/api/customers" && req.method === "GET") {
       await syncCustomersFromOrders();
-      const customers = (await readCustomers()).sort((a, b) => a.name.localeCompare(b.name, "es"));
+      const customers = (await readCustomers())
+        .filter(customer => customer.active !== false)
+        .sort((a, b) => a.name.localeCompare(b.name, "es"));
       return sendJson(res, 200, customers);
     }
 
@@ -459,7 +463,13 @@ async function handleApi(req, res) {
       if (!customer.name) return sendJson(res, 400, { error: "Completa el nombre del cliente." });
       const customers = await readCustomers();
       const duplicate = customers.find(current => customerIdentity(current) === customerIdentity(customer));
-      if (duplicate) return sendJson(res, 409, { error: "Ya existe un cliente con ese telefono o nombre." });
+      if (duplicate && duplicate.active !== false) return sendJson(res, 409, { error: "Ya existe un cliente con ese telefono o nombre." });
+      if (duplicate) {
+        const index = customers.findIndex(current => current.id === duplicate.id);
+        customers[index] = { ...normalizeCustomer(payload, duplicate), active: true };
+        await writeCustomers(customers);
+        return sendJson(res, 201, customers[index]);
+      }
       customers.push(customer);
       await writeCustomers(customers);
       return sendJson(res, 201, customer);
@@ -478,6 +488,15 @@ async function handleApi(req, res) {
       customers[index] = customer;
       await writeCustomers(customers);
       return sendJson(res, 200, customer);
+    }
+
+    if (customerMatch && req.method === "DELETE") {
+      const customers = await readCustomers();
+      const index = customers.findIndex(customer => customer.id === customerMatch[1]);
+      if (index === -1) return sendJson(res, 404, { error: "Cliente no encontrado." });
+      customers[index] = { ...customers[index], active: false, updatedAt: new Date().toISOString() };
+      await writeCustomers(customers);
+      return sendJson(res, 200, { ok: true });
     }
 
     if (url.pathname === "/api/users" && req.method === "GET") {
