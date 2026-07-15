@@ -3,7 +3,8 @@ const state = {
   customers: [],
   users: [],
   movements: [],
-  editingId: null
+  editingId: null,
+  editingCustomerId: null
 };
 
 const els = {
@@ -12,8 +13,10 @@ const els = {
   moduleTitle: document.querySelector("#moduleTitle"),
   ordersModule: document.querySelector("#ordersModule"),
   deliveryModule: document.querySelector("#deliveryModule"),
+  customersModule: document.querySelector("#customersModule"),
   ordersViewBtn: document.querySelector("#ordersViewBtn"),
   deliveryViewBtn: document.querySelector("#deliveryViewBtn"),
+  customersViewBtn: document.querySelector("#customersViewBtn"),
   form: document.querySelector("#orderForm"),
   formTitle: document.querySelector("#formTitle"),
   formMessage: document.querySelector("#formMessage"),
@@ -56,7 +59,25 @@ const els = {
   routeCount: document.querySelector("#routeCount"),
   routeHigh: document.querySelector("#routeHigh"),
   routeNext: document.querySelector("#routeNext"),
-  routeList: document.querySelector("#routeList")
+  routeList: document.querySelector("#routeList"),
+  addCustomerBtn: document.querySelector("#addCustomerBtn"),
+  customerCount: document.querySelector("#customerCount"),
+  customerWholesaleCount: document.querySelector("#customerWholesaleCount"),
+  customerRetailCount: document.querySelector("#customerRetailCount"),
+  customerSearch: document.querySelector("#customerSearch"),
+  customerTypeFilter: document.querySelector("#customerTypeFilter"),
+  customerAgendaList: document.querySelector("#customerAgendaList"),
+  customerDialog: document.querySelector("#customerDialog"),
+  customerForm: document.querySelector("#customerForm"),
+  customerFormTitle: document.querySelector("#customerFormTitle"),
+  customerFormMessage: document.querySelector("#customerFormMessage"),
+  customerName: document.querySelector("#customerName"),
+  customerPhone: document.querySelector("#customerPhone"),
+  customerAddress: document.querySelector("#customerAddress"),
+  customerSaleType: document.querySelector("#customerSaleType"),
+  customerNotes: document.querySelector("#customerNotes"),
+  closeCustomerDialogBtn: document.querySelector("#closeCustomerDialogBtn"),
+  cancelCustomerBtn: document.querySelector("#cancelCustomerBtn")
 };
 
 function dateTime(value) {
@@ -214,6 +235,7 @@ async function loadOrders() {
   state.orders = await api("/api/orders");
   render();
   renderDelivery();
+  renderCustomerAgenda();
 }
 
 async function loadUsers() {
@@ -229,6 +251,7 @@ async function loadMovements() {
 async function loadCustomers() {
   state.customers = await api("/api/customers");
   renderCustomers();
+  renderCustomerAgenda();
 }
 
 async function refreshAll() {
@@ -292,6 +315,160 @@ function fillCustomerData() {
   els.saleType.value = orderSaleType(customer);
 }
 
+
+function agendaPhoneKey(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  return digits.length > 10 ? digits.slice(-10) : digits;
+}
+
+function customerOrderHistory(customer) {
+  const phone = agendaPhoneKey(customer.phone);
+  const name = String(customer.name || "").trim().toLowerCase();
+  return state.orders
+    .filter(order => {
+      const samePhone = phone && agendaPhoneKey(order.phone) === phone;
+      const sameName = name && String(order.customer || "").trim().toLowerCase() === name;
+      return samePhone || sameName;
+    })
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+}
+
+function customerSearchText(customer) {
+  return [customer.name, customer.phone, customer.address, customer.notes, customer.saleType]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function renderCustomerAgenda() {
+  if (!els.customerAgendaList) return;
+  const search = els.customerSearch.value.trim().toLowerCase();
+  const type = els.customerTypeFilter.value;
+  const customers = state.customers
+    .filter(customer => !search || customerSearchText(customer).includes(search))
+    .filter(customer => !type || orderSaleType(customer) === type)
+    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "es"));
+
+  els.customerCount.textContent = state.customers.length;
+  els.customerWholesaleCount.textContent = state.customers.filter(customer => orderSaleType(customer) === "Mayorista").length;
+  els.customerRetailCount.textContent = state.customers.filter(customer => orderSaleType(customer) === "Minorista").length;
+  els.customerAgendaList.innerHTML = "";
+
+  if (!customers.length) {
+    els.customerAgendaList.innerHTML = '<div class="empty">No encontramos clientes con esos filtros.</div>';
+    return;
+  }
+
+  customers.forEach(customer => {
+    const history = customerOrderHistory(customer);
+    const lastOrder = history[0];
+    const whatsapp = whatsappPhone(customer.phone);
+    const card = document.createElement("article");
+    card.className = "customer-card";
+    card.innerHTML = `
+      <div class="customer-card-main">
+        <div class="customer-avatar">${escapeHtml(String(customer.name || "?").trim().slice(0, 1).toUpperCase())}</div>
+        <div class="customer-card-data">
+          <div class="customer-title-line">
+            <h3>${escapeHtml(customer.name)}</h3>
+            <span class="customer-type ${orderSaleType(customer).toLowerCase()}">${escapeHtml(orderSaleType(customer))}</span>
+          </div>
+          <p><strong>Telefono:</strong> ${escapeHtml(customer.phone || "Sin telefono")}</p>
+          <p><strong>Direccion:</strong> ${escapeHtml(customer.address || "Sin direccion")}</p>
+          ${customer.notes ? `<p class="customer-notes"><strong>Observaciones:</strong> ${escapeHtml(customer.notes)}</p>` : ""}
+          <div class="customer-stats">
+            <span>${history.length} ${history.length === 1 ? "pedido" : "pedidos"}</span>
+            <span>${lastOrder ? `Ultimo: ${escapeHtml(formatDate(orderPrepDate(lastOrder)))}` : "Sin pedidos registrados"}</span>
+          </div>
+        </div>
+      </div>
+      <div class="customer-actions">
+        ${whatsapp ? `<a class="ghost button-link customer-whatsapp" href="https://wa.me/${whatsapp}" target="_blank" rel="noopener">WhatsApp</a>` : ""}
+        <button class="ghost customer-history-toggle" type="button" ${history.length ? "" : "disabled"}>Historial</button>
+        <button class="ghost customer-edit" type="button">Editar</button>
+        <button class="primary customer-new-order" type="button">Nuevo pedido</button>
+      </div>
+      <div class="customer-history" hidden>
+        <h4>Historial de pedidos</h4>
+        ${history.map(order => `
+          <div class="customer-history-row">
+            <strong>#${escapeHtml(order.number)} - ${escapeHtml(formatDate(orderPrepDate(order)))}</strong>
+            <span>${escapeHtml(order.status)} | ${escapeHtml(order.deliveryType || "")}</span>
+            <p>${escapeHtml(orderDetail(order) || "Sin detalle")}</p>
+          </div>
+        `).join("")}
+      </div>
+    `;
+    card.querySelector(".customer-edit").addEventListener("click", () => openCustomerDialog(customer));
+    card.querySelector(".customer-new-order").addEventListener("click", () => newOrderForCustomer(customer));
+    const historyButton = card.querySelector(".customer-history-toggle");
+    historyButton.addEventListener("click", () => {
+      const historyPanel = card.querySelector(".customer-history");
+      historyPanel.hidden = !historyPanel.hidden;
+      historyButton.textContent = historyPanel.hidden ? "Historial" : "Ocultar historial";
+    });
+    els.customerAgendaList.append(card);
+  });
+}
+
+function setCustomerFormMessage(text, isError = false) {
+  els.customerFormMessage.textContent = text;
+  els.customerFormMessage.style.color = isError ? "#b83232" : "#0f6b5f";
+}
+
+function openCustomerDialog(customer = null) {
+  state.editingCustomerId = customer ? customer.id : null;
+  els.customerForm.reset();
+  els.customerFormTitle.textContent = customer ? "Editar cliente" : "Nuevo cliente";
+  els.customerName.value = customer?.name || "";
+  els.customerPhone.value = customer?.phone || "";
+  els.customerAddress.value = customer?.address || "";
+  els.customerSaleType.value = customer ? orderSaleType(customer) : "Minorista";
+  els.customerNotes.value = customer?.notes || "";
+  setCustomerFormMessage("");
+  if (typeof els.customerDialog.showModal === "function") els.customerDialog.showModal();
+  else els.customerDialog.setAttribute("open", "");
+  els.customerName.focus();
+}
+
+function closeCustomerDialog() {
+  state.editingCustomerId = null;
+  if (typeof els.customerDialog.close === "function") els.customerDialog.close();
+  else els.customerDialog.removeAttribute("open");
+}
+
+async function saveCustomer(event) {
+  event.preventDefault();
+  const payload = {
+    name: els.customerName.value,
+    phone: els.customerPhone.value,
+    address: els.customerAddress.value,
+    saleType: els.customerSaleType.value,
+    notes: els.customerNotes.value,
+    currentUser: currentUser()
+  };
+  const path = state.editingCustomerId ? `/api/customers/${state.editingCustomerId}` : "/api/customers";
+  setCustomerFormMessage("Guardando...");
+  try {
+    await api(path, { method: state.editingCustomerId ? "PUT" : "POST", body: JSON.stringify(payload) });
+    closeCustomerDialog();
+    await loadCustomers();
+  } catch (error) {
+    setCustomerFormMessage(error.message, true);
+  }
+}
+
+function newOrderForCustomer(customer) {
+  showModule("orders");
+  resetForm();
+  els.customer.value = customer.name || "";
+  els.phone.value = customer.phone || "";
+  els.address.value = customer.address || "";
+  els.saleType.value = orderSaleType(customer);
+  els.notes.value = customer.notes || "";
+  els.detail.focus();
+}
+
 function renderSummary(orders) {
   els.countProvisional.textContent = orders.filter(order => order.status === "Provisorio").length;
   els.countNew.textContent = orders.filter(order => order.status === "Nuevo").length;
@@ -310,13 +487,17 @@ function renderLoadingState() {
     els.countWholesale,
     els.countRetail,
     els.routeCount,
-    els.routeHigh
+    els.routeHigh,
+    els.customerCount,
+    els.customerWholesaleCount,
+    els.customerRetailCount
   ].forEach(element => {
     element.textContent = "...";
   });
   els.routeNext.textContent = "...";
   els.ordersList.innerHTML = '<div class="empty">Cargando pedidos...</div>';
   els.routeList.innerHTML = '<div class="empty">Cargando entregas...</div>';
+  els.customerAgendaList.innerHTML = '<div class="empty">Cargando clientes...</div>';
 }
 
 function matchesOrder(order, text) {
@@ -498,9 +679,11 @@ function renderDelivery() {
 
 function showModule(name) {
   const isDelivery = name === "delivery";
+  const isCustomers = name === "customers";
   const modules = [
     ["orders", els.ordersModule],
-    ["delivery", els.deliveryModule]
+    ["delivery", els.deliveryModule],
+    ["customers", els.customersModule]
   ];
   modules.forEach(([moduleName, element]) => {
     const isActive = moduleName === name;
@@ -508,11 +691,13 @@ function showModule(name) {
     element.classList.toggle("active-module", isActive);
     element.style.display = isActive ? "" : "none";
   });
-  els.ordersViewBtn.className = !isDelivery ? "primary" : "ghost";
+  els.ordersViewBtn.className = !isDelivery && !isCustomers ? "primary" : "ghost";
   els.deliveryViewBtn.className = isDelivery ? "primary" : "ghost";
-  els.newBtn.hidden = isDelivery;
-  els.moduleTitle.textContent = isDelivery ? "Delivery" : "Pedidos";
+  els.customersViewBtn.className = isCustomers ? "primary" : "ghost";
+  els.newBtn.hidden = isDelivery || isCustomers;
+  els.moduleTitle.textContent = isDelivery ? "Delivery" : isCustomers ? "Clientes" : "Pedidos";
   if (isDelivery) renderDelivery();
+  if (isCustomers) renderCustomerAgenda();
   window.scrollTo(0, 0);
 }
 
@@ -1020,6 +1205,7 @@ els.currentUserSelect.addEventListener("change", rememberCurrentUser);
 els.addUserBtn.addEventListener("click", addUser);
 els.ordersViewBtn.addEventListener("click", () => showModule("orders"));
 els.deliveryViewBtn.addEventListener("click", () => showModule("delivery"));
+els.customersViewBtn.addEventListener("click", () => showModule("customers"));
 els.deliveryStatusFilter.addEventListener("change", renderDelivery);
 els.deliveryDateFilter.addEventListener("change", renderDelivery);
 els.deliveryVehicleFilter.addEventListener("change", renderDelivery);
@@ -1033,6 +1219,12 @@ els.prepDateFilter.addEventListener("change", render);
 els.saleTypeFilter.addEventListener("change", render);
 els.statusFilter.addEventListener("change", render);
 els.printSummaryBtn.addEventListener("click", printDailySummary);
+els.customerSearch.addEventListener("input", renderCustomerAgenda);
+els.customerTypeFilter.addEventListener("change", renderCustomerAgenda);
+els.addCustomerBtn.addEventListener("click", () => openCustomerDialog());
+els.closeCustomerDialogBtn.addEventListener("click", closeCustomerDialog);
+els.cancelCustomerBtn.addEventListener("click", closeCustomerDialog);
+els.customerForm.addEventListener("submit", saveCustomer);
 
 resetForm();
 els.prepDateFilter.value = todayDate();
