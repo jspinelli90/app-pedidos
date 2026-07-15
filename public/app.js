@@ -875,9 +875,10 @@ function nextStatusButton(order) {
     Preparado: "Despachado"
   }[order.status];
   if (!next) return "";
-  const label = order.status === "Provisorio"
+  const isOnlineConfirmation = order.status === "Provisorio" && orderOrigin(order) === "cliente";
+  const label = isOnlineConfirmation
     ? (whatsappPhone(order.phone) ? "Confirmar y avisar" : "Confirmar (sin WhatsApp)")
-    : `Pasar a ${next}`;
+    : order.status === "Provisorio" ? "Confirmar" : `Pasar a ${next}`;
   return `<button class="primary next-status" type="button">${label}</button>`;
 }
 
@@ -910,7 +911,7 @@ async function quickStatus(order) {
     Preparado: "Despachado"
   }[order.status];
   if (!next) return;
-  const shouldNotify = order.status === "Provisorio";
+  const shouldNotify = order.status === "Provisorio" && orderOrigin(order) === "cliente";
   const whatsappUrl = shouldNotify ? whatsappConfirmationUrl(order) : "";
   let whatsappWindow = null;
   if (whatsappUrl) {
