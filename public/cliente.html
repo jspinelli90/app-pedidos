@@ -43,6 +43,46 @@
           <label>Localidad
               <select id="clientLocality">
                 <option value="">Seleccionar localidad</option>
+                <option data-district="Tigre">Benavidez</option>
+                <option data-district="Tigre">Dique Lujan</option>
+                <option data-district="Tigre">Don Torcuato</option>
+                <option data-district="Tigre">El Talar</option>
+                <option data-district="Tigre">General Pacheco</option>
+                <option data-district="Tigre">Nordelta</option>
+                <option data-district="Tigre">Ricardo Rojas</option>
+                <option data-district="Tigre">Rincon de Milberg</option>
+                <option data-district="Tigre">Tigre</option>
+                <option data-district="Tigre">Troncos del Talar</option>
+                <option data-district="San Fernando">San Fernando</option>
+                <option data-district="San Fernando">Victoria</option>
+                <option data-district="San Fernando">Virreyes</option>
+                <option data-district="San Fernando">Islas del Delta del Parana</option>
+                <option data-district="San Isidro">Acassuso</option>
+                <option data-district="San Isidro">Beccar</option>
+                <option data-district="San Isidro">Boulogne Sur Mer</option>
+                <option data-district="San Isidro">Martinez</option>
+                <option data-district="San Isidro">San Isidro</option>
+                <option data-district="San Isidro">Villa Adelina</option>
+                <option data-district="Vicente Lopez">Carapachay</option>
+                <option data-district="Vicente Lopez">Florida</option>
+                <option data-district="Vicente Lopez">Florida Oeste</option>
+                <option data-district="Vicente Lopez">La Lucila</option>
+                <option data-district="Vicente Lopez">Munro</option>
+                <option data-district="Vicente Lopez">Olivos</option>
+                <option data-district="Vicente Lopez">Vicente Lopez</option>
+                <option data-district="Vicente Lopez">Villa Adelina</option>
+                <option data-district="Vicente Lopez">Villa Martelli</option>
+                <option data-district="San Martin">Barrio Parque General San Martin</option>
+                <option data-district="San Martin">Billinghurst</option>
+                <option data-district="San Martin">Ciudad Jardin El Libertador</option>
+                <option data-district="San Martin">Jose Leon Suarez</option>
+                <option data-district="San Martin">Loma Hermosa</option>
+                <option data-district="San Martin">San Andres</option>
+                <option data-district="San Martin">San Martin</option>
+                <option data-district="San Martin">Villa Ballester</option>
+                <option data-district="San Martin">Villa Libertad</option>
+                <option data-district="San Martin">Villa Lynch</option>
+                <option data-district="San Martin">Villa Maipu</option>
               </select>
             </label>
 
@@ -70,6 +110,11 @@
             <input id="clientPrepDate" type="date" required>
           </label>
 
+          <div id="clientCutoffNotice" class="client-cutoff-notice" role="alert" hidden>
+            <strong>PEDIDOS DE HOY CERRADOS</strong>
+            <span>Ya no tomamos pedidos para hoy. Tu pedido se cargara para manana, o podes elegir cualquier fecha posterior.</span>
+          </div>
+
           <div class="client-notice">
             El rango de entrega para delivery es de 11 a 15 hs.
           </div>
@@ -83,7 +128,7 @@
           </label>
 
           <div class="client-notice">
-            Los pedidos son provisorios hasta que el local los confirme por WhatsApp. El rango de entrega para delivery es de 11 a 15 hs. Los pedidos para delivery recibidos luego de las 11 de la manana seran enviados el dia siguiente.
+            Los pedidos son provisorios hasta que el local los confirme por WhatsApp. El rango de entrega para delivery es de 11 a 15 hs.
           </div>
 
           <p id="clientMessage" class="message" role="status"></p>
@@ -94,8 +139,7 @@
       </section>
     </main>
 
-    <script src="/cliente.js"></script>
+    <script src="/cliente.js?v=20260715-cierre-11hs"></script>
   </body>
 </html>
-
 
