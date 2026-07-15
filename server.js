@@ -126,6 +126,28 @@ async function writeCustomers(customers) {
   await writeStore("customers", CUSTOMERS_FILE, customers);
 }
 
+function normalizeCustomer(input, existing = {}) {
+  const now = new Date().toISOString();
+  return {
+    id: existing.id || cryptoId(),
+    name: cleanText(input.name),
+    phone: cleanText(input.phone),
+    address: cleanText(input.address),
+    saleType: normalizeSaleType(input.saleType),
+    notes: cleanText(input.notes),
+    createdAt: existing.createdAt || now,
+    updatedAt: now
+  };
+}
+
+function customerPhoneKey(value) {
+  return cleanText(value).replace(/\D/g, "");
+}
+
+function customerIdentity(customer) {
+  return customerPhoneKey(customer.phone) || cleanText(customer.name).toLowerCase();
+}
+
 async function readUsers() {
   return readStore("users", USERS_FILE);
 }
@@ -318,23 +340,21 @@ function nextNumber(orders) {
 }
 
 function customerKey(order) {
-  return cleanText(order.phone) || cleanText(order.customer).toLowerCase();
+  return customerPhoneKey(order.phone) || cleanText(order.customer).toLowerCase();
 }
 
 async function saveCustomerFromOrder(order, options = {}) {
   if (!order.customer) return;
   const customers = await readCustomers();
   const key = customerKey(order);
-  const index = customers.findIndex(customer => {
-    const currentKey = cleanText(customer.phone) || cleanText(customer.name).toLowerCase();
-    return currentKey === key;
-  });
+  const index = customers.findIndex(customer => customerIdentity(customer) === key);
   const saved = {
     id: index === -1 ? cryptoId() : customers[index].id,
     name: order.customer,
     phone: order.phone,
     address: order.address,
     saleType: normalizeSaleType(order.saleType),
+    createdAt: index === -1 ? new Date().toISOString() : customers[index].createdAt,
     updatedAt: new Date().toISOString()
   };
   if (index === -1) customers.push(saved);
@@ -431,6 +451,33 @@ async function handleApi(req, res) {
       await syncCustomersFromOrders();
       const customers = (await readCustomers()).sort((a, b) => a.name.localeCompare(b.name, "es"));
       return sendJson(res, 200, customers);
+    }
+
+    if (url.pathname === "/api/customers" && req.method === "POST") {
+      const payload = await readBody(req);
+      const customer = normalizeCustomer(payload);
+      if (!customer.name) return sendJson(res, 400, { error: "Completa el nombre del cliente." });
+      const customers = await readCustomers();
+      const duplicate = customers.find(current => customerIdentity(current) === customerIdentity(customer));
+      if (duplicate) return sendJson(res, 409, { error: "Ya existe un cliente con ese telefono o nombre." });
+      customers.push(customer);
+      await writeCustomers(customers);
+      return sendJson(res, 201, customer);
+    }
+
+    const customerMatch = url.pathname.match(/^\/api\/customers\/([^/]+)$/);
+    if (customerMatch && req.method === "PUT") {
+      const payload = await readBody(req);
+      const customers = await readCustomers();
+      const index = customers.findIndex(customer => customer.id === customerMatch[1]);
+      if (index === -1) return sendJson(res, 404, { error: "Cliente no encontrado." });
+      const customer = normalizeCustomer(payload, customers[index]);
+      if (!customer.name) return sendJson(res, 400, { error: "Completa el nombre del cliente." });
+      const duplicate = customers.find((current, currentIndex) => currentIndex !== index && customerIdentity(current) === customerIdentity(customer));
+      if (duplicate) return sendJson(res, 409, { error: "Ya existe otro cliente con ese telefono o nombre." });
+      customers[index] = customer;
+      await writeCustomers(customers);
+      return sendJson(res, 200, customer);
     }
 
     if (url.pathname === "/api/users" && req.method === "GET") {
