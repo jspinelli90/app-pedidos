@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Sistema de pedidos</title>
-    <link rel="stylesheet" href="/styles.css?v=20260715-delivery-sin-cartel">
+    <link rel="stylesheet" href="/styles.css?v=20260715-agenda-clientes">
   </head>
   <body>
     <header class="topbar">
@@ -17,6 +17,7 @@
         <button id="addUserBtn" class="ghost" type="button">Agregar usuario</button>
         <button id="ordersViewBtn" class="primary" type="button">Pedidos</button>
         <button id="deliveryViewBtn" class="ghost" type="button">Delivery</button>
+        <button id="customersViewBtn" class="ghost" type="button">Clientes</button>
         <a class="ghost button-link" href="/cliente.html" target="_blank" rel="noopener">Formulario cliente</a>
         <button id="refreshBtn" class="icon-btn" title="Actualizar" type="button">Actualizar</button>
         <button id="newBtn" class="primary" type="button">Nuevo pedido</button>
@@ -195,6 +196,71 @@
       </section>
     </main>
 
-    <script src="/app.js?v=20260715-recorrido-a4-firma"></script>
+    <main id="customersModule" class="module-view customers-module" hidden>
+      <section class="customers-head">
+        <div>
+          <p class="eyebrow dark">Agenda comercial</p>
+          <h2>Clientes</h2>
+          <p class="customers-intro">La agenda se actualiza automaticamente con cada pedido.</p>
+        </div>
+        <button id="addCustomerBtn" class="primary" type="button">Agregar cliente</button>
+      </section>
+
+      <section class="customer-summary">
+        <div><span id="customerCount">...</span><small>Clientes</small></div>
+        <div><span id="customerWholesaleCount">...</span><small>Mayoristas</small></div>
+        <div><span id="customerRetailCount">...</span><small>Minoristas</small></div>
+      </section>
+
+      <section class="customer-toolbar" aria-label="Filtros de clientes">
+        <input id="customerSearch" type="search" placeholder="Buscar por nombre, telefono o direccion">
+        <select id="customerTypeFilter">
+          <option value="">Todos los clientes</option>
+          <option>Mayorista</option>
+          <option>Minorista</option>
+        </select>
+      </section>
+
+      <section id="customerAgendaList" class="customer-agenda-list" aria-live="polite"></section>
+    </main>
+
+    <dialog id="customerDialog" class="customer-dialog">
+      <form id="customerForm">
+        <div class="dialog-head">
+          <div>
+            <p class="eyebrow dark">Ficha del cliente</p>
+            <h2 id="customerFormTitle">Nuevo cliente</h2>
+          </div>
+          <button id="closeCustomerDialogBtn" class="ghost" type="button">Cerrar</button>
+        </div>
+        <div class="grid two">
+          <label>Nombre o razon social
+            <input id="customerName" required autocomplete="name">
+          </label>
+          <label>Telefono / WhatsApp
+            <input id="customerPhone" autocomplete="tel">
+          </label>
+        </div>
+        <label>Direccion, localidad o referencia
+          <input id="customerAddress" autocomplete="street-address">
+        </label>
+        <label>Tipo de cliente
+          <select id="customerSaleType">
+            <option>Minorista</option>
+            <option>Mayorista</option>
+          </select>
+        </label>
+        <label>Observaciones internas
+          <textarea id="customerNotes" rows="4" placeholder="Preferencias, horarios, referencias u otras aclaraciones"></textarea>
+        </label>
+        <p id="customerFormMessage" class="message" role="status"></p>
+        <div class="form-actions">
+          <button id="cancelCustomerBtn" class="ghost" type="button">Cancelar</button>
+          <button class="primary" type="submit">Guardar cliente</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="/app.js?v=20260715-agenda-clientes"></script>
   </body>
 </html>
