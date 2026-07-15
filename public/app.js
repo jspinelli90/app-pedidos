@@ -537,23 +537,26 @@ async function assignVehicle(order, routeVehicle) {
 function printRoute() {
   const orders = deliveryOrders();
   const vehicle = els.deliveryVehicleFilter.value || "Todos los vehiculos";
+  const routeDate = els.deliveryDateFilter.value ? formatDate(els.deliveryDateFilter.value) : "Todas las fechas";
   const route = window.open("", "recorrido-delivery", "width=760,height=900");
   if (!route) {
     alert("El navegador bloqueo la ventana de impresion.");
     return;
   }
 
+  const density = orders.length > 12 ? "very-compact" : orders.length > 8 ? "compact" : "comfortable";
   const stops = orders.map((order, index) => `
     <section class="stop">
       <div class="num">${index + 1}</div>
-      <div>
+      <div class="order-data">
         <h2>#${order.number} - ${escapeHtml(order.customer)}</h2>
-        <p><strong>Direccion:</strong> ${escapeHtml(order.address)}</p>
-        <p><strong>Telefono:</strong> ${escapeHtml(order.phone || "")}</p>
-        <p><strong>Vehiculo:</strong> ${escapeHtml(orderRouteVehicle(order))} | <strong>Cliente:</strong> ${escapeHtml(orderSaleType(order))} | <strong>Prioridad:</strong> ${escapeHtml(orderPriority(order))}</p>
-        <p><strong>Fecha:</strong> ${escapeHtml(formatDate(orderPrepDate(order)))}${orderScheduledTime(order) ? ` | <strong>Horario:</strong> ${escapeHtml(orderScheduledTime(order))}` : ""}</p>
-        <p class="detail">${escapeHtml(orderDetail(order))}</p>
-        ${order.notes ? `<p><strong>Notas:</strong> ${escapeHtml(order.notes)}</p>` : ""}
+        <p><strong>Direccion:</strong> ${escapeHtml(order.address || "Sin direccion")}</p>
+        <p><strong>Tel:</strong> ${escapeHtml(order.phone || "-")} | <strong>Horario:</strong> ${escapeHtml(orderScheduledTime(order) || "-")} | <strong>Vehiculo:</strong> ${escapeHtml(orderRouteVehicle(order))}</p>
+        <p class="detail"><strong>Pedido:</strong> ${escapeHtml(orderDetail(order) || "-")}${order.notes ? ` | <strong>Notas:</strong> ${escapeHtml(order.notes)}` : ""}</p>
+      </div>
+      <div class="signature">
+        <span>Recepcion conforme - firma y aclaracion</span>
+        <div class="signature-line"></div>
       </div>
     </section>
   `).join("");
@@ -565,21 +568,44 @@ function printRoute() {
         <meta charset="utf-8">
         <title>Recorrido delivery</title>
         <style>
-          body { margin: 0; padding: 18px; color: #111; font-family: Arial, Helvetica, sans-serif; }
-          h1 { margin: 0 0 4px; font-size: 24px; }
-          .meta { margin: 0 0 16px; color: #444; }
-          .stop { display: grid; grid-template-columns: 44px 1fr; gap: 12px; border: 1px solid #222; border-radius: 8px; padding: 12px; margin-bottom: 10px; break-inside: avoid; }
-          .num { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 999px; background: #111; color: white; font-weight: 900; }
-          h2 { margin: 0 0 6px; font-size: 18px; }
-          p { margin: 4px 0; font-size: 13px; }
-          .detail { white-space: pre-wrap; font-size: 14px; }
-          @media print { body { padding: 10mm; } }
+          @page { size: A4 landscape; margin: 5mm; }
+          * { box-sizing: border-box; }
+          html, body { margin: 0; width: 287mm; height: 200mm; color: #111; font-family: Arial, Helvetica, sans-serif; overflow: hidden; }
+          body { padding: 0; }
+          .route-sheet { display: grid; grid-template-rows: 12mm minmax(0, 1fr); width: 100%; height: 100%; }
+          .route-head { display: flex; align-items: center; justify-content: space-between; gap: 8mm; border-bottom: 1.5px solid #111; }
+          h1 { margin: 0; font-size: 16pt; }
+          .meta { margin: 0; color: #333; font-size: 9pt; text-align: right; }
+          .stops { display: grid; grid-template-rows: repeat(${Math.max(orders.length, 1)}, minmax(0, 1fr)); min-height: 0; padding-top: 2mm; }
+          .stop { display: grid; grid-template-columns: 9mm minmax(0, 1fr) 56mm; gap: 2.5mm; min-height: 0; border: 1px solid #444; border-bottom: 0; padding: 1.5mm 2mm; break-inside: avoid; overflow: hidden; }
+          .stop:last-child { border-bottom: 1px solid #444; }
+          .num { display: grid; place-items: center; align-self: center; width: 7mm; height: 7mm; border-radius: 50%; background: #111; color: white; font-size: 9pt; font-weight: 900; }
+          .order-data { min-width: 0; align-self: center; overflow: hidden; }
+          h2 { margin: 0 0 0.7mm; font-size: 10pt; line-height: 1.05; }
+          p { margin: 0.4mm 0; font-size: 8pt; line-height: 1.08; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+          .detail { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+          .signature { display: flex; flex-direction: column; justify-content: space-between; min-width: 0; padding-left: 2.5mm; border-left: 1px dashed #777; color: #444; font-size: 7.5pt; }
+          .signature-line { width: 100%; margin-bottom: 1mm; border-bottom: 1px solid #111; }
+          .compact h2 { font-size: 9pt; }
+          .compact p { font-size: 7pt; }
+          .compact .stop { padding-top: 1mm; padding-bottom: 1mm; }
+          .compact .detail { -webkit-line-clamp: 1; }
+          .very-compact h2 { margin-bottom: 0.3mm; font-size: 8pt; }
+          .very-compact p { margin: 0.2mm 0; font-size: 6.2pt; }
+          .very-compact .stop { padding-top: 0.6mm; padding-bottom: 0.6mm; }
+          .very-compact .detail { -webkit-line-clamp: 1; }
+          .very-compact .signature { font-size: 6.5pt; }
+          @media print { html, body { width: 287mm; height: 200mm; } }
         </style>
       </head>
       <body>
-        <h1>Recorrido delivery</h1>
-        <p class="meta">${dateTime(new Date().toISOString())} | ${escapeHtml(vehicle)} | ${orders.length} entregas</p>
-        ${stops || "<p>No hay entregas pendientes.</p>"}
+        <main class="route-sheet ${density}">
+          <header class="route-head">
+            <h1>Recorrido delivery</h1>
+            <p class="meta">Reparto: ${escapeHtml(routeDate)} | ${escapeHtml(vehicle)} | ${orders.length} entregas</p>
+          </header>
+          <div class="stops">${stops || "<p>No hay entregas pendientes.</p>"}</div>
+        </main>
         <script>
           window.addEventListener("load", () => {
             window.focus();
@@ -1012,3 +1038,4 @@ resetForm();
 els.prepDateFilter.value = todayDate();
 els.deliveryDateFilter.value = todayDate();
 refreshAll().catch(error => setMessage(error.message, true));
+
