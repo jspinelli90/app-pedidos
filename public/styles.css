@@ -142,6 +142,10 @@ h3 {
   display: block !important;
 }
 
+.module-view.active-module.customers-module {
+  display: block !important;
+}
+
 .panel {
   background: var(--surface);
   border: 1px solid var(--line);
