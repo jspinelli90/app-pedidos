@@ -6,6 +6,9 @@ const address = document.querySelector("#clientAddress");
 const district = document.querySelector("#clientDistrict");
 const locality = document.querySelector("#clientLocality");
 const successBox = document.querySelector("#clientSuccess");
+const cutoffNotice = document.querySelector("#clientCutoffNotice");
+
+let orderDatePolicy = null;
 
 const LOCALITIES_BY_DISTRICT = {
   "Tigre": [
@@ -66,6 +69,39 @@ function todayDate() {
   return new Date(date.getTime() - offset).toISOString().slice(0, 10);
 }
 
+function addDays(dateText, days) {
+  const date = new Date(`${dateText}T12:00:00`);
+  date.setDate(date.getDate() + days);
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+}
+
+function localDatePolicy() {
+  const now = new Date();
+  const today = todayDate();
+  const afterCutoff = now.getHours() >= 11;
+  return { today, afterCutoff, minDate: afterCutoff ? addDays(today, 1) : today };
+}
+
+function applyDatePolicy(policy, forceValue = false) {
+  orderDatePolicy = policy;
+  prepDate.min = policy.minDate;
+  if (forceValue || !prepDate.value || prepDate.value < policy.minDate) prepDate.value = policy.minDate;
+  cutoffNotice.hidden = !policy.afterCutoff;
+}
+
+async function refreshDatePolicy(forceValue = false) {
+  let policy = localDatePolicy();
+  try {
+    const response = await fetch("/api/public-order-policy", { cache: "no-store" });
+    if (response.ok) policy = await response.json();
+  } catch {
+    // El servidor vuelve a validar la fecha al enviar el pedido.
+  }
+  applyDatePolicy(policy, forceValue);
+  return policy;
+}
+
 function setMessage(text, isError = false) {
   message.textContent = text;
   message.style.color = isError ? "#b83232" : "#0f6b5f";
@@ -108,6 +144,12 @@ function updateLocalityOptions() {
 
 async function sendOrder(event) {
   event.preventDefault();
+  const policy = await refreshDatePolicy();
+  if (prepDate.value < policy.minDate) {
+    applyDatePolicy(policy, true);
+    setMessage("Esa fecha ya no esta disponible. Elegi manana o una fecha posterior.", true);
+    return;
+  }
   setMessage("Enviando pedido...");
   successBox.hidden = true;
 
@@ -136,7 +178,8 @@ async function sendOrder(event) {
     const data = text ? JSON.parse(text) : {};
     if (!response.ok) throw new Error(data.error || "No se pudo enviar el pedido.");
     form.reset();
-    prepDate.value = todayDate();
+    await refreshDatePolicy(true);
+    updateLocalityOptions();
     updateAddressRequirement();
     showSuccess(data.number);
   } catch (error) {
@@ -144,9 +187,10 @@ async function sendOrder(event) {
   }
 }
 
-prepDate.value = todayDate();
 deliveryType.addEventListener("change", updateAddressRequirement);
 district.addEventListener("change", updateLocalityOptions);
 form.addEventListener("submit", sendOrder);
 updateLocalityOptions();
 updateAddressRequirement();
+refreshDatePolicy(true);
+setInterval(() => refreshDatePolicy(), 60000);
