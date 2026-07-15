@@ -227,6 +227,33 @@ function normalizeDate(value, fallbackIso = "") {
   return new Date().toISOString().slice(0, 10);
 }
 
+function addDaysToDate(dateText, days) {
+  const date = new Date(`${dateText}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function publicOrderDatePolicy(now = new Date()) {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Argentina/Buenos_Aires",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      hourCycle: "h23"
+    }).formatToParts(now).filter(part => part.type !== "literal").map(part => [part.type, part.value])
+  );
+  const today = `${parts.year}-${parts.month}-${parts.day}`;
+  const afterCutoff = Number(parts.hour) >= 11;
+  return {
+    today,
+    afterCutoff,
+    minDate: afterCutoff ? addDaysToDate(today, 1) : today,
+    cutoffHour: 11
+  };
+}
+
 function normalizeRouteVehicle(value) {
   const text = cleanText(value).toLowerCase();
   if (text === "camion" || text === "camión") return "Camion";
@@ -432,8 +459,19 @@ async function handleApi(req, res) {
       return sendJson(res, 200, movements);
     }
 
+    if (url.pathname === "/api/public-order-policy" && req.method === "GET") {
+      return sendJson(res, 200, publicOrderDatePolicy());
+    }
+
     if (url.pathname === "/api/public-orders" && req.method === "POST") {
       const payload = await readBody(req);
+      const datePolicy = publicOrderDatePolicy();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(cleanText(payload.prepDate)) || payload.prepDate < datePolicy.minDate) {
+        const error = datePolicy.afterCutoff
+          ? `Los pedidos para hoy cerraron a las 11:00. Elegi una fecha desde ${datePolicy.minDate}.`
+          : `Elegi una fecha desde ${datePolicy.minDate}.`;
+        return sendJson(res, 400, { error, ...datePolicy });
+      }
       const orders = await readOrders();
       const order = normalizeOrder({
         ...payload,
