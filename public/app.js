@@ -17,6 +17,10 @@ const els = {
   ordersViewBtn: document.querySelector("#ordersViewBtn"),
   deliveryViewBtn: document.querySelector("#deliveryViewBtn"),
   customersViewBtn: document.querySelector("#customersViewBtn"),
+  onlineOrderAlert: document.querySelector("#onlineOrderAlert"),
+  onlineOrderAlertTitle: document.querySelector("#onlineOrderAlertTitle"),
+  onlineOrderAlertDetail: document.querySelector("#onlineOrderAlertDetail"),
+  viewOnlineOrdersBtn: document.querySelector("#viewOnlineOrdersBtn"),
   form: document.querySelector("#orderForm"),
   formTitle: document.querySelector("#formTitle"),
   formMessage: document.querySelector("#formMessage"),
@@ -233,9 +237,42 @@ async function api(path, options = {}) {
 
 async function loadOrders() {
   state.orders = await api("/api/orders");
+  renderOnlineOrderAlert();
   render();
   renderDelivery();
   renderCustomerAgenda();
+}
+
+function pendingOnlineOrders() {
+  return state.orders
+    .filter(order => order.status === "Provisorio" && orderOrigin(order) === "cliente")
+    .sort(compareOrders);
+}
+
+function renderOnlineOrderAlert() {
+  const pending = pendingOnlineOrders();
+  els.onlineOrderAlert.hidden = pending.length === 0;
+  if (!pending.length) return;
+
+  els.onlineOrderAlertTitle.textContent = pending.length === 1
+    ? "1 pedido online pendiente de confirmar"
+    : `${pending.length} pedidos online pendientes de confirmar`;
+
+  const preview = pending.slice(0, 3)
+    .map(order => `#${order.number} ${order.customer} (${formatDate(orderPrepDate(order))})`)
+    .join(" · ");
+  const remaining = pending.length > 3 ? ` · y ${pending.length - 3} mas` : "";
+  els.onlineOrderAlertDetail.textContent = `${preview}${remaining}`;
+}
+
+function showPendingOnlineOrders() {
+  els.prepDateFilter.value = "";
+  els.search.value = "";
+  els.saleTypeFilter.value = "";
+  els.statusFilter.value = "Provisorio";
+  showModule("orders");
+  render();
+  els.ordersList.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 async function loadUsers() {
@@ -1220,6 +1257,7 @@ els.addUserBtn.addEventListener("click", addUser);
 els.ordersViewBtn.addEventListener("click", () => showModule("orders"));
 els.deliveryViewBtn.addEventListener("click", () => showModule("delivery"));
 els.customersViewBtn.addEventListener("click", () => showModule("customers"));
+els.viewOnlineOrdersBtn.addEventListener("click", showPendingOnlineOrders);
 els.deliveryStatusFilter.addEventListener("change", renderDelivery);
 els.deliveryDateFilter.addEventListener("change", renderDelivery);
 els.deliveryVehicleFilter.addEventListener("change", renderDelivery);
@@ -1244,3 +1282,4 @@ resetForm();
 els.prepDateFilter.value = todayDate();
 els.deliveryDateFilter.value = todayDate();
 refreshAll().catch(error => setMessage(error.message, true));
+setInterval(() => loadOrders().catch(() => {}), 30000);
