@@ -20,27 +20,37 @@
               <input id="clientCustomer" required autocomplete="name" placeholder="Nombre y apellido">
             </label>
             <label>Telefono
-              <input id="clientPhone" autocomplete="tel" placeholder="WhatsApp o telefono">
+              <input id="clientPhone" required autocomplete="tel" placeholder="WhatsApp o telefono">
             </label>
           </div>
 
-          <div class="grid two">
-            <label>Direccion
-              <input id="clientAddress" autocomplete="street-address" placeholder="Calle, numero, piso o referencia">
-            </label>
-            <label>Partido
-              <select id="clientDistrict">
-                <option value="">Seleccionar partido</option>
-                <option>Tigre</option>
-                <option>San Fernando</option>
-                <option>San Isidro</option>
-                <option>Vicente Lopez</option>
-                <option>San Martin</option>
+          <div id="clientDeliveryTypeSection" hidden>
+            <label>Tipo de entrega
+              <select id="clientDeliveryType">
+                <option>RETIRO</option>
+                <option>DELIVERY</option>
               </select>
             </label>
           </div>
 
-          <label>Localidad
+          <div id="clientAddressSection" hidden>
+            <div class="grid two">
+              <label>Direccion
+                <input id="clientAddress" autocomplete="street-address" placeholder="Calle, numero, piso o referencia">
+              </label>
+              <label>Partido
+                <select id="clientDistrict">
+                  <option value="">Seleccionar partido</option>
+                  <option>Tigre</option>
+                  <option>San Fernando</option>
+                  <option>San Isidro</option>
+                  <option>Vicente Lopez</option>
+                  <option>San Martin</option>
+                </select>
+              </label>
+            </div>
+
+            <label>Localidad
               <select id="clientLocality">
                 <option value="">Seleccionar localidad</option>
                 <option data-district="Tigre">Benavidez</option>
@@ -86,16 +96,10 @@
               </select>
             </label>
 
-          <div class="client-notice">
-            Los envios se realizan solamente a los partidos de Tigre, San Fernando, San Isidro, Vicente Lopez y San Martin.
+            <div class="client-notice">
+              Los envios se realizan solamente a los partidos de Tigre, San Fernando, San Isidro, Vicente Lopez y San Martin.
+            </div>
           </div>
-
-          <label>Tipo de entrega
-            <select id="clientDeliveryType">
-              <option>RETIRO</option>
-              <option>DELIVERY</option>
-            </select>
-          </label>
 
           <label>Forma de pago
             <select id="clientPayment">
@@ -139,7 +143,6 @@
       </section>
     </main>
 
-    <script src="/cliente.js?v=20260715-cierre-11hs"></script>
+    <script src="/cliente.js?v=20260716-entrega-progresiva"></script>
   </body>
 </html>
-
