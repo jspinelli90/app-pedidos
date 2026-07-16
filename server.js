@@ -544,8 +544,11 @@ async function handleApi(req, res) {
         status: "Provisorio",
         currentUser: "Cliente"
       });
-      if (!order.customer || !order.detail) {
-        return sendJson(res, 400, { error: "Completa nombre y detalle del pedido." });
+      if (!order.customer || !order.phone || !order.detail) {
+        return sendJson(res, 400, { error: "Completa nombre, telefono y detalle del pedido." });
+      }
+      if (order.deliveryType === "DELIVERY" && !order.address) {
+        return sendJson(res, 400, { error: "Completa el domicilio para el delivery." });
       }
       order.number = nextNumber(orders);
       order.createdBy = "Cliente";
