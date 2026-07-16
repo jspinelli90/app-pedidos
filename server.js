@@ -256,6 +256,14 @@ function addDaysToDate(dateText, days) {
   return date.toISOString().slice(0, 10);
 }
 
+function isSundayDate(dateText) {
+  return new Date(`${dateText}T12:00:00Z`).getUTCDay() === 0;
+}
+
+function nextWorkingDate(dateText) {
+  return isSundayDate(dateText) ? addDaysToDate(dateText, 1) : dateText;
+}
+
 function publicOrderDatePolicy(now = new Date()) {
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat("en-CA", {
@@ -272,7 +280,7 @@ function publicOrderDatePolicy(now = new Date()) {
   return {
     today,
     afterCutoff,
-    minDate: afterCutoff ? addDaysToDate(today, 1) : today,
+    minDate: nextWorkingDate(afterCutoff ? addDaysToDate(today, 1) : today),
     cutoffHour: 11
   };
 }
@@ -537,6 +545,9 @@ async function handleApi(req, res) {
           ? `Los pedidos para hoy cerraron a las 11:00. Elegi una fecha desde ${datePolicy.minDate}.`
           : `Elegi una fecha desde ${datePolicy.minDate}.`;
         return sendJson(res, 400, { error, ...datePolicy });
+      }
+      if (isSundayDate(payload.prepDate)) {
+        return sendJson(res, 400, { error: "Los domingos no trabajamos ni realizamos entregas. Elegi otra fecha." });
       }
       const orders = await readOrders();
       const order = normalizeOrder({
