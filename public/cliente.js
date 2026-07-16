@@ -80,18 +80,34 @@ function addDays(dateText, days) {
   return new Date(date.getTime() - offset).toISOString().slice(0, 10);
 }
 
+function isSunday(dateText) {
+  return new Date(`${dateText}T12:00:00`).getDay() === 0;
+}
+
+function nextWorkingDate(dateText) {
+  return isSunday(dateText) ? addDays(dateText, 1) : dateText;
+}
+
 function localDatePolicy() {
   const now = new Date();
   const today = todayDate();
   const afterCutoff = now.getHours() >= 11;
-  return { today, afterCutoff, minDate: afterCutoff ? addDays(today, 1) : today };
+  return { today, afterCutoff, minDate: nextWorkingDate(afterCutoff ? addDays(today, 1) : today) };
 }
 
 function applyDatePolicy(policy, forceValue = false) {
   orderDatePolicy = policy;
+  policy.minDate = nextWorkingDate(policy.minDate);
   prepDate.min = policy.minDate;
-  if (forceValue || !prepDate.value || prepDate.value < policy.minDate) prepDate.value = policy.minDate;
+  if (forceValue || !prepDate.value || prepDate.value < policy.minDate || isSunday(prepDate.value)) prepDate.value = policy.minDate;
+  validatePrepDate();
   cutoffNotice.hidden = !policy.afterCutoff;
+}
+
+function validatePrepDate() {
+  const sundaySelected = prepDate.value && isSunday(prepDate.value);
+  prepDate.setCustomValidity(sundaySelected ? "Los domingos no se toman pedidos." : "");
+  return !sundaySelected;
 }
 
 async function refreshDatePolicy(forceValue = false) {
@@ -162,6 +178,11 @@ async function sendOrder(event) {
     setMessage("Esa fecha ya no esta disponible. Elegi manana o una fecha posterior.", true);
     return;
   }
+  if (!validatePrepDate()) {
+    setMessage("Los domingos no trabajamos ni realizamos entregas. Elegi otra fecha.", true);
+    prepDate.reportValidity();
+    return;
+  }
   setMessage("Enviando pedido...");
   successBox.hidden = true;
 
@@ -200,6 +221,10 @@ async function sendOrder(event) {
 }
 
 deliveryType.addEventListener("change", updateAddressRequirement);
+prepDate.addEventListener("change", () => {
+  if (!validatePrepDate()) setMessage("Los domingos no trabajamos ni realizamos entregas. Elegi otra fecha.", true);
+  else if (message.textContent.includes("domingos")) setMessage("");
+});
 customer.addEventListener("input", updateDeliveryTypeVisibility);
 phone.addEventListener("input", updateDeliveryTypeVisibility);
 district.addEventListener("change", updateLocalityOptions);
