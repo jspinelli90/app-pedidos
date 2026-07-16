@@ -1,7 +1,11 @@
 const form = document.querySelector("#clientOrderForm");
 const message = document.querySelector("#clientMessage");
 const prepDate = document.querySelector("#clientPrepDate");
+const customer = document.querySelector("#clientCustomer");
+const phone = document.querySelector("#clientPhone");
 const deliveryType = document.querySelector("#clientDeliveryType");
+const deliveryTypeSection = document.querySelector("#clientDeliveryTypeSection");
+const addressSection = document.querySelector("#clientAddressSection");
 const address = document.querySelector("#clientAddress");
 const district = document.querySelector("#clientDistrict");
 const locality = document.querySelector("#clientLocality");
@@ -122,10 +126,18 @@ function showSuccess(orderNumber) {
 
 function updateAddressRequirement() {
   const isDelivery = deliveryType.value === "DELIVERY";
+  addressSection.hidden = !isDelivery;
   address.required = isDelivery;
   district.required = isDelivery;
   locality.required = isDelivery;
   address.placeholder = isDelivery ? "Direccion obligatoria para delivery" : "Direccion si es delivery";
+}
+
+function updateDeliveryTypeVisibility() {
+  const contactComplete = customer.value.trim() !== "" && phone.value.trim() !== "";
+  deliveryTypeSection.hidden = !contactComplete;
+  if (!contactComplete) deliveryType.value = "RETIRO";
+  updateAddressRequirement();
 }
 
 function updateLocalityOptions() {
@@ -180,7 +192,7 @@ async function sendOrder(event) {
     form.reset();
     await refreshDatePolicy(true);
     updateLocalityOptions();
-    updateAddressRequirement();
+    updateDeliveryTypeVisibility();
     showSuccess(data.number);
   } catch (error) {
     setMessage(error.message, true);
@@ -188,9 +200,11 @@ async function sendOrder(event) {
 }
 
 deliveryType.addEventListener("change", updateAddressRequirement);
+customer.addEventListener("input", updateDeliveryTypeVisibility);
+phone.addEventListener("input", updateDeliveryTypeVisibility);
 district.addEventListener("change", updateLocalityOptions);
 form.addEventListener("submit", sendOrder);
 updateLocalityOptions();
-updateAddressRequirement();
+updateDeliveryTypeVisibility();
 refreshDatePolicy(true);
 setInterval(() => refreshDatePolicy(), 60000);
