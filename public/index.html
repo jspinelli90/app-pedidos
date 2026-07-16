@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Sistema de pedidos</title>
-    <link rel="stylesheet" href="/styles.css?v=20260715-agenda-clientes-fix">
+    <link rel="stylesheet" href="/styles.css?v=20260716-aviso-pedidos-online">
   </head>
   <body>
     <header class="topbar">
@@ -23,6 +23,15 @@
         <button id="newBtn" class="primary" type="button">Nuevo pedido</button>
       </div>
     </header>
+
+    <section id="onlineOrderAlert" class="online-order-alert" role="alert" aria-live="assertive" hidden>
+      <div class="online-order-alert-icon" aria-hidden="true">!</div>
+      <div class="online-order-alert-content">
+        <strong id="onlineOrderAlertTitle">Hay pedidos online pendientes de confirmar</strong>
+        <span id="onlineOrderAlertDetail"></span>
+      </div>
+      <button id="viewOnlineOrdersBtn" type="button">Ver y confirmar</button>
+    </section>
 
     <main id="ordersModule" class="module-view layout active-module">
       <section class="panel form-panel" aria-label="Formulario de pedido">
@@ -261,6 +270,6 @@
       </form>
     </dialog>
 
-    <script src="/app.js?v=20260715-whatsapp-solo-online"></script>
+    <script src="/app.js?v=20260716-aviso-pedidos-online"></script>
   </body>
 </html>
