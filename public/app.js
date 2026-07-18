@@ -660,6 +660,60 @@ function orderMovements(order) {
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 }
 
+const DELIVERY_ORIGIN = "Uruguay 2409, San Fernando, Buenos Aires";
+
+// Las localidades estan ordenadas por cercania aproximada al local dentro de cada zona.
+// Mantener este catalogo local evita depender de una API paga para poder imprimir.
+const DELIVERY_ZONES = [
+  { name: "San Fernando", localities: ["San Fernando", "Virreyes", "Victoria", "Islas del Delta del Parana"] },
+  { name: "San Isidro", localities: ["Beccar", "San Isidro", "Acassuso", "Martinez", "Boulogne Sur Mer", "Villa Adelina"] },
+  { name: "Tigre", localities: ["Tigre", "Rincon de Milberg", "General Pacheco", "Troncos del Talar", "El Talar", "Ricardo Rojas", "Don Torcuato", "Nordelta", "Benavidez", "Dique Lujan"] },
+  { name: "Vicente Lopez", localities: ["La Lucila", "Olivos", "Florida", "Vicente Lopez", "Florida Oeste", "Munro", "Carapachay", "Villa Adelina", "Villa Martelli"] },
+  { name: "San Martin", localities: ["Jose Leon Suarez", "Loma Hermosa", "Villa Ballester", "Ciudad Jardin El Libertador", "Billinghurst", "San Andres", "San Martin", "Barrio Parque General San Martin", "Villa Libertad", "Villa Maipu", "Villa Lynch"] }
+];
+
+function normalizedPlaceText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function deliveryLocation(order) {
+  const addressText = String(order.address || "");
+  const text = normalizedPlaceText(`${addressText} ${order.customer || ""}`);
+  const addressParts = addressText.split("-").map(normalizedPlaceText).filter(Boolean);
+  const explicitZone = addressParts[addressParts.length - 1] || "";
+  let bestMatch = null;
+
+  DELIVERY_ZONES.forEach((zone, zoneIndex) => {
+    zone.localities.forEach((locality, localityIndex) => {
+      const needle = normalizedPlaceText(locality);
+      if (!text.includes(needle)) return;
+      const zoneWasSpecified = explicitZone === normalizedPlaceText(zone.name);
+      const matchScore = needle.length + (zoneWasSpecified ? 1000 : 0);
+      // Gana el nombre mas especifico: evita confundir "San Isidro" localidad con partido.
+      if (!bestMatch || matchScore > bestMatch.matchScore) {
+        bestMatch = { zone: zone.name, locality, zoneIndex, localityIndex, matchScore };
+      }
+    });
+  });
+
+  if (bestMatch) return bestMatch;
+  return { zone: "Zona sin identificar", locality: "Localidad sin identificar", zoneIndex: DELIVERY_ZONES.length, localityIndex: 999, matchScore: 0 };
+}
+
+function compareDeliveryRoute(a, b) {
+  const placeA = deliveryLocation(a);
+  const placeB = deliveryLocation(b);
+  return placeA.zoneIndex - placeB.zoneIndex
+    || placeA.localityIndex - placeB.localityIndex
+    || (orderScheduledTime(a) || "99:99").localeCompare(orderScheduledTime(b) || "99:99")
+    || Number(a.number || 0) - Number(b.number || 0);
+}
+
 function deliveryOrders() {
   const date = els.deliveryDateFilter.value;
   const vehicle = els.deliveryVehicleFilter.value;
@@ -669,7 +723,7 @@ function deliveryOrders() {
     .filter(order => !date || orderPrepDate(order) === date)
     .filter(order => !vehicle || orderRouteVehicle(order) === vehicle)
     .filter(order => !status || order.status === status)
-    .sort(compareOrders);
+    .sort(compareDeliveryRoute);
 }
 
 function renderDelivery() {
@@ -685,6 +739,7 @@ function renderDelivery() {
   }
 
   orders.forEach((order, index) => {
+    const place = deliveryLocation(order);
     const item = document.createElement("article");
     item.className = "route-stop";
     item.dataset.priority = orderPriority(order);
@@ -698,7 +753,7 @@ function renderDelivery() {
             <span class="sale-type-banner">${escapeHtml(orderSaleType(order))}</span>
             <span class="priority-pill">${escapeHtml(orderPriority(order))}</span>
           </div>
-          <div class="route-address">${escapeHtml(order.address || "FALTA CARGAR DIRECCION")} | ${escapeHtml(orderRouteVehicle(order))} | ${escapeHtml(order.status)} | ${escapeHtml(formatDate(orderPrepDate(order)))}${orderScheduledTime(order) ? ` | ${escapeHtml(orderScheduledTime(order))}` : ""}${order.phone ? ` | Tel: ${escapeHtml(order.phone)}` : ""}</div>
+          <div class="route-address"><strong>${escapeHtml(place.zone)} / ${escapeHtml(place.locality)}</strong> | ${escapeHtml(order.address || "FALTA CARGAR DIRECCION")} | ${escapeHtml(orderRouteVehicle(order))} | ${escapeHtml(order.status)} | ${escapeHtml(formatDate(orderPrepDate(order)))}${orderScheduledTime(order) ? ` | ${escapeHtml(orderScheduledTime(order))}` : ""}${order.phone ? ` | Tel: ${escapeHtml(order.phone)}` : ""}</div>
         </div>
         <div class="route-actions">
           <select class="route-vehicle" aria-label="Vehiculo">
@@ -780,12 +835,14 @@ function printRoute() {
   }
 
   const density = orders.length > 12 ? "very-compact" : orders.length > 8 ? "compact" : "comfortable";
-  const stops = orders.map((order, index) => `
+  const stops = orders.map((order, index) => {
+    const place = deliveryLocation(order);
+    return `
     <section class="stop">
       <div class="num">${index + 1}</div>
       <div class="order-data">
         <h2>#${order.number} - ${escapeHtml(order.customer)}</h2>
-        <p><strong>Direccion:</strong> ${escapeHtml(order.address || "Sin direccion")}</p>
+        <p><strong>Zona:</strong> ${escapeHtml(place.zone)} / ${escapeHtml(place.locality)} | <strong>Direccion:</strong> ${escapeHtml(order.address || "Sin direccion")}</p>
         <p><strong>Tel:</strong> ${escapeHtml(order.phone || "-")} | <strong>Horario:</strong> ${escapeHtml(orderScheduledTime(order) || "-")} | <strong>Vehiculo:</strong> ${escapeHtml(orderRouteVehicle(order))}</p>
         <p class="detail"><strong>Pedido:</strong> ${escapeHtml(orderDetail(order) || "-")}${order.notes ? ` | <strong>Notas:</strong> ${escapeHtml(order.notes)}` : ""}</p>
       </div>
@@ -794,7 +851,8 @@ function printRoute() {
         <div class="signature-line"></div>
       </div>
     </section>
-  `).join("");
+  `;
+  }).join("");
 
   route.document.write(`
     <!doctype html>
@@ -869,6 +927,7 @@ function googleMapsRouteUrl(orders) {
   const params = new URLSearchParams({
     api: "1",
     travelmode: "driving",
+    origin: DELIVERY_ORIGIN,
     destination
   });
   if (waypoints) params.set("waypoints", waypoints);
