@@ -419,10 +419,32 @@ async function saveCustomerFromOrder(order, options = {}) {
 }
 
 async function syncCustomersFromOrders() {
-  const before = JSON.stringify(await readCustomers());
+  const customers = await readCustomers();
   const orders = await readOrders();
-  for (const order of orders) await saveCustomerFromOrder(order, { onlyIfMissing: true });
-  return JSON.stringify(await readCustomers()) !== before;
+  const knownKeys = new Set(customers.map(customerIdentity).filter(Boolean));
+  const now = new Date().toISOString();
+  let changed = false;
+
+  for (const order of orders) {
+    if (!order.customer) continue;
+    const key = customerKey(order);
+    if (!key || knownKeys.has(key)) continue;
+    customers.push({
+      id: cryptoId(),
+      name: order.customer,
+      phone: order.phone,
+      address: order.address,
+      saleType: normalizeSaleType(order.saleType),
+      active: true,
+      createdAt: now,
+      updatedAt: now
+    });
+    knownKeys.add(key);
+    changed = true;
+  }
+
+  if (changed) await writeCustomers(customers);
+  return customers;
 }
 
 function orderSummary(order) {
@@ -503,8 +525,7 @@ async function handleApi(req, res) {
     }
 
     if (url.pathname === "/api/customers" && req.method === "GET") {
-      await syncCustomersFromOrders();
-      const customers = (await readCustomers())
+      const customers = (await syncCustomersFromOrders())
         .filter(customer => customer.active !== false)
         .sort((a, b) => a.name.localeCompare(b.name, "es"));
       return sendJson(res, 200, customers);
