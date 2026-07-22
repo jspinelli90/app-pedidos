@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Alta de cliente mayorista</title>
+    <link rel="stylesheet" href="/styles.css?v=20260722-alta-mayorista">
+  </head>
+  <body class="client-page">
+    <main class="client-shell">
+      <section class="panel wholesale-register-panel">
+        <div class="client-head">
+          <p class="eyebrow">Agenda comercial</p>
+          <h1>Alta de cliente mayorista</h1>
+          <p>Completa tus datos para incorporarte a nuestra agenda.</p>
+        </div>
+        <form id="wholesaleCustomerForm">
+          <div class="grid two">
+            <label>Nombre o razon social
+              <input id="wholesaleName" required maxlength="120" autocomplete="organization">
+            </label>
+            <label>Telefono / WhatsApp
+              <input id="wholesalePhone" required minlength="8" maxlength="40" inputmode="tel" autocomplete="tel">
+            </label>
+          </div>
+          <label>Direccion, localidad o referencia
+            <input id="wholesaleAddress" maxlength="200" autocomplete="street-address">
+          </label>
+          <label>Numero de cliente o marcada
+            <input id="wholesaleCustomerNumber" maxlength="80" autocomplete="off">
+          </label>
+          <label>Observaciones
+            <textarea id="wholesaleNotes" rows="4" maxlength="500" placeholder="Horarios, referencias u otras aclaraciones"></textarea>
+          </label>
+          <p id="wholesaleMessage" class="message" role="status" aria-live="polite"></p>
+          <div class="form-actions">
+            <button class="primary" type="submit">Enviar datos</button>
+          </div>
+        </form>
+      </section>
+    </main>
+    <script src="/mayorista.js?v=20260722-alta-mayorista"></script>
+  </body>
+</html>
