@@ -19,6 +19,7 @@ form.addEventListener("submit", async event => {
         name: document.querySelector("#wholesaleName").value,
         phone: document.querySelector("#wholesalePhone").value,
         address: document.querySelector("#wholesaleAddress").value,
+        cuit: document.querySelector("#wholesaleCuit").value,
         customerNumber: document.querySelector("#wholesaleCustomerNumber").value,
         notes: document.querySelector("#wholesaleNotes").value
       })
