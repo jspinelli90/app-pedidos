@@ -79,6 +79,8 @@ const els = {
   customerPhone: document.querySelector("#customerPhone"),
   customerAddress: document.querySelector("#customerAddress"),
   customerSaleType: document.querySelector("#customerSaleType"),
+  customerNumberField: document.querySelector("#customerNumberField"),
+  customerNumber: document.querySelector("#customerNumber"),
   customerNotes: document.querySelector("#customerNotes"),
   closeCustomerDialogBtn: document.querySelector("#closeCustomerDialogBtn"),
   cancelCustomerBtn: document.querySelector("#cancelCustomerBtn")
@@ -371,7 +373,7 @@ function customerOrderHistory(customer) {
 }
 
 function customerSearchText(customer) {
-  return [customer.name, customer.phone, customer.address, customer.notes, customer.saleType]
+  return [customer.name, customer.phone, customer.address, customer.notes, customer.saleType, customer.customerNumber]
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
@@ -412,6 +414,7 @@ function renderCustomerAgenda() {
           </div>
           <p><strong>Telefono:</strong> ${escapeHtml(customer.phone || "Sin telefono")}</p>
           <p><strong>Direccion:</strong> ${escapeHtml(customer.address || "Sin direccion")}</p>
+          ${orderSaleType(customer) === "Mayorista" && customer.customerNumber ? `<p><strong>Numero de cliente o marcada:</strong> ${escapeHtml(customer.customerNumber)}</p>` : ""}
           ${customer.notes ? `<p class="customer-notes"><strong>Observaciones:</strong> ${escapeHtml(customer.notes)}</p>` : ""}
           <div class="customer-stats">
             <span>${history.length} ${history.length === 1 ? "pedido" : "pedidos"}</span>
@@ -463,11 +466,20 @@ function openCustomerDialog(customer = null) {
   els.customerPhone.value = customer?.phone || "";
   els.customerAddress.value = customer?.address || "";
   els.customerSaleType.value = customer ? orderSaleType(customer) : "Minorista";
+  els.customerNumber.value = customer?.customerNumber || "";
+  updateCustomerNumberVisibility();
   els.customerNotes.value = customer?.notes || "";
   setCustomerFormMessage("");
   if (typeof els.customerDialog.showModal === "function") els.customerDialog.showModal();
   else els.customerDialog.setAttribute("open", "");
   els.customerName.focus();
+}
+
+function updateCustomerNumberVisibility() {
+  const isWholesale = els.customerSaleType.value === "Mayorista";
+  els.customerNumberField.hidden = !isWholesale;
+  els.customerNumber.disabled = !isWholesale;
+  if (!isWholesale) els.customerNumber.value = "";
 }
 
 function closeCustomerDialog() {
@@ -483,6 +495,7 @@ async function saveCustomer(event) {
     phone: els.customerPhone.value,
     address: els.customerAddress.value,
     saleType: els.customerSaleType.value,
+    customerNumber: els.customerNumber.value,
     notes: els.customerNotes.value,
     currentUser: currentUser()
   };
@@ -1332,6 +1345,7 @@ els.statusFilter.addEventListener("change", render);
 els.printSummaryBtn.addEventListener("click", printDailySummary);
 els.customerSearch.addEventListener("input", renderCustomerAgenda);
 els.customerTypeFilter.addEventListener("change", renderCustomerAgenda);
+els.customerSaleType.addEventListener("change", updateCustomerNumberVisibility);
 els.addCustomerBtn.addEventListener("click", () => openCustomerDialog());
 els.closeCustomerDialogBtn.addEventListener("click", closeCustomerDialog);
 els.cancelCustomerBtn.addEventListener("click", closeCustomerDialog);
