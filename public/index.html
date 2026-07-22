@@ -262,9 +262,14 @@
             <option>Mayorista</option>
           </select>
         </label>
-        <label id="customerNumberField" hidden>Numero de cliente o marcada
-          <input id="customerNumber" autocomplete="off" placeholder="Numero interno del mayorista">
-        </label>
+        <div id="customerWholesaleFields" class="grid two" hidden>
+          <label>CUIT
+            <input id="customerCuit" inputmode="numeric" autocomplete="off" placeholder="11 digitos">
+          </label>
+          <label>Numero de cliente o marcada (Por favor, detallar el numero de cliente con el que va marcada la carne)
+            <input id="customerNumber" autocomplete="off" placeholder="Numero interno del mayorista">
+          </label>
+        </div>
         <label>Observaciones internas
           <textarea id="customerNotes" rows="4" placeholder="Preferencias, horarios, referencias u otras aclaraciones"></textarea>
         </label>
