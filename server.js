@@ -7,7 +7,7 @@ const PORT = Number(process.env.PORT || 3000);
 const HOST = "0.0.0.0";
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, "public");
-const DATA_DIR = path.join(ROOT, "data");
+const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, "data");
 const ORDERS_FILE = path.join(DATA_DIR, "orders.json");
 const CUSTOMERS_FILE = path.join(DATA_DIR, "customers.json");
 const USERS_FILE = path.join(DATA_DIR, "users.json");
@@ -18,6 +18,7 @@ loadEnvFile();
 const SUPABASE_URL = String(process.env.SUPABASE_URL || "").replace(/\/$/, "");
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const USE_SUPABASE = Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
+const WHOLESALE_CLEANUP_MIGRATION = "2026-07-22-deactivate-wholesale-customers";
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -128,12 +129,14 @@ async function writeCustomers(customers) {
 
 function normalizeCustomer(input, existing = {}) {
   const now = new Date().toISOString();
+  const saleType = normalizeSaleType(input.saleType);
   return {
     id: existing.id || cryptoId(),
     name: cleanText(input.name),
     phone: cleanText(input.phone),
     address: cleanText(input.address),
-    saleType: normalizeSaleType(input.saleType),
+    saleType,
+    customerNumber: saleType === "Mayorista" ? cleanText(input.customerNumber) : "",
     notes: cleanText(input.notes),
     active: existing.active !== false,
     createdAt: existing.createdAt || now,
@@ -142,11 +145,50 @@ function normalizeCustomer(input, existing = {}) {
 }
 
 function customerPhoneKey(value) {
-  return cleanText(value).replace(/\D/g, "");
+  const digits = cleanText(value).replace(/\D/g, "");
+  return digits.length > 10 ? digits.slice(-10) : digits;
 }
 
 function customerIdentity(customer) {
   return customerPhoneKey(customer.phone) || cleanText(customer.name).toLowerCase();
+}
+
+function normalizedName(value) {
+  return cleanText(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ");
+}
+
+function findDuplicateCustomer(customers, candidate, ignoredId = "") {
+  const phone = customerPhoneKey(candidate.phone);
+  const name = normalizedName(candidate.name);
+  const customerNumber = cleanText(candidate.customerNumber).toLowerCase();
+  return customers.find(current => {
+    if (current.id === ignoredId) return false;
+    return Boolean(
+      (phone && customerPhoneKey(current.phone) === phone) ||
+      (name && normalizedName(current.name) === name) ||
+      (customerNumber && normalizeSaleType(current.saleType) === "Mayorista" && cleanText(current.customerNumber).toLowerCase() === customerNumber)
+    );
+  });
+}
+
+async function runDataMigrations() {
+  const migrations = await readStore("migrations", path.join(DATA_DIR, "migrations.json"));
+  if (migrations.some(item => item && item.id === WHOLESALE_CLEANUP_MIGRATION)) return;
+  // Materializa primero la agenda derivada de pedidos para que ningun mayorista
+  // historico quede fuera de la depuracion ni reaparezca en el siguiente GET.
+  await syncCustomersFromOrders();
+  const customers = await readCustomers();
+  const now = new Date().toISOString();
+  let affected = 0;
+  const updated = customers.map(customer => {
+    if (normalizeSaleType(customer.saleType) !== "Mayorista" || customer.active === false) return customer;
+    affected += 1;
+    return { ...customer, active: false, updatedAt: now, deactivatedBy: WHOLESALE_CLEANUP_MIGRATION };
+  });
+  if (affected) await writeCustomers(updated);
+  migrations.push({ id: WHOLESALE_CLEANUP_MIGRATION, affected, appliedAt: now });
+  await writeStore("migrations", path.join(DATA_DIR, "migrations.json"), migrations);
+  console.log(`Depuracion mayoristas: ${affected} contactos desactivados.`);
 }
 
 async function readUsers() {
@@ -470,7 +512,7 @@ async function handleApi(req, res) {
       const customer = normalizeCustomer(payload);
       if (!customer.name) return sendJson(res, 400, { error: "Completa el nombre del cliente." });
       const customers = await readCustomers();
-      const duplicate = customers.find(current => customerIdentity(current) === customerIdentity(customer));
+      const duplicate = findDuplicateCustomer(customers, customer);
       if (duplicate && duplicate.active !== false) return sendJson(res, 409, { error: "Ya existe un cliente con ese telefono o nombre." });
       if (duplicate) {
         const index = customers.findIndex(current => current.id === duplicate.id);
@@ -491,7 +533,7 @@ async function handleApi(req, res) {
       if (index === -1) return sendJson(res, 404, { error: "Cliente no encontrado." });
       const customer = normalizeCustomer(payload, customers[index]);
       if (!customer.name) return sendJson(res, 400, { error: "Completa el nombre del cliente." });
-      const duplicate = customers.find((current, currentIndex) => currentIndex !== index && customerIdentity(current) === customerIdentity(customer));
+      const duplicate = findDuplicateCustomer(customers, customer, customers[index].id);
       if (duplicate) return sendJson(res, 409, { error: "Ya existe otro cliente con ese telefono o nombre." });
       customers[index] = customer;
       await writeCustomers(customers);
@@ -505,6 +547,31 @@ async function handleApi(req, res) {
       customers[index] = { ...customers[index], active: false, updatedAt: new Date().toISOString() };
       await writeCustomers(customers);
       return sendJson(res, 200, { ok: true });
+    }
+
+    if (url.pathname === "/api/public-wholesale-customers" && req.method === "POST") {
+      const payload = await readBody(req);
+      const customer = normalizeCustomer({ ...payload, saleType: "Mayorista" });
+      if (!customer.name || !customer.phone) {
+        return sendJson(res, 400, { error: "Completa nombre o razon social y telefono." });
+      }
+      if (customerPhoneKey(customer.phone).length < 8) {
+        return sendJson(res, 400, { error: "Ingresa un telefono valido, con al menos 8 numeros." });
+      }
+      const customers = await readCustomers();
+      const duplicate = findDuplicateCustomer(customers, customer);
+      if (duplicate && duplicate.active !== false) {
+        return sendJson(res, 409, { error: "Ya existe un cliente con ese nombre, telefono o numero de cliente/marcada." });
+      }
+      if (duplicate) {
+        const index = customers.findIndex(current => current.id === duplicate.id);
+        customers[index] = { ...normalizeCustomer(customer, duplicate), active: true, source: "Formulario mayorista" };
+        await writeCustomers(customers);
+        return sendJson(res, 200, { ok: true, reactivated: true });
+      }
+      customers.push({ ...customer, source: "Formulario mayorista" });
+      await writeCustomers(customers);
+      return sendJson(res, 201, { ok: true });
     }
 
     if (url.pathname === "/api/users" && req.method === "GET") {
@@ -638,9 +705,26 @@ function localIps() {
     .map(info => info.address);
 }
 
-ensureDataFile();
-server.listen(PORT, HOST, () => {
-  console.log(`Sistema de pedidos abierto en http://localhost:${PORT}`);
-  console.log(`Datos: ${USE_SUPABASE ? "Supabase online" : "archivos locales"}`);
-  localIps().forEach(ip => console.log(`Desde otra PC: http://${ip}:${PORT}`));
+async function startServer() {
+  ensureDataFile();
+  await runDataMigrations();
+  return new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(PORT, HOST, () => {
+      server.removeListener("error", reject);
+      const address = server.address();
+      const activePort = address && typeof address === "object" ? address.port : PORT;
+      console.log(`Sistema de pedidos abierto en http://localhost:${activePort}`);
+      console.log(`Datos: ${USE_SUPABASE ? "Supabase online" : "archivos locales"}`);
+      localIps().forEach(ip => console.log(`Desde otra PC: http://${ip}:${activePort}`));
+      resolve(server);
+    });
+  });
+}
+
+if (require.main === module) startServer().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
 });
+
+module.exports = { findDuplicateCustomer, normalizeCustomer, normalizeSaleType, runDataMigrations, server, startServer };
