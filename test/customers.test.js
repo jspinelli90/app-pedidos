@@ -21,3 +21,8 @@ test("detecta duplicados mayoristas por numero de cliente", () => {
   const customers = [{ id: "1", name: "A", phone: "", saleType: "Mayorista", customerNumber: "M-42" }];
   assert.equal(findDuplicateCustomer(customers, { name: "B", phone: "", customerNumber: "m-42" }).id, "1");
 });
+
+test("detecta duplicados por CUIT aunque cambie el formato", () => {
+  const customers = [{ id: "1", name: "A", phone: "", saleType: "Mayorista", cuit: "30-12345678-9" }];
+  assert.equal(findDuplicateCustomer(customers, { name: "B", phone: "", cuit: "30123456789" }).id, "1");
+});
