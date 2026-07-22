@@ -212,7 +212,10 @@
           <h2>Clientes</h2>
           <p class="customers-intro">La agenda se actualiza automaticamente con cada pedido.</p>
         </div>
-        <button id="addCustomerBtn" class="primary" type="button">Agregar cliente</button>
+        <div class="customer-head-actions">
+          <a class="ghost button-link" href="/mayorista.html" target="_blank" rel="noopener">Link alta mayoristas</a>
+          <button id="addCustomerBtn" class="primary" type="button">Agregar cliente</button>
+        </div>
       </section>
 
       <section class="customer-summary">
@@ -258,6 +261,9 @@
             <option>Minorista</option>
             <option>Mayorista</option>
           </select>
+        </label>
+        <label id="customerNumberField" hidden>Numero de cliente o marcada
+          <input id="customerNumber" autocomplete="off" placeholder="Numero interno del mayorista">
         </label>
         <label>Observaciones internas
           <textarea id="customerNotes" rows="4" placeholder="Preferencias, horarios, referencias u otras aclaraciones"></textarea>
