@@ -28,6 +28,12 @@ test("depura mayoristas historicos y permite un alta publica sin duplicarlos", a
   let customers = await response.json();
   assert.deepEqual(customers.map(customer => customer.name), ["Cliente Minorista"]);
 
+  response = await fetch(`${baseUrl}/api/customers`);
+  customers = await response.json();
+  assert.deepEqual(customers.map(customer => customer.name), ["Cliente Minorista"]);
+  const storedAfterSecondSync = JSON.parse(fs.readFileSync(path.join(dataDir, "customers.json"), "utf8"));
+  assert.equal(storedAfterSecondSync.filter(customer => customer.name === "Mayorista Historico").length, 1);
+
   response = await fetch(`${baseUrl}/api/public-wholesale-customers`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
