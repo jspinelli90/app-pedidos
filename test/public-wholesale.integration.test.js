@@ -31,7 +31,7 @@ test("depura mayoristas historicos y permite un alta publica sin duplicarlos", a
   response = await fetch(`${baseUrl}/api/public-wholesale-customers`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name: "Almacen Norte", phone: "1140000001", customerNumber: "M-10" })
+    body: JSON.stringify({ name: "Almacen Norte", phone: "1140000001", customerNumber: "M-10", cuit: "30-12345678-9" })
   });
   assert.equal(response.status, 200);
   assert.equal((await response.json()).reactivated, true);
@@ -42,6 +42,13 @@ test("depura mayoristas historicos y permite un alta publica sin duplicarlos", a
     body: JSON.stringify({ name: "Otro nombre", phone: "+54 11 4000-0001" })
   });
   assert.equal(response.status, 409);
+
+  response = await fetch(`${baseUrl}/api/public-wholesale-customers`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: "CUIT invalido", phone: "1140000099", cuit: "123" })
+  });
+  assert.equal(response.status, 400);
 
   response = await fetch(`${baseUrl}/mayorista.html`);
   assert.equal(response.status, 200);
