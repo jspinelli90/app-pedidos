@@ -907,6 +907,22 @@ textarea:focus {
   color: var(--muted);
 }
 
+.customer-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wholesale-register-panel {
+  max-width: 760px;
+  margin: 32px auto;
+  padding: clamp(16px, 4vw, 26px);
+}
+
+.wholesale-register-panel .form-actions {
+  margin-top: 18px;
+}
+
 .customer-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
