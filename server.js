@@ -137,6 +137,7 @@ function normalizeCustomer(input, existing = {}) {
     address: cleanText(input.address),
     saleType,
     customerNumber: saleType === "Mayorista" ? cleanText(input.customerNumber) : "",
+    cuit: saleType === "Mayorista" ? cleanText(input.cuit) : "",
     notes: cleanText(input.notes),
     active: existing.active !== false,
     createdAt: existing.createdAt || now,
@@ -161,12 +162,14 @@ function findDuplicateCustomer(customers, candidate, ignoredId = "") {
   const phone = customerPhoneKey(candidate.phone);
   const name = normalizedName(candidate.name);
   const customerNumber = cleanText(candidate.customerNumber).toLowerCase();
+  const cuit = cleanText(candidate.cuit).replace(/\D/g, "");
   return customers.find(current => {
     if (current.id === ignoredId) return false;
     return Boolean(
       (phone && customerPhoneKey(current.phone) === phone) ||
       (name && normalizedName(current.name) === name) ||
-      (customerNumber && normalizeSaleType(current.saleType) === "Mayorista" && cleanText(current.customerNumber).toLowerCase() === customerNumber)
+      (customerNumber && normalizeSaleType(current.saleType) === "Mayorista" && cleanText(current.customerNumber).toLowerCase() === customerNumber) ||
+      (cuit && cleanText(current.cuit).replace(/\D/g, "") === cuit)
     );
   });
 }
@@ -558,10 +561,14 @@ async function handleApi(req, res) {
       if (customerPhoneKey(customer.phone).length < 8) {
         return sendJson(res, 400, { error: "Ingresa un telefono valido, con al menos 8 numeros." });
       }
+      const cuit = cleanText(customer.cuit).replace(/\D/g, "");
+      if (customer.cuit && cuit.length !== 11) {
+        return sendJson(res, 400, { error: "El CUIT debe tener 11 numeros." });
+      }
       const customers = await readCustomers();
       const duplicate = findDuplicateCustomer(customers, customer);
       if (duplicate && duplicate.active !== false) {
-        return sendJson(res, 409, { error: "Ya existe un cliente con ese nombre, telefono o numero de cliente/marcada." });
+        return sendJson(res, 409, { error: "Ya existe un cliente con ese nombre, telefono, CUIT o numero de cliente/marcada." });
       }
       if (duplicate) {
         const index = customers.findIndex(current => current.id === duplicate.id);
