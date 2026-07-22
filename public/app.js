@@ -79,7 +79,8 @@ const els = {
   customerPhone: document.querySelector("#customerPhone"),
   customerAddress: document.querySelector("#customerAddress"),
   customerSaleType: document.querySelector("#customerSaleType"),
-  customerNumberField: document.querySelector("#customerNumberField"),
+  customerWholesaleFields: document.querySelector("#customerWholesaleFields"),
+  customerCuit: document.querySelector("#customerCuit"),
   customerNumber: document.querySelector("#customerNumber"),
   customerNotes: document.querySelector("#customerNotes"),
   closeCustomerDialogBtn: document.querySelector("#closeCustomerDialogBtn"),
@@ -373,7 +374,7 @@ function customerOrderHistory(customer) {
 }
 
 function customerSearchText(customer) {
-  return [customer.name, customer.phone, customer.address, customer.notes, customer.saleType, customer.customerNumber]
+  return [customer.name, customer.phone, customer.address, customer.notes, customer.saleType, customer.customerNumber, customer.cuit]
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
@@ -414,6 +415,7 @@ function renderCustomerAgenda() {
           </div>
           <p><strong>Telefono:</strong> ${escapeHtml(customer.phone || "Sin telefono")}</p>
           <p><strong>Direccion:</strong> ${escapeHtml(customer.address || "Sin direccion")}</p>
+          ${orderSaleType(customer) === "Mayorista" && customer.cuit ? `<p><strong>CUIT:</strong> ${escapeHtml(customer.cuit)}</p>` : ""}
           ${orderSaleType(customer) === "Mayorista" && customer.customerNumber ? `<p><strong>Numero de cliente o marcada:</strong> ${escapeHtml(customer.customerNumber)}</p>` : ""}
           ${customer.notes ? `<p class="customer-notes"><strong>Observaciones:</strong> ${escapeHtml(customer.notes)}</p>` : ""}
           <div class="customer-stats">
@@ -466,6 +468,7 @@ function openCustomerDialog(customer = null) {
   els.customerPhone.value = customer?.phone || "";
   els.customerAddress.value = customer?.address || "";
   els.customerSaleType.value = customer ? orderSaleType(customer) : "Minorista";
+  els.customerCuit.value = customer?.cuit || "";
   els.customerNumber.value = customer?.customerNumber || "";
   updateCustomerNumberVisibility();
   els.customerNotes.value = customer?.notes || "";
@@ -477,9 +480,13 @@ function openCustomerDialog(customer = null) {
 
 function updateCustomerNumberVisibility() {
   const isWholesale = els.customerSaleType.value === "Mayorista";
-  els.customerNumberField.hidden = !isWholesale;
+  els.customerWholesaleFields.hidden = !isWholesale;
+  els.customerCuit.disabled = !isWholesale;
   els.customerNumber.disabled = !isWholesale;
-  if (!isWholesale) els.customerNumber.value = "";
+  if (!isWholesale) {
+    els.customerCuit.value = "";
+    els.customerNumber.value = "";
+  }
 }
 
 function closeCustomerDialog() {
@@ -495,6 +502,7 @@ async function saveCustomer(event) {
     phone: els.customerPhone.value,
     address: els.customerAddress.value,
     saleType: els.customerSaleType.value,
+    cuit: els.customerCuit.value,
     customerNumber: els.customerNumber.value,
     notes: els.customerNotes.value,
     currentUser: currentUser()
