@@ -454,7 +454,7 @@ function nextWorkingDate(dateText) {
   return isSundayDate(dateText) ? addDaysToDate(dateText, 1) : dateText;
 }
 
-function publicOrderDatePolicy(now = new Date()) {
+function publicOrderDatePolicy(deliveryType = "RETIRO", now = new Date()) {
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat("en-CA", {
       timeZone: "America/Argentina/Buenos_Aires",
@@ -466,12 +466,15 @@ function publicOrderDatePolicy(now = new Date()) {
     }).formatToParts(now).filter(part => part.type !== "literal").map(part => [part.type, part.value])
   );
   const today = `${parts.year}-${parts.month}-${parts.day}`;
-  const afterCutoff = Number(parts.hour) >= 11;
+  const normalizedType = normalizeDeliveryType(deliveryType);
+  const cutoffHour = normalizedType === "DELIVERY" ? 11 : 13;
+  const afterCutoff = Number(parts.hour) >= cutoffHour;
   return {
     today,
     afterCutoff,
     minDate: nextWorkingDate(afterCutoff ? addDaysToDate(today, 1) : today),
-    cutoffHour: 11
+    cutoffHour,
+    deliveryType: normalizedType
   };
 }
 
@@ -843,15 +846,15 @@ async function handleApi(req, res) {
     }
 
     if (url.pathname === "/api/public-order-policy" && req.method === "GET") {
-      return sendJson(res, 200, publicOrderDatePolicy());
+      return sendJson(res, 200, publicOrderDatePolicy(url.searchParams.get("deliveryType")));
     }
 
     if (url.pathname === "/api/public-orders" && req.method === "POST") {
       const payload = await readBody(req);
-      const datePolicy = publicOrderDatePolicy();
+      const datePolicy = publicOrderDatePolicy(payload.deliveryType);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(cleanText(payload.prepDate)) || payload.prepDate < datePolicy.minDate) {
         const error = datePolicy.afterCutoff
-          ? `Los pedidos para hoy cerraron a las 11:00. Elegi una fecha desde ${datePolicy.minDate}.`
+          ? `Los pedidos con ${datePolicy.deliveryType === "DELIVERY" ? "delivery" : "retiro por el local"} para hoy cerraron a las ${datePolicy.cutoffHour}:00. Elegi una fecha desde ${datePolicy.minDate}.`
           : `Elegi una fecha desde ${datePolicy.minDate}.`;
         return sendJson(res, 400, { error, ...datePolicy });
       }
@@ -969,4 +972,4 @@ if (require.main === module) startServer().catch(error => {
   process.exitCode = 1;
 });
 
-module.exports = { findDuplicateCustomer, normalizeCustomer, normalizeSaleType, runDataMigrations, server, startServer };
+module.exports = { findDuplicateCustomer, normalizeCustomer, normalizeSaleType, publicOrderDatePolicy, runDataMigrations, server, startServer };

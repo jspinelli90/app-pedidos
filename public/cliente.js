@@ -11,6 +11,7 @@ const district = document.querySelector("#clientDistrict");
 const locality = document.querySelector("#clientLocality");
 const successBox = document.querySelector("#clientSuccess");
 const cutoffNotice = document.querySelector("#clientCutoffNotice");
+const cutoffText = document.querySelector("#clientCutoffText");
 const clientDocuments = document.querySelector("#clientDocuments");
 const clientPriceListsGroup = document.querySelector("#clientPriceListsGroup");
 const clientOffersGroup = document.querySelector("#clientOffersGroup");
@@ -129,8 +130,10 @@ function nextWorkingDate(dateText) {
 function localDatePolicy() {
   const now = new Date();
   const today = todayDate();
-  const afterCutoff = now.getHours() >= 11;
-  return { today, afterCutoff, minDate: nextWorkingDate(afterCutoff ? addDays(today, 1) : today) };
+  const selectedType = deliveryType.value === "DELIVERY" ? "DELIVERY" : "RETIRO";
+  const cutoffHour = selectedType === "DELIVERY" ? 11 : 13;
+  const afterCutoff = now.getHours() >= cutoffHour;
+  return { today, afterCutoff, cutoffHour, deliveryType: selectedType, minDate: nextWorkingDate(afterCutoff ? addDays(today, 1) : today) };
 }
 
 function applyDatePolicy(policy, forceValue = false) {
@@ -140,6 +143,10 @@ function applyDatePolicy(policy, forceValue = false) {
   if (forceValue || !prepDate.value || prepDate.value < policy.minDate || isSunday(prepDate.value)) prepDate.value = policy.minDate;
   validatePrepDate();
   cutoffNotice.hidden = !policy.afterCutoff;
+  if (policy.afterCutoff) {
+    const method = policy.deliveryType === "DELIVERY" ? "delivery" : "retiro por el local";
+    cutoffText.textContent = `Los pedidos con ${method} para hoy cerraron a las ${policy.cutoffHour}:00. Elegi manana o cualquier fecha posterior.`;
+  }
 }
 
 function validatePrepDate() {
@@ -151,7 +158,7 @@ function validatePrepDate() {
 async function refreshDatePolicy(forceValue = false) {
   let policy = localDatePolicy();
   try {
-    const response = await fetch("/api/public-order-policy", { cache: "no-store" });
+    const response = await fetch(`/api/public-order-policy?deliveryType=${encodeURIComponent(deliveryType.value)}`, { cache: "no-store" });
     if (response.ok) policy = await response.json();
   } catch {
     // El servidor vuelve a validar la fecha al enviar el pedido.
@@ -258,7 +265,10 @@ async function sendOrder(event) {
   }
 }
 
-deliveryType.addEventListener("change", updateAddressRequirement);
+deliveryType.addEventListener("change", async () => {
+  updateAddressRequirement();
+  await refreshDatePolicy(true);
+});
 prepDate.addEventListener("change", () => {
   if (!validatePrepDate()) setMessage("Los domingos no trabajamos ni realizamos entregas. Elegi otra fecha.", true);
   else if (message.textContent.includes("domingos")) setMessage("");
