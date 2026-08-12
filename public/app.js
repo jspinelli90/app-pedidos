@@ -3,6 +3,7 @@ const state = {
   customers: [],
   users: [],
   movements: [],
+  clientDocuments: { "price-list": [], offers: [] },
   editingId: null,
   editingCustomerId: null
 };
@@ -303,22 +304,26 @@ async function loadCustomers() {
   renderCustomerAgenda();
 }
 
-function renderDocumentList(container, documents) {
+function renderDocumentList(container, documents, type) {
   container.innerHTML = "";
   if (!documents.length) {
     container.textContent = "Todavia no hay archivos cargados.";
     return;
   }
-  documents.forEach(document => {
+  documents.forEach((document, index) => {
     const row = window.document.createElement("div");
     row.className = "document-row";
     row.innerHTML = `
       <div><strong>${escapeHtml(document.name)}</strong><small>Actualizado ${dateTime(document.updatedAt)}</small></div>
       <div class="document-row-actions">
+        <button class="ghost document-up" type="button" title="Subir" ${index === 0 ? "disabled" : ""}>Subir</button>
+        <button class="ghost document-down" type="button" title="Bajar" ${index === documents.length - 1 ? "disabled" : ""}>Bajar</button>
         <a class="ghost button-link" href="/api/public-client-documents/${document.id || document.type}" target="_blank" rel="noopener">Ver</a>
         ${document.id ? '<button class="danger document-delete" type="button">Eliminar</button>' : ""}
       </div>
     `;
+    row.querySelector(".document-up").addEventListener("click", () => moveClientDocument(type, index, -1));
+    row.querySelector(".document-down").addEventListener("click", () => moveClientDocument(type, index, 1));
     const deleteButton = row.querySelector(".document-delete");
     if (deleteButton) deleteButton.addEventListener("click", () => deleteClientDocument(document));
     container.append(row);
@@ -327,8 +332,30 @@ function renderDocumentList(container, documents) {
 
 async function loadClientDocuments() {
   const documents = await api("/api/public-client-documents");
-  renderDocumentList(els.priceListDocuments, documents["price-list"]);
-  renderDocumentList(els.offersDocuments, documents.offers);
+  state.clientDocuments = documents;
+  renderDocumentList(els.priceListDocuments, documents["price-list"], "price-list");
+  renderDocumentList(els.offersDocuments, documents.offers, "offers");
+}
+
+async function moveClientDocument(type, index, direction) {
+  const documents = [...state.clientDocuments[type]];
+  const target = index + direction;
+  if (target < 0 || target >= documents.length || documents.some(document => !document.id)) return;
+  [documents[index], documents[target]] = [documents[target], documents[index]];
+  state.clientDocuments[type] = documents;
+  renderDocumentList(type === "price-list" ? els.priceListDocuments : els.offersDocuments, documents, type);
+  try {
+    await api("/api/client-documents/order", {
+      method: "PUT",
+      body: JSON.stringify({ type, ids: documents.map(document => document.id) })
+    });
+    els.documentsMessage.textContent = "Orden actualizado. Asi se mostrara en el formulario de clientes.";
+    els.documentsMessage.style.color = "#0f6b5f";
+  } catch (error) {
+    await loadClientDocuments();
+    els.documentsMessage.textContent = error.message;
+    els.documentsMessage.style.color = "#b83232";
+  }
 }
 
 async function deleteClientDocument(document) {

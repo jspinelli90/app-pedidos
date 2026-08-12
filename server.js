@@ -275,7 +275,22 @@ function readBodyWithLimit(req, maxBytes) {
 }
 
 async function readClientDocuments() {
-  return readStore("client_documents", CLIENT_DOCUMENTS_FILE);
+  const records = await readStore("client_documents", CLIENT_DOCUMENTS_FILE);
+  let changed = false;
+  Object.keys(CLIENT_DOCUMENT_TYPES).forEach(type => {
+    records.filter(item => item.type === type).forEach((item, index) => {
+      if (!item.id) {
+        item.id = cryptoId();
+        changed = true;
+      }
+      if (!Number.isFinite(item.order)) {
+        item.order = index;
+        changed = true;
+      }
+    });
+  });
+  if (changed) await writeStore("client_documents", CLIENT_DOCUMENTS_FILE, records);
+  return records;
 }
 
 async function writeClientDocuments(records) {
@@ -651,7 +666,11 @@ async function handleApi(req, res) {
   try {
     if (url.pathname === "/api/public-client-documents" && req.method === "GET") {
       const records = await readClientDocuments();
-      const visible = records.map(({ storageName, ...record }) => record).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+      const visible = records.map(({ storageName, ...record }) => record).sort((a, b) => {
+        const orderA = Number.isFinite(a.order) ? a.order : Number.MAX_SAFE_INTEGER;
+        const orderB = Number.isFinite(b.order) ? b.order : Number.MAX_SAFE_INTEGER;
+        return orderA - orderB || new Date(a.updatedAt) - new Date(b.updatedAt);
+      });
       return sendJson(res, 200, Object.fromEntries(Object.keys(CLIENT_DOCUMENT_TYPES).map(type => [type, visible.filter(item => item.type === type)])));
     }
 
@@ -675,13 +694,33 @@ async function handleApi(req, res) {
       const type = documentUploadMatch[1];
       const id = cryptoId();
       const storageName = `${type}/${id}.pdf`;
-      const metadata = { id, type, name: cleanText(payload.name), size: buffer.length, storageName, updatedAt: new Date().toISOString() };
-      await saveClientDocument(metadata, buffer);
       const records = await readClientDocuments();
+      const typeOrders = records.filter(item => item.type === type && Number.isFinite(item.order)).map(item => item.order);
+      const order = typeOrders.length ? Math.max(...typeOrders) + 1 : records.filter(item => item.type === type).length;
+      const metadata = { id, type, name: cleanText(payload.name), size: buffer.length, storageName, order, updatedAt: new Date().toISOString() };
+      await saveClientDocument(metadata, buffer);
       records.push(metadata);
       await writeClientDocuments(records);
       const { storageName: omitted, ...publicMetadata } = metadata;
       return sendJson(res, 200, publicMetadata);
+    }
+
+    if (url.pathname === "/api/client-documents/order" && req.method === "PUT") {
+      const payload = await readBody(req);
+      const type = cleanText(payload.type);
+      const ids = Array.isArray(payload.ids) ? payload.ids.map(cleanText) : [];
+      if (!CLIENT_DOCUMENT_TYPES[type] || !ids.length || new Set(ids).size !== ids.length) {
+        return sendJson(res, 400, { error: "Orden de documentos invalido." });
+      }
+      const records = await readClientDocuments();
+      const documents = records.filter(item => item.type === type);
+      if (documents.length !== ids.length || documents.some(item => !item.id || !ids.includes(item.id))) {
+        return sendJson(res, 409, { error: "La lista de documentos cambio. Actualiza la pantalla e intenta nuevamente." });
+      }
+      const positions = new Map(ids.map((id, index) => [id, index]));
+      const updated = records.map(item => item.type === type ? { ...item, order: positions.get(item.id) } : item);
+      await writeClientDocuments(updated);
+      return sendJson(res, 200, { ok: true });
     }
 
     const documentDeleteMatch = url.pathname.match(/^\/api\/client-documents\/([^/]+)$/);
