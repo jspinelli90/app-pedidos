@@ -12,8 +12,10 @@ const locality = document.querySelector("#clientLocality");
 const successBox = document.querySelector("#clientSuccess");
 const cutoffNotice = document.querySelector("#clientCutoffNotice");
 const clientDocuments = document.querySelector("#clientDocuments");
-const clientPriceListBtn = document.querySelector("#clientPriceListBtn");
-const clientOffersBtn = document.querySelector("#clientOffersBtn");
+const clientPriceListsGroup = document.querySelector("#clientPriceListsGroup");
+const clientOffersGroup = document.querySelector("#clientOffersGroup");
+const clientPriceLists = document.querySelector("#clientPriceLists");
+const clientOffers = document.querySelector("#clientOffers");
 
 let orderDatePolicy = null;
 
@@ -22,12 +24,32 @@ async function loadClientDocuments() {
     const response = await fetch("/api/public-client-documents", { cache: "no-store" });
     if (!response.ok) return;
     const documents = await response.json();
-    clientPriceListBtn.hidden = !documents["price-list"];
-    clientOffersBtn.hidden = !documents.offers;
-    clientDocuments.hidden = clientPriceListBtn.hidden && clientOffersBtn.hidden;
+    renderClientDocumentLinks(clientPriceLists, documents["price-list"], "primary");
+    renderClientDocumentLinks(clientOffers, documents.offers, "offers-button");
+    clientPriceListsGroup.hidden = documents["price-list"].length === 0;
+    clientOffersGroup.hidden = documents.offers.length === 0;
+    clientDocuments.hidden = clientPriceListsGroup.hidden && clientOffersGroup.hidden;
   } catch {
     clientDocuments.hidden = true;
   }
+}
+
+function renderClientDocumentLinks(container, documents, className) {
+  container.innerHTML = "";
+  documents.forEach(document => {
+    const link = documentNode("a", `${className} button-link`, document.name);
+    link.href = `/api/public-client-documents/${document.id || document.type}`;
+    link.target = "_blank";
+    link.rel = "noopener";
+    container.append(link);
+  });
+}
+
+function documentNode(tag, className, text) {
+  const element = window.document.createElement(tag);
+  element.className = className;
+  element.textContent = text;
+  return element;
 }
 
 const LOCALITIES_BY_DISTRICT = {

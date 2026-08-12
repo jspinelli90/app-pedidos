@@ -20,13 +20,11 @@ const els = {
   customersViewBtn: document.querySelector("#customersViewBtn"),
   documentsViewBtn: document.querySelector("#documentsViewBtn"),
   documentsMessage: document.querySelector("#documentsMessage"),
-  priceListStatus: document.querySelector("#priceListStatus"),
+  priceListDocuments: document.querySelector("#priceListDocuments"),
   priceListFile: document.querySelector("#priceListFile"),
-  priceListPreview: document.querySelector("#priceListPreview"),
   priceListUpload: document.querySelector("#priceListUpload"),
-  offersStatus: document.querySelector("#offersStatus"),
+  offersDocuments: document.querySelector("#offersDocuments"),
   offersFile: document.querySelector("#offersFile"),
-  offersPreview: document.querySelector("#offersPreview"),
   offersUpload: document.querySelector("#offersUpload"),
   onlineOrderAlert: document.querySelector("#onlineOrderAlert"),
   onlineOrderAlertTitle: document.querySelector("#onlineOrderAlertTitle"),
@@ -305,17 +303,45 @@ async function loadCustomers() {
   renderCustomerAgenda();
 }
 
-function documentLabel(metadata) {
-  if (!metadata) return "Todavia no hay un PDF cargado.";
-  return `${metadata.name} - actualizado ${dateTime(metadata.updatedAt)}`;
+function renderDocumentList(container, documents) {
+  container.innerHTML = "";
+  if (!documents.length) {
+    container.textContent = "Todavia no hay archivos cargados.";
+    return;
+  }
+  documents.forEach(document => {
+    const row = window.document.createElement("div");
+    row.className = "document-row";
+    row.innerHTML = `
+      <div><strong>${escapeHtml(document.name)}</strong><small>Actualizado ${dateTime(document.updatedAt)}</small></div>
+      <div class="document-row-actions">
+        <a class="ghost button-link" href="/api/public-client-documents/${document.id || document.type}" target="_blank" rel="noopener">Ver</a>
+        ${document.id ? '<button class="danger document-delete" type="button">Eliminar</button>' : ""}
+      </div>
+    `;
+    const deleteButton = row.querySelector(".document-delete");
+    if (deleteButton) deleteButton.addEventListener("click", () => deleteClientDocument(document));
+    container.append(row);
+  });
 }
 
 async function loadClientDocuments() {
   const documents = await api("/api/public-client-documents");
-  els.priceListStatus.textContent = documentLabel(documents["price-list"]);
-  els.offersStatus.textContent = documentLabel(documents.offers);
-  els.priceListPreview.hidden = !documents["price-list"];
-  els.offersPreview.hidden = !documents.offers;
+  renderDocumentList(els.priceListDocuments, documents["price-list"]);
+  renderDocumentList(els.offersDocuments, documents.offers);
+}
+
+async function deleteClientDocument(document) {
+  if (!confirm(`Eliminar "${document.name}"?`)) return;
+  try {
+    await api(`/api/client-documents/${document.id}`, { method: "DELETE" });
+    await loadClientDocuments();
+    els.documentsMessage.textContent = "PDF eliminado.";
+    els.documentsMessage.style.color = "#0f6b5f";
+  } catch (error) {
+    els.documentsMessage.textContent = error.message;
+    els.documentsMessage.style.color = "#b83232";
+  }
 }
 
 function fileAsDataUrl(file) {
@@ -352,7 +378,7 @@ async function uploadClientDocument(type) {
     });
     input.value = "";
     await loadClientDocuments();
-    els.documentsMessage.textContent = "PDF actualizado correctamente. Los clientes ya pueden abrir la nueva version.";
+    els.documentsMessage.textContent = "PDF agregado correctamente. Los clientes ya pueden abrirlo junto con los demas archivos.";
   } catch (error) {
     els.documentsMessage.textContent = error.message;
     els.documentsMessage.style.color = "#b83232";

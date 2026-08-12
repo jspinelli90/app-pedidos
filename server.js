@@ -15,8 +15,8 @@ const MOVEMENTS_FILE = path.join(DATA_DIR, "movements.json");
 const CLIENT_DOCUMENTS_FILE = path.join(DATA_DIR, "client-documents.json");
 const CLIENT_DOCUMENTS_BUCKET = "client-documents";
 const CLIENT_DOCUMENT_TYPES = {
-  "price-list": { label: "Lista de precios", fileName: "lista-de-precios.pdf" },
-  offers: { label: "Ofertas", fileName: "ofertas.pdf" }
+  "price-list": { label: "Lista de precios", legacyFileName: "lista-de-precios.pdf" },
+  offers: { label: "Ofertas", legacyFileName: "ofertas.pdf" }
 };
 
 loadEnvFile();
@@ -297,12 +297,17 @@ async function ensureClientDocumentsBucket() {
   }
 }
 
-async function saveClientDocument(type, buffer) {
+function clientDocumentStorageName(document) {
+  return document.storageName || CLIENT_DOCUMENT_TYPES[document.type]?.legacyFileName || "";
+}
+
+async function saveClientDocument(document, buffer) {
+  const { type, storageName } = document;
   const config = CLIENT_DOCUMENT_TYPES[type];
   if (!config) throw new Error("Tipo de documento invalido.");
   if (USE_SUPABASE) {
     await ensureClientDocumentsBucket();
-    const response = await fetch(`${SUPABASE_URL}/storage/v1/object/${CLIENT_DOCUMENTS_BUCKET}/${config.fileName}`, {
+    const response = await fetch(`${SUPABASE_URL}/storage/v1/object/${CLIENT_DOCUMENTS_BUCKET}/${storageName}`, {
       method: "POST",
       headers: {
         apikey: SUPABASE_SERVICE_ROLE_KEY,
@@ -316,31 +321,48 @@ async function saveClientDocument(type, buffer) {
     return;
   }
   ensureDataFile();
-  fs.writeFileSync(path.join(DATA_DIR, config.fileName), buffer);
+  const filePath = path.join(DATA_DIR, storageName);
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, buffer);
 }
 
-async function sendClientDocument(res, type) {
-  const config = CLIENT_DOCUMENT_TYPES[type];
-  if (!config) return sendJson(res, 404, { error: "Documento no encontrado." });
+async function sendClientDocument(res, document) {
+  const storageName = clientDocumentStorageName(document);
+  if (!storageName) return sendJson(res, 404, { error: "Documento no encontrado." });
   let buffer;
   if (USE_SUPABASE) {
-    const response = await fetch(`${SUPABASE_URL}/storage/v1/object/${CLIENT_DOCUMENTS_BUCKET}/${config.fileName}`, {
+    const response = await fetch(`${SUPABASE_URL}/storage/v1/object/${CLIENT_DOCUMENTS_BUCKET}/${storageName}`, {
       headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` }
     });
     if (!response.ok) return sendJson(res, 404, { error: "El documento todavia no fue cargado." });
     buffer = Buffer.from(await response.arrayBuffer());
   } else {
-    const filePath = path.join(DATA_DIR, config.fileName);
+    const filePath = path.join(DATA_DIR, storageName);
     if (!fs.existsSync(filePath)) return sendJson(res, 404, { error: "El documento todavia no fue cargado." });
     buffer = fs.readFileSync(filePath);
   }
   res.writeHead(200, {
     "Content-Type": "application/pdf",
     "Content-Length": buffer.length,
-    "Content-Disposition": `inline; filename="${config.fileName}"`,
+    "Content-Disposition": `inline; filename="${cleanText(document.name).replace(/["\r\n]/g, "") || "documento.pdf"}"`,
     "Cache-Control": "no-store"
   });
   res.end(buffer);
+}
+
+async function deleteClientDocumentFile(document) {
+  const storageName = clientDocumentStorageName(document);
+  if (!storageName) return;
+  if (USE_SUPABASE) {
+    const response = await fetch(`${SUPABASE_URL}/storage/v1/object/${CLIENT_DOCUMENTS_BUCKET}/${storageName}`, {
+      method: "DELETE",
+      headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` }
+    });
+    if (!response.ok && response.status !== 404) throw new Error(`No se pudo eliminar el PDF (${response.status}).`);
+    return;
+  }
+  const filePath = path.join(DATA_DIR, storageName);
+  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
 }
 
 function cleanText(value) {
@@ -621,12 +643,16 @@ async function handleApi(req, res) {
   try {
     if (url.pathname === "/api/public-client-documents" && req.method === "GET") {
       const records = await readClientDocuments();
-      return sendJson(res, 200, Object.fromEntries(Object.keys(CLIENT_DOCUMENT_TYPES).map(type => [type, records.find(item => item.type === type) || null])));
+      const visible = records.map(({ storageName, ...record }) => record).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+      return sendJson(res, 200, Object.fromEntries(Object.keys(CLIENT_DOCUMENT_TYPES).map(type => [type, visible.filter(item => item.type === type)])));
     }
 
-    const publicDocumentMatch = url.pathname.match(/^\/api\/public-client-documents\/(price-list|offers)$/);
+    const publicDocumentMatch = url.pathname.match(/^\/api\/public-client-documents\/([^/]+)$/);
     if (publicDocumentMatch && req.method === "GET") {
-      return sendClientDocument(res, publicDocumentMatch[1]);
+      const records = await readClientDocuments();
+      const document = records.find(item => item.id === publicDocumentMatch[1]) || records.find(item => item.type === publicDocumentMatch[1]);
+      if (!document) return sendJson(res, 404, { error: "Documento no encontrado." });
+      return sendClientDocument(res, document);
     }
 
     const documentUploadMatch = url.pathname.match(/^\/api\/client-documents\/(price-list|offers)$/);
@@ -639,13 +665,25 @@ async function handleApi(req, res) {
       }
       if (buffer.length > 10_000_000) return sendJson(res, 400, { error: "El PDF no puede superar los 10 MB." });
       const type = documentUploadMatch[1];
-      await saveClientDocument(type, buffer);
+      const id = cryptoId();
+      const storageName = `${type}/${id}.pdf`;
+      const metadata = { id, type, name: cleanText(payload.name), size: buffer.length, storageName, updatedAt: new Date().toISOString() };
+      await saveClientDocument(metadata, buffer);
       const records = await readClientDocuments();
-      const metadata = { type, name: cleanText(payload.name), size: buffer.length, updatedAt: new Date().toISOString() };
-      const next = records.filter(item => item.type !== type);
-      next.push(metadata);
-      await writeClientDocuments(next);
-      return sendJson(res, 200, metadata);
+      records.push(metadata);
+      await writeClientDocuments(records);
+      const { storageName: omitted, ...publicMetadata } = metadata;
+      return sendJson(res, 200, publicMetadata);
+    }
+
+    const documentDeleteMatch = url.pathname.match(/^\/api\/client-documents\/([^/]+)$/);
+    if (documentDeleteMatch && req.method === "DELETE") {
+      const records = await readClientDocuments();
+      const document = records.find(item => item.id === documentDeleteMatch[1]);
+      if (!document) return sendJson(res, 404, { error: "Documento no encontrado." });
+      await deleteClientDocumentFile(document);
+      await writeClientDocuments(records.filter(item => item !== document));
+      return sendJson(res, 200, { ok: true });
     }
 
     if (url.pathname === "/api/orders" && req.method === "GET") {

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Sistema de pedidos</title>
-    <link rel="stylesheet" href="/styles.css?v=20260812-documentos-clientes">
+    <link rel="stylesheet" href="/styles.css?v=20260812-documentos-multiples">
   </head>
   <body>
     <header class="topbar">
@@ -249,24 +249,22 @@
       <section class="document-grid">
         <article class="panel document-card" data-document-type="price-list">
           <h3>Lista de precios</h3>
-          <p id="priceListStatus" class="document-status">Consultando...</p>
+          <div id="priceListDocuments" class="document-list">Consultando...</div>
           <label>Elegir PDF
             <input id="priceListFile" type="file" accept="application/pdf,.pdf">
           </label>
           <div class="form-actions">
-            <a id="priceListPreview" class="ghost button-link" href="/api/public-client-documents/price-list" target="_blank" rel="noopener" hidden>Ver PDF actual</a>
-            <button id="priceListUpload" class="primary" type="button">Cargar o reemplazar</button>
+            <button id="priceListUpload" class="primary" type="button">Agregar PDF</button>
           </div>
         </article>
         <article class="panel document-card" data-document-type="offers">
           <h3>Ofertas</h3>
-          <p id="offersStatus" class="document-status">Consultando...</p>
+          <div id="offersDocuments" class="document-list">Consultando...</div>
           <label>Elegir PDF
             <input id="offersFile" type="file" accept="application/pdf,.pdf">
           </label>
           <div class="form-actions">
-            <a id="offersPreview" class="ghost button-link" href="/api/public-client-documents/offers" target="_blank" rel="noopener" hidden>Ver PDF actual</a>
-            <button id="offersUpload" class="primary" type="button">Cargar o reemplazar</button>
+            <button id="offersUpload" class="primary" type="button">Agregar PDF</button>
           </div>
         </article>
       </section>
@@ -318,6 +316,6 @@
       </form>
     </dialog>
 
-    <script src="/app.js?v=20260812-documentos-clientes"></script>
+    <script src="/app.js?v=20260812-documentos-multiples"></script>
   </body>
 </html>
