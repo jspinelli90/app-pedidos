@@ -283,17 +283,25 @@ async function writeClientDocuments(records) {
 }
 
 async function ensureClientDocumentsBucket() {
+  const headers = {
+    apikey: SUPABASE_SERVICE_ROLE_KEY,
+    Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+    "Content-Type": "application/json"
+  };
+  const existing = await fetch(`${SUPABASE_URL}/storage/v1/bucket/${CLIENT_DOCUMENTS_BUCKET}`, { headers });
+  if (existing.ok) return;
+  if (existing.status !== 404) {
+    const detail = await existing.text().catch(() => "");
+    throw new Error(`No se pudo comprobar el almacenamiento de documentos (${existing.status}${detail ? `: ${detail}` : ""}).`);
+  }
   const response = await fetch(`${SUPABASE_URL}/storage/v1/bucket`, {
     method: "POST",
-    headers: {
-      apikey: SUPABASE_SERVICE_ROLE_KEY,
-      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-      "Content-Type": "application/json"
-    },
+    headers,
     body: JSON.stringify({ id: CLIENT_DOCUMENTS_BUCKET, name: CLIENT_DOCUMENTS_BUCKET, public: false, file_size_limit: 10_000_000, allowed_mime_types: ["application/pdf"] })
   });
-  if (!response.ok && response.status !== 409) {
-    throw new Error(`No se pudo preparar el almacenamiento de documentos (${response.status}).`);
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(`No se pudo preparar el almacenamiento de documentos (${response.status}${detail ? `: ${detail}` : ""}).`);
   }
 }
 
