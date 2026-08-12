@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Sistema de pedidos</title>
-    <link rel="stylesheet" href="/styles.css?v=20260716-aviso-pedidos-online">
+    <link rel="stylesheet" href="/styles.css?v=20260812-documentos-clientes">
   </head>
   <body>
     <header class="topbar">
@@ -18,6 +18,7 @@
         <button id="ordersViewBtn" class="primary" type="button">Pedidos</button>
         <button id="deliveryViewBtn" class="ghost" type="button">Delivery</button>
         <button id="customersViewBtn" class="ghost" type="button">Clientes</button>
+        <button id="documentsViewBtn" class="ghost" type="button">Documentos clientes</button>
         <a class="ghost button-link" href="/cliente.html" target="_blank" rel="noopener">Formulario cliente</a>
         <button id="refreshBtn" class="icon-btn" title="Actualizar" type="button">Actualizar</button>
         <button id="newBtn" class="primary" type="button">Nuevo pedido</button>
@@ -236,6 +237,42 @@
       <section id="customerAgendaList" class="customer-agenda-list" aria-live="polite"></section>
     </main>
 
+    <main id="documentsModule" class="module-view documents-module" hidden>
+      <section class="documents-head">
+        <div>
+          <p class="eyebrow dark">Contenido del formulario online</p>
+          <h2>Documentos para clientes</h2>
+          <p>Desde aca podes cargar o reemplazar los PDF. Los botones del formulario siempre muestran la ultima version.</p>
+        </div>
+        <a class="ghost button-link" href="/cliente.html" target="_blank" rel="noopener">Ver formulario cliente</a>
+      </section>
+      <section class="document-grid">
+        <article class="panel document-card" data-document-type="price-list">
+          <h3>Lista de precios</h3>
+          <p id="priceListStatus" class="document-status">Consultando...</p>
+          <label>Elegir PDF
+            <input id="priceListFile" type="file" accept="application/pdf,.pdf">
+          </label>
+          <div class="form-actions">
+            <a id="priceListPreview" class="ghost button-link" href="/api/public-client-documents/price-list" target="_blank" rel="noopener" hidden>Ver PDF actual</a>
+            <button id="priceListUpload" class="primary" type="button">Cargar o reemplazar</button>
+          </div>
+        </article>
+        <article class="panel document-card" data-document-type="offers">
+          <h3>Ofertas</h3>
+          <p id="offersStatus" class="document-status">Consultando...</p>
+          <label>Elegir PDF
+            <input id="offersFile" type="file" accept="application/pdf,.pdf">
+          </label>
+          <div class="form-actions">
+            <a id="offersPreview" class="ghost button-link" href="/api/public-client-documents/offers" target="_blank" rel="noopener" hidden>Ver PDF actual</a>
+            <button id="offersUpload" class="primary" type="button">Cargar o reemplazar</button>
+          </div>
+        </article>
+      </section>
+      <p id="documentsMessage" class="message" role="status"></p>
+    </main>
+
     <dialog id="customerDialog" class="customer-dialog">
       <form id="customerForm">
         <div class="dialog-head">
@@ -281,6 +318,6 @@
       </form>
     </dialog>
 
-    <script src="/app.js?v=20260716-aviso-pedidos-online"></script>
+    <script src="/app.js?v=20260812-documentos-clientes"></script>
   </body>
 </html>

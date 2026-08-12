@@ -12,6 +12,12 @@ const ORDERS_FILE = path.join(DATA_DIR, "orders.json");
 const CUSTOMERS_FILE = path.join(DATA_DIR, "customers.json");
 const USERS_FILE = path.join(DATA_DIR, "users.json");
 const MOVEMENTS_FILE = path.join(DATA_DIR, "movements.json");
+const CLIENT_DOCUMENTS_FILE = path.join(DATA_DIR, "client-documents.json");
+const CLIENT_DOCUMENTS_BUCKET = "client-documents";
+const CLIENT_DOCUMENT_TYPES = {
+  "price-list": { label: "Lista de precios", fileName: "lista-de-precios.pdf" },
+  offers: { label: "Ofertas", fileName: "ofertas.pdf" }
+};
 
 loadEnvFile();
 
@@ -29,6 +35,7 @@ const MIME_TYPES = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
+  ".pdf": "application/pdf",
   ".ico": "image/x-icon"
 };
 
@@ -241,6 +248,99 @@ function readBody(req) {
     });
     req.on("error", reject);
   });
+}
+
+function readBodyWithLimit(req, maxBytes) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    req.on("data", chunk => {
+      size += chunk.length;
+      if (size > maxBytes) {
+        reject(new Error("El archivo supera el limite de 10 MB."));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on("end", () => {
+      try {
+        resolve(JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}"));
+      } catch {
+        reject(new Error("Datos invalidos."));
+      }
+    });
+    req.on("error", reject);
+  });
+}
+
+async function readClientDocuments() {
+  return readStore("client_documents", CLIENT_DOCUMENTS_FILE);
+}
+
+async function writeClientDocuments(records) {
+  return writeStore("client_documents", CLIENT_DOCUMENTS_FILE, records);
+}
+
+async function ensureClientDocumentsBucket() {
+  const response = await fetch(`${SUPABASE_URL}/storage/v1/bucket`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ id: CLIENT_DOCUMENTS_BUCKET, name: CLIENT_DOCUMENTS_BUCKET, public: false, file_size_limit: 10_000_000, allowed_mime_types: ["application/pdf"] })
+  });
+  if (!response.ok && response.status !== 409) {
+    throw new Error(`No se pudo preparar el almacenamiento de documentos (${response.status}).`);
+  }
+}
+
+async function saveClientDocument(type, buffer) {
+  const config = CLIENT_DOCUMENT_TYPES[type];
+  if (!config) throw new Error("Tipo de documento invalido.");
+  if (USE_SUPABASE) {
+    await ensureClientDocumentsBucket();
+    const response = await fetch(`${SUPABASE_URL}/storage/v1/object/${CLIENT_DOCUMENTS_BUCKET}/${config.fileName}`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        "Content-Type": "application/pdf",
+        "x-upsert": "true"
+      },
+      body: buffer
+    });
+    if (!response.ok) throw new Error(`No se pudo guardar el PDF (${response.status}).`);
+    return;
+  }
+  ensureDataFile();
+  fs.writeFileSync(path.join(DATA_DIR, config.fileName), buffer);
+}
+
+async function sendClientDocument(res, type) {
+  const config = CLIENT_DOCUMENT_TYPES[type];
+  if (!config) return sendJson(res, 404, { error: "Documento no encontrado." });
+  let buffer;
+  if (USE_SUPABASE) {
+    const response = await fetch(`${SUPABASE_URL}/storage/v1/object/${CLIENT_DOCUMENTS_BUCKET}/${config.fileName}`, {
+      headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` }
+    });
+    if (!response.ok) return sendJson(res, 404, { error: "El documento todavia no fue cargado." });
+    buffer = Buffer.from(await response.arrayBuffer());
+  } else {
+    const filePath = path.join(DATA_DIR, config.fileName);
+    if (!fs.existsSync(filePath)) return sendJson(res, 404, { error: "El documento todavia no fue cargado." });
+    buffer = fs.readFileSync(filePath);
+  }
+  res.writeHead(200, {
+    "Content-Type": "application/pdf",
+    "Content-Length": buffer.length,
+    "Content-Disposition": `inline; filename="${config.fileName}"`,
+    "Cache-Control": "no-store"
+  });
+  res.end(buffer);
 }
 
 function cleanText(value) {
@@ -519,6 +619,35 @@ async function handleApi(req, res) {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
 
   try {
+    if (url.pathname === "/api/public-client-documents" && req.method === "GET") {
+      const records = await readClientDocuments();
+      return sendJson(res, 200, Object.fromEntries(Object.keys(CLIENT_DOCUMENT_TYPES).map(type => [type, records.find(item => item.type === type) || null])));
+    }
+
+    const publicDocumentMatch = url.pathname.match(/^\/api\/public-client-documents\/(price-list|offers)$/);
+    if (publicDocumentMatch && req.method === "GET") {
+      return sendClientDocument(res, publicDocumentMatch[1]);
+    }
+
+    const documentUploadMatch = url.pathname.match(/^\/api\/client-documents\/(price-list|offers)$/);
+    if (documentUploadMatch && req.method === "POST") {
+      const payload = await readBodyWithLimit(req, 14_000_000);
+      const encoded = cleanText(payload.data).replace(/^data:application\/pdf;base64,/, "");
+      const buffer = Buffer.from(encoded, "base64");
+      if (!cleanText(payload.name).toLowerCase().endsWith(".pdf") || buffer.length < 5 || buffer.subarray(0, 5).toString() !== "%PDF-") {
+        return sendJson(res, 400, { error: "Selecciona un archivo PDF valido." });
+      }
+      if (buffer.length > 10_000_000) return sendJson(res, 400, { error: "El PDF no puede superar los 10 MB." });
+      const type = documentUploadMatch[1];
+      await saveClientDocument(type, buffer);
+      const records = await readClientDocuments();
+      const metadata = { type, name: cleanText(payload.name), size: buffer.length, updatedAt: new Date().toISOString() };
+      const next = records.filter(item => item.type !== type);
+      next.push(metadata);
+      await writeClientDocuments(next);
+      return sendJson(res, 200, metadata);
+    }
+
     if (url.pathname === "/api/orders" && req.method === "GET") {
       const orders = (await readOrders()).sort((a, b) => orderSortValue(a).localeCompare(orderSortValue(b)));
       return sendJson(res, 200, orders);

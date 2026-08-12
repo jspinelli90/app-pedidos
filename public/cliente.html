@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Enviar pedido</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles.css?v=20260812-documentos-clientes">
   </head>
   <body class="client-page">
     <main class="client-shell">
@@ -12,6 +12,11 @@
         <div class="client-head">
           <p class="eyebrow">Formulario de pedido</p>
           <h1>Enviar pedido</h1>
+        </div>
+
+        <div id="clientDocuments" class="client-documents" aria-label="Documentos para consultar" hidden>
+          <a id="clientPriceListBtn" class="primary button-link" href="/api/public-client-documents/price-list" target="_blank" rel="noopener" hidden>Ver lista de precios</a>
+          <a id="clientOffersBtn" class="offers-button button-link" href="/api/public-client-documents/offers" target="_blank" rel="noopener" hidden>Ver ofertas</a>
         </div>
 
         <form id="clientOrderForm">
@@ -144,6 +149,6 @@
       </section>
     </main>
 
-    <script src="/cliente.js?v=20260716-domingos-bloqueados"></script>
+    <script src="/cliente.js?v=20260812-documentos-clientes"></script>
   </body>
 </html>

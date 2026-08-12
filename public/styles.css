@@ -211,6 +211,52 @@ h3 {
   display: block !important;
 }
 
+.button-link[hidden] {
+  display: none !important;
+}
+
+.module-view.active-module.documents-module {
+  display: block !important;
+}
+
+.documents-module {
+  padding: 18px clamp(16px, 4vw, 38px) 32px;
+}
+
+.documents-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.documents-head p {
+  margin-bottom: 0;
+}
+
+.document-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.document-card {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+}
+
+.document-card h3,
+.document-card p {
+  margin: 0;
+}
+
+.document-status {
+  min-height: 40px;
+  color: var(--muted);
+}
+
 .panel {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -522,6 +568,30 @@ textarea:focus {
 
 .client-head {
   margin-bottom: 18px;
+}
+
+.client-documents {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.client-documents[hidden] {
+  display: none;
+}
+
+.client-documents .button-link {
+  justify-content: center;
+  padding: 13px 16px;
+  text-align: center;
+}
+
+.offers-button {
+  background: #fff1cf;
+  border: 1px solid #d89712;
+  color: #6c4300;
+  font-weight: 800;
 }
 
 .client-notice {
@@ -1194,8 +1264,15 @@ textarea:focus {
   }
 
   .customer-summary,
-  .customer-toolbar {
+  .customer-toolbar,
+  .document-grid,
+  .client-documents {
     grid-template-columns: 1fr;
+  }
+
+  .documents-head {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .route-top {

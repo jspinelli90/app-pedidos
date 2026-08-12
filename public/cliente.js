@@ -11,8 +11,24 @@ const district = document.querySelector("#clientDistrict");
 const locality = document.querySelector("#clientLocality");
 const successBox = document.querySelector("#clientSuccess");
 const cutoffNotice = document.querySelector("#clientCutoffNotice");
+const clientDocuments = document.querySelector("#clientDocuments");
+const clientPriceListBtn = document.querySelector("#clientPriceListBtn");
+const clientOffersBtn = document.querySelector("#clientOffersBtn");
 
 let orderDatePolicy = null;
+
+async function loadClientDocuments() {
+  try {
+    const response = await fetch("/api/public-client-documents", { cache: "no-store" });
+    if (!response.ok) return;
+    const documents = await response.json();
+    clientPriceListBtn.hidden = !documents["price-list"];
+    clientOffersBtn.hidden = !documents.offers;
+    clientDocuments.hidden = clientPriceListBtn.hidden && clientOffersBtn.hidden;
+  } catch {
+    clientDocuments.hidden = true;
+  }
+}
 
 const LOCALITIES_BY_DISTRICT = {
   "Tigre": [
@@ -232,4 +248,5 @@ form.addEventListener("submit", sendOrder);
 updateLocalityOptions();
 updateDeliveryTypeVisibility();
 refreshDatePolicy(true);
+loadClientDocuments();
 setInterval(() => refreshDatePolicy(), 60000);

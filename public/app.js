@@ -14,9 +14,20 @@ const els = {
   ordersModule: document.querySelector("#ordersModule"),
   deliveryModule: document.querySelector("#deliveryModule"),
   customersModule: document.querySelector("#customersModule"),
+  documentsModule: document.querySelector("#documentsModule"),
   ordersViewBtn: document.querySelector("#ordersViewBtn"),
   deliveryViewBtn: document.querySelector("#deliveryViewBtn"),
   customersViewBtn: document.querySelector("#customersViewBtn"),
+  documentsViewBtn: document.querySelector("#documentsViewBtn"),
+  documentsMessage: document.querySelector("#documentsMessage"),
+  priceListStatus: document.querySelector("#priceListStatus"),
+  priceListFile: document.querySelector("#priceListFile"),
+  priceListPreview: document.querySelector("#priceListPreview"),
+  priceListUpload: document.querySelector("#priceListUpload"),
+  offersStatus: document.querySelector("#offersStatus"),
+  offersFile: document.querySelector("#offersFile"),
+  offersPreview: document.querySelector("#offersPreview"),
+  offersUpload: document.querySelector("#offersUpload"),
   onlineOrderAlert: document.querySelector("#onlineOrderAlert"),
   onlineOrderAlertTitle: document.querySelector("#onlineOrderAlertTitle"),
   onlineOrderAlertDetail: document.querySelector("#onlineOrderAlertDetail"),
@@ -292,6 +303,62 @@ async function loadCustomers() {
   state.customers = await api("/api/customers");
   renderCustomers();
   renderCustomerAgenda();
+}
+
+function documentLabel(metadata) {
+  if (!metadata) return "Todavia no hay un PDF cargado.";
+  return `${metadata.name} - actualizado ${dateTime(metadata.updatedAt)}`;
+}
+
+async function loadClientDocuments() {
+  const documents = await api("/api/public-client-documents");
+  els.priceListStatus.textContent = documentLabel(documents["price-list"]);
+  els.offersStatus.textContent = documentLabel(documents.offers);
+  els.priceListPreview.hidden = !documents["price-list"];
+  els.offersPreview.hidden = !documents.offers;
+}
+
+function fileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("No se pudo leer el archivo."));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadClientDocument(type) {
+  const isPriceList = type === "price-list";
+  const input = isPriceList ? els.priceListFile : els.offersFile;
+  const button = isPriceList ? els.priceListUpload : els.offersUpload;
+  const file = input.files[0];
+  if (!file) {
+    els.documentsMessage.textContent = "Primero elegi el archivo PDF que queres cargar.";
+    els.documentsMessage.style.color = "#b83232";
+    return;
+  }
+  if (file.size > 10_000_000) {
+    els.documentsMessage.textContent = "El PDF no puede superar los 10 MB.";
+    els.documentsMessage.style.color = "#b83232";
+    return;
+  }
+  button.disabled = true;
+  els.documentsMessage.textContent = "Cargando PDF...";
+  els.documentsMessage.style.color = "#0f6b5f";
+  try {
+    await api(`/api/client-documents/${type}`, {
+      method: "POST",
+      body: JSON.stringify({ name: file.name, data: await fileAsDataUrl(file) })
+    });
+    input.value = "";
+    await loadClientDocuments();
+    els.documentsMessage.textContent = "PDF actualizado correctamente. Los clientes ya pueden abrir la nueva version.";
+  } catch (error) {
+    els.documentsMessage.textContent = error.message;
+    els.documentsMessage.style.color = "#b83232";
+  } finally {
+    button.disabled = false;
+  }
 }
 
 async function refreshAll() {
@@ -806,10 +873,12 @@ function renderDelivery() {
 function showModule(name) {
   const isDelivery = name === "delivery";
   const isCustomers = name === "customers";
+  const isDocuments = name === "documents";
   const modules = [
     ["orders", els.ordersModule],
     ["delivery", els.deliveryModule],
-    ["customers", els.customersModule]
+    ["customers", els.customersModule],
+    ["documents", els.documentsModule]
   ];
   modules.forEach(([moduleName, element]) => {
     const isActive = moduleName === name;
@@ -817,13 +886,18 @@ function showModule(name) {
     element.classList.toggle("active-module", isActive);
     element.style.display = isActive ? "" : "none";
   });
-  els.ordersViewBtn.className = !isDelivery && !isCustomers ? "primary" : "ghost";
+  els.ordersViewBtn.className = !isDelivery && !isCustomers && !isDocuments ? "primary" : "ghost";
   els.deliveryViewBtn.className = isDelivery ? "primary" : "ghost";
   els.customersViewBtn.className = isCustomers ? "primary" : "ghost";
-  els.newBtn.hidden = isDelivery || isCustomers;
-  els.moduleTitle.textContent = isDelivery ? "Delivery" : isCustomers ? "Clientes" : "Pedidos";
+  els.documentsViewBtn.className = isDocuments ? "primary" : "ghost";
+  els.newBtn.hidden = isDelivery || isCustomers || isDocuments;
+  els.moduleTitle.textContent = isDelivery ? "Delivery" : isCustomers ? "Clientes" : isDocuments ? "Documentos clientes" : "Pedidos";
   if (isDelivery) renderDelivery();
   if (isCustomers) renderCustomerAgenda();
+  if (isDocuments) loadClientDocuments().catch(error => {
+    els.documentsMessage.textContent = error.message;
+    els.documentsMessage.style.color = "#b83232";
+  });
   window.scrollTo(0, 0);
 }
 
@@ -1337,6 +1411,9 @@ els.addUserBtn.addEventListener("click", addUser);
 els.ordersViewBtn.addEventListener("click", () => showModule("orders"));
 els.deliveryViewBtn.addEventListener("click", () => showModule("delivery"));
 els.customersViewBtn.addEventListener("click", () => showModule("customers"));
+els.documentsViewBtn.addEventListener("click", () => showModule("documents"));
+els.priceListUpload.addEventListener("click", () => uploadClientDocument("price-list"));
+els.offersUpload.addEventListener("click", () => uploadClientDocument("offers"));
 els.viewOnlineOrdersBtn.addEventListener("click", showPendingOnlineOrders);
 els.deliveryStatusFilter.addEventListener("change", renderDelivery);
 els.deliveryDateFilter.addEventListener("change", renderDelivery);
