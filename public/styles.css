@@ -591,21 +591,101 @@ textarea:focus {
 
 .client-page {
   min-height: 100vh;
-  background: #f3f6f5;
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.08), transparent 34%),
+    #050505;
+  color: #111;
 }
 
 .client-shell {
-  width: min(760px, 100%);
+  width: min(820px, 100%);
   margin: 0 auto;
-  padding: 22px clamp(14px, 4vw, 28px);
+  padding: clamp(16px, 4vw, 42px) clamp(12px, 4vw, 28px);
 }
 
 .client-panel {
-  padding: clamp(16px, 4vw, 26px);
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid #2c2c2c;
+  border-radius: 18px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.48);
 }
 
-.client-head {
-  margin-bottom: 18px;
+.client-brand {
+  display: grid;
+  grid-template-columns: minmax(150px, 220px) 1fr;
+  align-items: center;
+  gap: clamp(20px, 5vw, 46px);
+  padding: clamp(24px, 5vw, 46px);
+  background: #000;
+  color: #fff;
+}
+
+.client-logo {
+  display: block;
+  width: 100%;
+  max-height: 210px;
+  object-fit: contain;
+}
+
+.client-brand-copy .eyebrow {
+  margin-bottom: 10px;
+  color: #bdbdbd;
+  letter-spacing: 0.16em;
+}
+
+.client-brand-copy h1 {
+  font-size: clamp(34px, 7vw, 58px);
+  line-height: 0.96;
+  letter-spacing: -0.04em;
+}
+
+.client-brand-copy > p:last-child {
+  max-width: 400px;
+  margin: 16px 0 0;
+  color: #d7d7d7;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.client-order-form,
+.client-document-groups {
+  padding-right: clamp(18px, 5vw, 44px);
+  padding-left: clamp(18px, 5vw, 44px);
+}
+
+.client-order-form {
+  padding-top: clamp(24px, 5vw, 40px);
+  padding-bottom: clamp(28px, 5vw, 46px);
+  gap: 18px;
+}
+
+.client-page label {
+  color: #252525;
+  font-size: 13px;
+  letter-spacing: 0.015em;
+}
+
+.client-page input,
+.client-page select,
+.client-page textarea {
+  min-height: 48px;
+  border: 1px solid #b9b9b9;
+  border-radius: 10px;
+  background: #fff;
+  color: #080808;
+  padding: 12px 13px;
+}
+
+.client-page textarea {
+  line-height: 1.5;
+}
+
+.client-page input:focus,
+.client-page select:focus,
+.client-page textarea:focus {
+  border-color: #000;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.13);
 }
 
 .client-documents {
@@ -618,7 +698,8 @@ textarea:focus {
 .client-document-groups {
   display: grid;
   gap: 18px;
-  margin-bottom: 18px;
+  margin: 0;
+  padding-top: 26px;
 }
 
 .client-document-groups[hidden],
@@ -638,6 +719,9 @@ textarea:focus {
 .client-documents .button-link {
   justify-content: center;
   padding: 13px 16px;
+  border: 1px solid #111;
+  background: #111;
+  color: #fff;
   text-align: center;
 }
 
@@ -649,10 +733,11 @@ textarea:focus {
 }
 
 .client-notice {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #f8fafb;
-  color: var(--ink);
+  border: 1px solid #d1d1d1;
+  border-left: 4px solid #111;
+  border-radius: 10px;
+  background: #f4f4f4;
+  color: #222;
   font-size: 13px;
   font-weight: 700;
   line-height: 1.4;
@@ -697,6 +782,12 @@ textarea:focus {
   padding: 16px;
 }
 
+.client-page .client-success {
+  border-color: #111;
+  background: #f1f1f1;
+  color: #111;
+}
+
 .client-success strong {
   font-size: 20px;
 }
@@ -707,6 +798,16 @@ textarea:focus {
 
 .client-submit {
   width: 100%;
+  min-height: 54px;
+  border-radius: 10px;
+  background: #050505;
+  color: #fff;
+  font-size: 16px;
+  letter-spacing: 0.035em;
+}
+
+.client-submit:hover {
+  background: #292929;
 }
 
 .pill-stack {
@@ -1278,6 +1379,34 @@ textarea:focus {
 }
 
 @media (max-width: 680px) {
+  .client-shell {
+    padding: 0;
+  }
+
+  .client-panel {
+    min-height: 100vh;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .client-brand {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 26px 22px 30px;
+    text-align: center;
+  }
+
+  .client-logo {
+    width: min(230px, 72vw);
+    max-height: 175px;
+    margin: 0 auto;
+  }
+
+  .client-brand-copy > p:last-child {
+    margin-right: auto;
+    margin-left: auto;
+  }
+
   .online-order-alert {
     align-items: center;
     flex-wrap: wrap;

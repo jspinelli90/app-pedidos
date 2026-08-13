@@ -3,15 +3,19 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Enviar pedido</title>
-    <link rel="stylesheet" href="/styles.css?v=20260812-orden-documentos">
+    <title>Hacé tu pedido | San Cayetano Carnes</title>
+    <link rel="stylesheet" href="/styles.css?v=20260813-identidad-san-cayetano">
   </head>
   <body class="client-page">
     <main class="client-shell">
       <section class="panel client-panel">
-        <div class="client-head">
-          <p class="eyebrow">Formulario de pedido</p>
-          <h1>Enviar pedido</h1>
+        <div class="client-brand">
+          <img src="/san-cayetano-logo-blanco.png" alt="San Cayetano Carnes" class="client-logo">
+          <div class="client-brand-copy">
+            <p class="eyebrow">Pedidos online</p>
+            <h1>Hacé tu pedido</h1>
+            <p>Completá tus datos y contanos qué productos necesitás.</p>
+          </div>
         </div>
 
         <div id="clientDocuments" class="client-document-groups" aria-label="Documentos para consultar" hidden>
@@ -25,7 +29,7 @@
           </section>
         </div>
 
-        <form id="clientOrderForm">
+        <form id="clientOrderForm" class="client-order-form">
           <div class="grid two">
             <label>Nombre
               <input id="clientCustomer" required autocomplete="name" placeholder="Nombre y apellido">
