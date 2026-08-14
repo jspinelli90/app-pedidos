@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Sistema de pedidos</title>
-    <link rel="stylesheet" href="/styles.css?v=20260812-orden-documentos">
+    <link rel="stylesheet" href="/styles.css?v=20260814-placas-ofertas">
   </head>
   <body>
     <header class="topbar">
@@ -19,6 +19,7 @@
         <button id="deliveryViewBtn" class="ghost" type="button">Delivery</button>
         <button id="customersViewBtn" class="ghost" type="button">Clientes</button>
         <button id="documentsViewBtn" class="ghost" type="button">Documentos clientes</button>
+        <button id="offersStudioViewBtn" class="ghost" type="button">Placas de ofertas</button>
         <a class="ghost button-link" href="/cliente.html" target="_blank" rel="noopener">Formulario cliente</a>
         <button id="refreshBtn" class="icon-btn" title="Actualizar" type="button">Actualizar</button>
         <button id="newBtn" class="primary" type="button">Nuevo pedido</button>
@@ -271,6 +272,69 @@
       <p id="documentsMessage" class="message" role="status"></p>
     </main>
 
+    <main id="offersStudioModule" class="module-view offers-studio-module" hidden>
+      <section class="offers-studio-head">
+        <div>
+          <p class="eyebrow dark">Contenido para redes</p>
+          <h2>Placas de ofertas</h2>
+          <p>Escribi las ofertas, revisa la vista previa y descarga una imagen lista para publicar.</p>
+        </div>
+        <div class="offers-studio-actions">
+          <button id="resetOfferPosterBtn" class="ghost" type="button">Nueva placa</button>
+          <button id="downloadOfferPosterBtn" class="primary" type="button">Descargar PNG</button>
+        </div>
+      </section>
+
+      <section class="offers-studio-layout">
+        <form id="offerPosterForm" class="panel offer-poster-form">
+          <div class="grid two">
+            <label>Formato
+              <select id="offerPosterFormat">
+                <option value="story">Historia / Estado (1080 x 1920)</option>
+                <option value="post">Publicacion (1080 x 1350)</option>
+              </select>
+            </label>
+            <label>Fecha o vigencia
+              <input id="offerPosterDate" placeholder="HOY · HASTA AGOTAR STOCK">
+            </label>
+          </div>
+          <label>Titulo
+            <input id="offerPosterTitle" value="OFERTAS DEL DIA" maxlength="42">
+          </label>
+          <label>Bajada
+            <input id="offerPosterSubtitle" value="CALIDAD SAN CAYETANO" maxlength="70">
+          </label>
+
+          <div class="offer-items-heading">
+            <div>
+              <h3>Productos y precios</h3>
+              <p>La placa acomoda automaticamente entre 1 y 6 ofertas.</p>
+            </div>
+            <button id="addOfferItemBtn" class="ghost" type="button">Agregar oferta</button>
+          </div>
+          <div id="offerItems" class="offer-items"></div>
+
+          <label>Texto al pie
+            <input id="offerPosterFooter" value="PEDIDOS POR WHATSAPP · STOCK LIMITADO" maxlength="90">
+          </label>
+          <p id="offerPosterMessage" class="message" role="status">El borrador se guarda automaticamente en este equipo.</p>
+        </form>
+
+        <section class="panel offer-preview-panel" aria-label="Vista previa de la placa">
+          <div class="offer-preview-toolbar">
+            <div>
+              <p class="eyebrow dark">Vista previa</p>
+              <strong id="offerPosterDimensions">1080 x 1920 px</strong>
+            </div>
+            <span>PNG en alta calidad</span>
+          </div>
+          <div class="offer-canvas-frame">
+            <canvas id="offerPosterCanvas" width="1080" height="1920"></canvas>
+          </div>
+        </section>
+      </section>
+    </main>
+
     <dialog id="customerDialog" class="customer-dialog">
       <form id="customerForm">
         <div class="dialog-head">
@@ -316,6 +380,7 @@
       </form>
     </dialog>
 
-    <script src="/app.js?v=20260812-orden-documentos"></script>
+    <script src="/offers-generator.js?v=20260814-placas-ofertas"></script>
+    <script src="/app.js?v=20260814-placas-ofertas"></script>
   </body>
 </html>
