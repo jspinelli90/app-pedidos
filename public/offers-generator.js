@@ -66,6 +66,76 @@
     return minSize;
   }
 
+  function drawContactIcon(ctx, type, x, baseline, size) {
+    const top = baseline - size * 0.82;
+    ctx.save();
+    ctx.strokeStyle = "#ffffff";
+    ctx.fillStyle = "#ffffff";
+    ctx.lineWidth = Math.max(2, size * 0.1);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    if (type === "location") {
+      ctx.beginPath();
+      ctx.arc(x + size / 2, top + size * 0.38, size * 0.3, Math.PI * 0.15, Math.PI * 0.85, true);
+      ctx.lineTo(x + size / 2, top + size);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x + size / 2, top + size * 0.37, size * 0.09, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (type === "instagram") {
+      ctx.beginPath();
+      ctx.roundRect(x, top, size, size, size * 0.25);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x + size / 2, top + size / 2, size * 0.22, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x + size * 0.76, top + size * 0.25, size * 0.07, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.arc(x + size / 2, top + size * 0.46, size * 0.43, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + size * 0.24, top + size * 0.35);
+      ctx.quadraticCurveTo(x + size * 0.42, top + size * 0.72, x + size * 0.74, top + size * 0.68);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + size * 0.18, top + size * 0.76);
+      ctx.lineTo(x + size * 0.08, top + size);
+      ctx.lineTo(x + size * 0.34, top + size * 0.88);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawIconItems(ctx, items, centerX, baseline, maxWidth, startSize) {
+    if (!items.length) return;
+    let fontSize = startSize;
+    let iconSize;
+    let gap;
+    let widths;
+    let total;
+    do {
+      iconSize = fontSize * 1.05;
+      gap = fontSize * 0.4;
+      ctx.font = `800 ${fontSize}px Arial, Helvetica, sans-serif`;
+      widths = items.map(item => iconSize + gap + ctx.measureText(item.text).width);
+      total = widths.reduce((sum, width) => sum + width, 0) + Math.max(0, items.length - 1) * fontSize * 1.35;
+      fontSize -= 1;
+    } while (total > maxWidth && fontSize > 12);
+    let x = centerX - total / 2;
+    ctx.textAlign = "left";
+    items.forEach((item, index) => {
+      drawContactIcon(ctx, item.type, x, baseline, iconSize);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(item.text, x + iconSize + gap, baseline);
+      x += widths[index] + fontSize * 1.35;
+    });
+    ctx.textAlign = "center";
+  }
+
   function drawPoster(ctx, data, logo, qr) {
     const { width, height } = ctx.canvas;
     const offers = (data.offers || []).filter(item => item.product || item.price);
@@ -138,17 +208,13 @@
     const qrSize = height >= 1800 ? 128 : 92;
     const textCenter = hasQr ? width / 2 - qrSize / 2 : width / 2;
     const textWidth = hasQr ? width - qrSize - 230 : width - 130;
-    const contact = [data.phone && `TEL / WHATSAPP ${data.phone}`, data.instagram && `INSTAGRAM ${data.instagram}`].filter(Boolean).join(" · ");
-    if (contact) {
-      const contactSize = fitText(ctx, contact.toUpperCase(), textWidth, height >= 1800 ? 25 : 19, 14);
-      ctx.font = `800 ${contactSize}px Arial, Helvetica, sans-serif`;
-      ctx.fillText(contact.toUpperCase(), textCenter, footerY + (height >= 1800 ? 44 : 32));
-    }
+    const contactItems = [
+      data.phone && { type: "whatsapp", text: String(data.phone) },
+      data.instagram && { type: "instagram", text: String(data.instagram) }
+    ].filter(Boolean);
+    drawIconItems(ctx, contactItems, textCenter, footerY + (height >= 1800 ? 44 : 32), textWidth, height >= 1800 ? 25 : 19);
     if (data.address) {
-      const address = `DIRECCION ${String(data.address).toUpperCase()}`;
-      const addressSize = fitText(ctx, address, textWidth, height >= 1800 ? 22 : 17, 13);
-      ctx.font = `700 ${addressSize}px Arial, Helvetica, sans-serif`;
-      ctx.fillText(address, textCenter, footerY + (height >= 1800 ? 82 : 61));
+      drawIconItems(ctx, [{ type: "location", text: String(data.address) }], textCenter, footerY + (height >= 1800 ? 84 : 62), textWidth, height >= 1800 ? 22 : 17);
     }
     if (hasQr) {
       const qrX = width - 70 - qrSize;
