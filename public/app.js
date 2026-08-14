@@ -942,6 +942,7 @@ function renderDelivery() {
 }
 
 const OFFER_POSTER_STORAGE_KEY = "san-cayetano-offer-poster-draft";
+const OFFER_POSTER_FIXED_SETTINGS_KEY = "san-cayetano-offer-poster-fixed-settings";
 const offerPosterLogo = new Image();
 offerPosterLogo.src = "/san-cayetano-logo-blanco.png";
 const offerPosterQr = new Image();
@@ -950,7 +951,7 @@ let offerPosterQrValue = "";
 function defaultOfferPosterDraft() {
   return {
     format: "story",
-    date: "HOY · HASTA AGOTAR STOCK",
+    date: "HASTA AGOTAR STOCK",
     title: "OFERTAS DEL DIA",
     subtitle: "CALIDAD SAN CAYETANO",
     footer: "PEDIDOS POR WHATSAPP · STOCK LIMITADO",
@@ -960,6 +961,34 @@ function defaultOfferPosterDraft() {
     address: "",
     orderLink: `${window.location.origin}/cliente.html`
   };
+}
+
+function fixedOfferPosterSettings(draft = {}) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(OFFER_POSTER_FIXED_SETTINGS_KEY));
+    if (saved) return saved;
+  } catch {}
+  const migrated = {
+    date: "HASTA AGOTAR STOCK",
+    phone: draft.phone || "",
+    instagram: draft.instagram || "",
+    address: draft.address || "",
+    orderLink: draft.orderLink || `${window.location.origin}/cliente.html`,
+    footer: draft.footer || "PEDIDOS POR WHATSAPP · STOCK LIMITADO"
+  };
+  localStorage.setItem(OFFER_POSTER_FIXED_SETTINGS_KEY, JSON.stringify(migrated));
+  return migrated;
+}
+
+function saveFixedOfferPosterSettings(data) {
+  localStorage.setItem(OFFER_POSTER_FIXED_SETTINGS_KEY, JSON.stringify({
+    date: "HASTA AGOTAR STOCK",
+    phone: data.phone,
+    instagram: data.instagram,
+    address: data.address,
+    orderLink: data.orderLink,
+    footer: data.footer
+  }));
 }
 
 function readOfferPosterDraft() {
@@ -992,16 +1021,17 @@ function offerPosterData() {
 }
 
 function loadOfferPosterDraft(draft = readOfferPosterDraft()) {
+  const fixed = fixedOfferPosterSettings(draft);
   els.offerPosterFormat.value = draft.format || "story";
-  els.offerPosterDate.value = draft.date || "";
+  els.offerPosterDate.value = "HASTA AGOTAR STOCK";
   els.offerPosterTitle.value = draft.title || "";
   els.offerPosterSubtitle.value = draft.subtitle || "";
-  els.offerPosterFooter.value = draft.footer || "";
+  els.offerPosterFooter.value = fixed.footer || "";
   els.offerPosterOffersText.value = draft.offersText || "";
-  els.offerPosterPhone.value = draft.phone || "";
-  els.offerPosterInstagram.value = draft.instagram || "";
-  els.offerPosterAddress.value = draft.address || "";
-  els.offerPosterOrderLink.value = draft.orderLink || `${window.location.origin}/cliente.html`;
+  els.offerPosterPhone.value = fixed.phone || "";
+  els.offerPosterInstagram.value = fixed.instagram || "";
+  els.offerPosterAddress.value = fixed.address || "";
+  els.offerPosterOrderLink.value = fixed.orderLink || `${window.location.origin}/cliente.html`;
   updateOfferPoster();
 }
 
@@ -1017,19 +1047,13 @@ function updateOfferPoster() {
   els.offerPosterDimensions.textContent = `${dimensions.width} x ${dimensions.height} px`;
   window.OfferImageGenerator.drawPoster(els.offerPosterCanvas.getContext("2d"), data, offerPosterLogo, offerPosterQr);
   localStorage.setItem(OFFER_POSTER_STORAGE_KEY, JSON.stringify(data));
+  saveFixedOfferPosterSettings(data);
   const count = data.offers.length;
   els.offerPosterMessage.textContent = `${count} ${count === 1 ? "oferta acomodada" : "ofertas acomodadas"}. El borrador se guarda automaticamente.`;
 }
 
 function resetOfferPoster() {
-  const business = offerPosterData();
-  loadOfferPosterDraft({
-    ...defaultOfferPosterDraft(),
-    phone: business.phone,
-    instagram: business.instagram,
-    address: business.address,
-    orderLink: business.orderLink
-  });
+  loadOfferPosterDraft(defaultOfferPosterDraft());
   els.offerPosterMessage.textContent = "Nueva placa preparada. Reemplaza los ejemplos por tus ofertas.";
 }
 

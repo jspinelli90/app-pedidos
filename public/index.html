@@ -295,7 +295,7 @@
               </select>
             </label>
             <label>Fecha o vigencia
-              <input id="offerPosterDate" placeholder="HOY · HASTA AGOTAR STOCK">
+              <input id="offerPosterDate" value="HASTA AGOTAR STOCK" readonly>
             </label>
           </div>
           <label>Titulo
@@ -327,11 +327,11 @@
               <input id="offerPosterOrderLink" maxlength="100" placeholder="Link del formulario de pedidos">
             </label>
             <p class="offer-paste-help">Este enlace no se escribe en la placa: se convierte en un QR para ingresar al formulario.</p>
+            <label>Texto al pie
+              <input id="offerPosterFooter" value="PEDIDOS POR WHATSAPP · STOCK LIMITADO" maxlength="90">
+            </label>
+            <p class="offer-paste-help">Estos datos quedan guardados y se reutilizan automaticamente en todas las placas.</p>
           </fieldset>
-
-          <label>Texto al pie
-            <input id="offerPosterFooter" value="PEDIDOS POR WHATSAPP · STOCK LIMITADO" maxlength="90">
-          </label>
           <p id="offerPosterMessage" class="message" role="status">El borrador se guarda automaticamente en este equipo.</p>
         </form>
 
@@ -396,6 +396,6 @@
     </dialog>
 
     <script src="/offers-generator.js?v=20260814-iconos-contacto"></script>
-    <script src="/app.js?v=20260814-qr-direccion"></script>
+    <script src="/app.js?v=20260814-datos-fijos"></script>
   </body>
 </html>
