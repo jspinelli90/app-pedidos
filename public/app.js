@@ -947,6 +947,8 @@ const offerPosterLogo = new Image();
 offerPosterLogo.src = "/san-cayetano-logo-blanco.png";
 const offerPosterQr = new Image();
 let offerPosterQrValue = "";
+let fixedSettingsSyncReady = false;
+let fixedSettingsSaveTimer = null;
 
 function defaultOfferPosterDraft() {
   return {
@@ -981,14 +983,55 @@ function fixedOfferPosterSettings(draft = {}) {
 }
 
 function saveFixedOfferPosterSettings(data) {
-  localStorage.setItem(OFFER_POSTER_FIXED_SETTINGS_KEY, JSON.stringify({
+  const settings = {
     date: "HASTA AGOTAR STOCK",
     phone: data.phone,
     instagram: data.instagram,
     address: data.address,
     orderLink: data.orderLink,
     footer: data.footer
-  }));
+  };
+  localStorage.setItem(OFFER_POSTER_FIXED_SETTINGS_KEY, JSON.stringify(settings));
+  if (!fixedSettingsSyncReady) return;
+  clearTimeout(fixedSettingsSaveTimer);
+  fixedSettingsSaveTimer = setTimeout(() => {
+    fetch("/api/offer-poster-settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(settings)
+    }).then(async response => {
+      if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || "No se pudieron guardar los datos fijos.");
+      els.offerPosterMessage.textContent = "Datos fijos guardados para todas las computadoras.";
+    }).catch(error => {
+      els.offerPosterMessage.textContent = `${error.message} Se conserva una copia en este equipo.`;
+      els.offerPosterMessage.style.color = "#b83232";
+    });
+  }, 600);
+}
+
+function applyFixedOfferPosterSettings(settings) {
+  els.offerPosterDate.value = "HASTA AGOTAR STOCK";
+  els.offerPosterFooter.value = settings.footer || "PEDIDOS POR WHATSAPP · STOCK LIMITADO";
+  els.offerPosterPhone.value = settings.phone || "";
+  els.offerPosterInstagram.value = settings.instagram || "";
+  els.offerPosterAddress.value = settings.address || "";
+  els.offerPosterOrderLink.value = settings.orderLink || `${window.location.origin}/cliente.html`;
+  localStorage.setItem(OFFER_POSTER_FIXED_SETTINGS_KEY, JSON.stringify(settings));
+  updateOfferPoster();
+}
+
+async function initializeRemoteOfferPosterSettings() {
+  const response = await fetch("/api/offer-poster-settings");
+  if (!response.ok) throw new Error("No se pudieron cargar los datos fijos online.");
+  const result = await response.json();
+  const local = fixedOfferPosterSettings();
+  if (result.configured) {
+    applyFixedOfferPosterSettings(result.settings);
+    fixedSettingsSyncReady = true;
+    return;
+  }
+  fixedSettingsSyncReady = true;
+  if (local.phone || local.instagram || local.address) saveFixedOfferPosterSettings(local);
 }
 
 function readOfferPosterDraft() {
@@ -1652,6 +1695,10 @@ offerPosterQr.addEventListener("load", updateOfferPoster);
 
 resetForm();
 loadOfferPosterDraft();
+initializeRemoteOfferPosterSettings().catch(error => {
+  fixedSettingsSyncReady = true;
+  els.offerPosterMessage.textContent = `${error.message} Se usa la copia guardada en este equipo.`;
+});
 els.prepDateFilter.value = todayDate();
 els.deliveryDateFilter.value = todayDate();
 refreshAll().catch(error => setMessage(error.message, true));
