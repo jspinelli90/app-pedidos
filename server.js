@@ -14,6 +14,7 @@ const CUSTOMERS_FILE = path.join(DATA_DIR, "customers.json");
 const USERS_FILE = path.join(DATA_DIR, "users.json");
 const MOVEMENTS_FILE = path.join(DATA_DIR, "movements.json");
 const CLIENT_DOCUMENTS_FILE = path.join(DATA_DIR, "client-documents.json");
+const OFFER_POSTER_SETTINGS_FILE = path.join(DATA_DIR, "offer-poster-settings.json");
 const CLIENT_DOCUMENTS_BUCKET = "client-documents";
 const CLIENT_DOCUMENT_TYPES = {
   "price-list": { label: "Lista de precios", legacyFileName: "lista-de-precios.pdf" },
@@ -218,6 +219,31 @@ async function readMovements() {
 async function writeMovements(movements) {
   ensureDataFile();
   await writeStore("movements", MOVEMENTS_FILE, movements);
+}
+
+function normalizeOfferPosterSettings(value = {}) {
+  return {
+    date: "HASTA AGOTAR STOCK",
+    phone: cleanText(value.phone).slice(0, 40),
+    instagram: cleanText(value.instagram).slice(0, 45),
+    address: cleanText(value.address).slice(0, 90),
+    orderLink: cleanText(value.orderLink).slice(0, 200),
+    footer: cleanText(value.footer).slice(0, 90) || "PEDIDOS POR WHATSAPP · STOCK LIMITADO"
+  };
+}
+
+async function readOfferPosterSettings() {
+  const records = await readStore("offer_poster_settings", OFFER_POSTER_SETTINGS_FILE);
+  return records[0] ? { configured: true, settings: normalizeOfferPosterSettings(records[0]) } : {
+    configured: false,
+    settings: normalizeOfferPosterSettings()
+  };
+}
+
+async function writeOfferPosterSettings(settings) {
+  const normalized = normalizeOfferPosterSettings(settings);
+  await writeStore("offer_poster_settings", OFFER_POSTER_SETTINGS_FILE, [normalized]);
+  return normalized;
 }
 
 function sendJson(res, status, payload) {
@@ -674,6 +700,18 @@ async function handleApi(req, res) {
       const png = await QRCode.toBuffer(target, { type: "png", width: 360, margin: 2, errorCorrectionLevel: "M" });
       res.writeHead(200, { "Content-Type": "image/png", "Cache-Control": "public, max-age=3600" });
       return res.end(png);
+    }
+
+    if (url.pathname === "/api/offer-poster-settings" && req.method === "GET") {
+      return sendJson(res, 200, await readOfferPosterSettings());
+    }
+
+    if (url.pathname === "/api/offer-poster-settings" && req.method === "PUT") {
+      const payload = await readBody(req);
+      if (payload.orderLink && !/^https?:\/\//i.test(payload.orderLink)) {
+        return sendJson(res, 400, { error: "El destino del QR debe ser un enlace valido." });
+      }
+      return sendJson(res, 200, await writeOfferPosterSettings(payload));
     }
 
     if (url.pathname === "/api/public-client-documents" && req.method === "GET") {

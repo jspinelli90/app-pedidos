@@ -29,6 +29,21 @@ test("depura mayoristas historicos y permite un alta publica sin duplicarlos", a
   assert.equal(qrResponse.headers.get("content-type"), "image/png");
   assert.ok((await qrResponse.arrayBuffer()).byteLength > 500);
 
+  let settingsResponse = await fetch(`${baseUrl}/api/offer-poster-settings`);
+  assert.equal(settingsResponse.status, 200);
+  assert.equal((await settingsResponse.json()).configured, false);
+  settingsResponse = await fetch(`${baseUrl}/api/offer-poster-settings`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone: "11 5555-1234", instagram: "@san_cayetano", address: "Calle 123", orderLink: `${baseUrl}/cliente.html`, footer: "STOCK LIMITADO" })
+  });
+  assert.equal(settingsResponse.status, 200);
+  settingsResponse = await fetch(`${baseUrl}/api/offer-poster-settings`);
+  const savedSettings = await settingsResponse.json();
+  assert.equal(savedSettings.configured, true);
+  assert.equal(savedSettings.settings.phone, "11 5555-1234");
+  assert.equal(savedSettings.settings.date, "HASTA AGOTAR STOCK");
+
   let response = await fetch(`${baseUrl}/api/customers`);
   let customers = await response.json();
   assert.deepEqual(customers.map(customer => customer.name), ["Cliente Minorista"]);
