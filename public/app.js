@@ -35,8 +35,10 @@ const els = {
   offerPosterTitle: document.querySelector("#offerPosterTitle"),
   offerPosterSubtitle: document.querySelector("#offerPosterSubtitle"),
   offerPosterFooter: document.querySelector("#offerPosterFooter"),
-  offerItems: document.querySelector("#offerItems"),
-  addOfferItemBtn: document.querySelector("#addOfferItemBtn"),
+  offerPosterOffersText: document.querySelector("#offerPosterOffersText"),
+  offerPosterPhone: document.querySelector("#offerPosterPhone"),
+  offerPosterInstagram: document.querySelector("#offerPosterInstagram"),
+  offerPosterOrderLink: document.querySelector("#offerPosterOrderLink"),
   resetOfferPosterBtn: document.querySelector("#resetOfferPosterBtn"),
   downloadOfferPosterBtn: document.querySelector("#downloadOfferPosterBtn"),
   offerPosterCanvas: document.querySelector("#offerPosterCanvas"),
@@ -949,18 +951,21 @@ function defaultOfferPosterDraft() {
     title: "OFERTAS DEL DIA",
     subtitle: "CALIDAD SAN CAYETANO",
     footer: "PEDIDOS POR WHATSAPP · STOCK LIMITADO",
-    offers: [
-      { product: "ASADO", price: "9500", unit: "EL KILO" },
-      { product: "VACIO", price: "11200", unit: "EL KILO" },
-      { product: "MATAMBRE", price: "10800", unit: "EL KILO" }
-    ]
+    offersText: "ASADO | 9500 | EL KILO\nVACIO | 11200 | EL KILO\nMATAMBRE | 10800 | EL KILO",
+    phone: "",
+    instagram: "",
+    orderLink: `${window.location.origin}/cliente.html`
   };
 }
 
 function readOfferPosterDraft() {
   try {
     const saved = JSON.parse(localStorage.getItem(OFFER_POSTER_STORAGE_KEY));
-    return saved?.offers?.length ? saved : defaultOfferPosterDraft();
+    if (!saved) return defaultOfferPosterDraft();
+    if (!saved.offersText && saved.offers?.length) {
+      saved.offersText = saved.offers.map(offer => `${offer.product} | ${offer.price} | ${offer.unit}`).join("\n");
+    }
+    return { ...defaultOfferPosterDraft(), ...saved };
   } catch {
     return defaultOfferPosterDraft();
   }
@@ -973,30 +978,12 @@ function offerPosterData() {
     title: els.offerPosterTitle.value.trim(),
     subtitle: els.offerPosterSubtitle.value.trim(),
     footer: els.offerPosterFooter.value.trim(),
-    offers: [...els.offerItems.querySelectorAll(".offer-item-row")].map(row => ({
-      product: row.querySelector(".offer-product").value.trim(),
-      price: row.querySelector(".offer-price").value.trim(),
-      unit: row.querySelector(".offer-unit").value.trim()
-    }))
+    offersText: els.offerPosterOffersText.value,
+    offers: window.OfferImageGenerator.parseOffers(els.offerPosterOffersText.value),
+    phone: els.offerPosterPhone.value.trim(),
+    instagram: els.offerPosterInstagram.value.trim(),
+    orderLink: els.offerPosterOrderLink.value.trim()
   };
-}
-
-function createOfferItemRow(offer = {}) {
-  if (els.offerItems.children.length >= 6) return;
-  const row = document.createElement("div");
-  row.className = "offer-item-row";
-  row.innerHTML = `
-    <label>Producto<input class="offer-product" maxlength="34" placeholder="Ej: Asado" value="${escapeHtml(offer.product || "")}"></label>
-    <label>Precio<input class="offer-price" inputmode="decimal" maxlength="18" placeholder="Ej: 9500" value="${escapeHtml(offer.price || "")}"></label>
-    <label>Unidad<input class="offer-unit" maxlength="22" placeholder="Ej: El kilo" value="${escapeHtml(offer.unit || "EL KILO")}"></label>
-    <button class="danger offer-item-remove" type="button" title="Quitar oferta">Quitar</button>
-  `;
-  row.querySelector(".offer-item-remove").addEventListener("click", () => {
-    if (els.offerItems.children.length <= 1) return;
-    row.remove();
-    updateOfferPoster();
-  });
-  els.offerItems.append(row);
 }
 
 function loadOfferPosterDraft(draft = readOfferPosterDraft()) {
@@ -1005,9 +992,10 @@ function loadOfferPosterDraft(draft = readOfferPosterDraft()) {
   els.offerPosterTitle.value = draft.title || "";
   els.offerPosterSubtitle.value = draft.subtitle || "";
   els.offerPosterFooter.value = draft.footer || "";
-  els.offerItems.innerHTML = "";
-  (draft.offers || []).slice(0, 6).forEach(createOfferItemRow);
-  if (!els.offerItems.children.length) createOfferItemRow();
+  els.offerPosterOffersText.value = draft.offersText || "";
+  els.offerPosterPhone.value = draft.phone || "";
+  els.offerPosterInstagram.value = draft.instagram || "";
+  els.offerPosterOrderLink.value = draft.orderLink || `${window.location.origin}/cliente.html`;
   updateOfferPoster();
 }
 
@@ -1019,11 +1007,18 @@ function updateOfferPoster() {
   els.offerPosterDimensions.textContent = `${dimensions.width} x ${dimensions.height} px`;
   window.OfferImageGenerator.drawPoster(els.offerPosterCanvas.getContext("2d"), data, offerPosterLogo);
   localStorage.setItem(OFFER_POSTER_STORAGE_KEY, JSON.stringify(data));
-  els.addOfferItemBtn.disabled = els.offerItems.children.length >= 6;
+  const count = data.offers.length;
+  els.offerPosterMessage.textContent = `${count} ${count === 1 ? "oferta acomodada" : "ofertas acomodadas"}. El borrador se guarda automaticamente.`;
 }
 
 function resetOfferPoster() {
-  loadOfferPosterDraft(defaultOfferPosterDraft());
+  const business = offerPosterData();
+  loadOfferPosterDraft({
+    ...defaultOfferPosterDraft(),
+    phone: business.phone,
+    instagram: business.instagram,
+    orderLink: business.orderLink
+  });
   els.offerPosterMessage.textContent = "Nueva placa preparada. Reemplaza los ejemplos por tus ofertas.";
 }
 
@@ -1615,10 +1610,6 @@ els.customerForm.addEventListener("submit", saveCustomer);
 els.offerPosterForm.addEventListener("submit", event => event.preventDefault());
 els.offerPosterForm.addEventListener("input", updateOfferPoster);
 els.offerPosterForm.addEventListener("change", updateOfferPoster);
-els.addOfferItemBtn.addEventListener("click", () => {
-  createOfferItemRow();
-  updateOfferPoster();
-});
 els.resetOfferPosterBtn.addEventListener("click", resetOfferPoster);
 els.downloadOfferPosterBtn.addEventListener("click", downloadOfferPoster);
 offerPosterLogo.addEventListener("load", updateOfferPoster);
