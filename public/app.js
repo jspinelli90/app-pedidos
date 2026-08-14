@@ -16,10 +16,12 @@ const els = {
   deliveryModule: document.querySelector("#deliveryModule"),
   customersModule: document.querySelector("#customersModule"),
   documentsModule: document.querySelector("#documentsModule"),
+  offersStudioModule: document.querySelector("#offersStudioModule"),
   ordersViewBtn: document.querySelector("#ordersViewBtn"),
   deliveryViewBtn: document.querySelector("#deliveryViewBtn"),
   customersViewBtn: document.querySelector("#customersViewBtn"),
   documentsViewBtn: document.querySelector("#documentsViewBtn"),
+  offersStudioViewBtn: document.querySelector("#offersStudioViewBtn"),
   documentsMessage: document.querySelector("#documentsMessage"),
   priceListDocuments: document.querySelector("#priceListDocuments"),
   priceListFile: document.querySelector("#priceListFile"),
@@ -27,6 +29,19 @@ const els = {
   offersDocuments: document.querySelector("#offersDocuments"),
   offersFile: document.querySelector("#offersFile"),
   offersUpload: document.querySelector("#offersUpload"),
+  offerPosterForm: document.querySelector("#offerPosterForm"),
+  offerPosterFormat: document.querySelector("#offerPosterFormat"),
+  offerPosterDate: document.querySelector("#offerPosterDate"),
+  offerPosterTitle: document.querySelector("#offerPosterTitle"),
+  offerPosterSubtitle: document.querySelector("#offerPosterSubtitle"),
+  offerPosterFooter: document.querySelector("#offerPosterFooter"),
+  offerItems: document.querySelector("#offerItems"),
+  addOfferItemBtn: document.querySelector("#addOfferItemBtn"),
+  resetOfferPosterBtn: document.querySelector("#resetOfferPosterBtn"),
+  downloadOfferPosterBtn: document.querySelector("#downloadOfferPosterBtn"),
+  offerPosterCanvas: document.querySelector("#offerPosterCanvas"),
+  offerPosterDimensions: document.querySelector("#offerPosterDimensions"),
+  offerPosterMessage: document.querySelector("#offerPosterMessage"),
   onlineOrderAlert: document.querySelector("#onlineOrderAlert"),
   onlineOrderAlertTitle: document.querySelector("#onlineOrderAlertTitle"),
   onlineOrderAlertDetail: document.querySelector("#onlineOrderAlertDetail"),
@@ -923,15 +938,121 @@ function renderDelivery() {
   });
 }
 
+const OFFER_POSTER_STORAGE_KEY = "san-cayetano-offer-poster-draft";
+const offerPosterLogo = new Image();
+offerPosterLogo.src = "/san-cayetano-logo-blanco.png";
+
+function defaultOfferPosterDraft() {
+  return {
+    format: "story",
+    date: "HOY · HASTA AGOTAR STOCK",
+    title: "OFERTAS DEL DIA",
+    subtitle: "CALIDAD SAN CAYETANO",
+    footer: "PEDIDOS POR WHATSAPP · STOCK LIMITADO",
+    offers: [
+      { product: "ASADO", price: "9500", unit: "EL KILO" },
+      { product: "VACIO", price: "11200", unit: "EL KILO" },
+      { product: "MATAMBRE", price: "10800", unit: "EL KILO" }
+    ]
+  };
+}
+
+function readOfferPosterDraft() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(OFFER_POSTER_STORAGE_KEY));
+    return saved?.offers?.length ? saved : defaultOfferPosterDraft();
+  } catch {
+    return defaultOfferPosterDraft();
+  }
+}
+
+function offerPosterData() {
+  return {
+    format: els.offerPosterFormat.value,
+    date: els.offerPosterDate.value.trim(),
+    title: els.offerPosterTitle.value.trim(),
+    subtitle: els.offerPosterSubtitle.value.trim(),
+    footer: els.offerPosterFooter.value.trim(),
+    offers: [...els.offerItems.querySelectorAll(".offer-item-row")].map(row => ({
+      product: row.querySelector(".offer-product").value.trim(),
+      price: row.querySelector(".offer-price").value.trim(),
+      unit: row.querySelector(".offer-unit").value.trim()
+    }))
+  };
+}
+
+function createOfferItemRow(offer = {}) {
+  if (els.offerItems.children.length >= 6) return;
+  const row = document.createElement("div");
+  row.className = "offer-item-row";
+  row.innerHTML = `
+    <label>Producto<input class="offer-product" maxlength="34" placeholder="Ej: Asado" value="${escapeHtml(offer.product || "")}"></label>
+    <label>Precio<input class="offer-price" inputmode="decimal" maxlength="18" placeholder="Ej: 9500" value="${escapeHtml(offer.price || "")}"></label>
+    <label>Unidad<input class="offer-unit" maxlength="22" placeholder="Ej: El kilo" value="${escapeHtml(offer.unit || "EL KILO")}"></label>
+    <button class="danger offer-item-remove" type="button" title="Quitar oferta">Quitar</button>
+  `;
+  row.querySelector(".offer-item-remove").addEventListener("click", () => {
+    if (els.offerItems.children.length <= 1) return;
+    row.remove();
+    updateOfferPoster();
+  });
+  els.offerItems.append(row);
+}
+
+function loadOfferPosterDraft(draft = readOfferPosterDraft()) {
+  els.offerPosterFormat.value = draft.format || "story";
+  els.offerPosterDate.value = draft.date || "";
+  els.offerPosterTitle.value = draft.title || "";
+  els.offerPosterSubtitle.value = draft.subtitle || "";
+  els.offerPosterFooter.value = draft.footer || "";
+  els.offerItems.innerHTML = "";
+  (draft.offers || []).slice(0, 6).forEach(createOfferItemRow);
+  if (!els.offerItems.children.length) createOfferItemRow();
+  updateOfferPoster();
+}
+
+function updateOfferPoster() {
+  const data = offerPosterData();
+  const dimensions = window.OfferImageGenerator.posterDimensions(data.format);
+  els.offerPosterCanvas.width = dimensions.width;
+  els.offerPosterCanvas.height = dimensions.height;
+  els.offerPosterDimensions.textContent = `${dimensions.width} x ${dimensions.height} px`;
+  window.OfferImageGenerator.drawPoster(els.offerPosterCanvas.getContext("2d"), data, offerPosterLogo);
+  localStorage.setItem(OFFER_POSTER_STORAGE_KEY, JSON.stringify(data));
+  els.addOfferItemBtn.disabled = els.offerItems.children.length >= 6;
+}
+
+function resetOfferPoster() {
+  loadOfferPosterDraft(defaultOfferPosterDraft());
+  els.offerPosterMessage.textContent = "Nueva placa preparada. Reemplaza los ejemplos por tus ofertas.";
+}
+
+function downloadOfferPoster() {
+  updateOfferPoster();
+  els.offerPosterCanvas.toBlob(blob => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `ofertas-san-cayetano-${todayDate()}-${els.offerPosterFormat.value}.png`;
+    link.click();
+    URL.revokeObjectURL(url);
+    els.offerPosterMessage.textContent = "Imagen descargada. Ya esta lista para publicar.";
+    els.offerPosterMessage.style.color = "#0f6b5f";
+  }, "image/png");
+}
+
 function showModule(name) {
   const isDelivery = name === "delivery";
   const isCustomers = name === "customers";
   const isDocuments = name === "documents";
+  const isOffersStudio = name === "offersStudio";
   const modules = [
     ["orders", els.ordersModule],
     ["delivery", els.deliveryModule],
     ["customers", els.customersModule],
-    ["documents", els.documentsModule]
+    ["documents", els.documentsModule],
+    ["offersStudio", els.offersStudioModule]
   ];
   modules.forEach(([moduleName, element]) => {
     const isActive = moduleName === name;
@@ -939,18 +1060,20 @@ function showModule(name) {
     element.classList.toggle("active-module", isActive);
     element.style.display = isActive ? "" : "none";
   });
-  els.ordersViewBtn.className = !isDelivery && !isCustomers && !isDocuments ? "primary" : "ghost";
+  els.ordersViewBtn.className = !isDelivery && !isCustomers && !isDocuments && !isOffersStudio ? "primary" : "ghost";
   els.deliveryViewBtn.className = isDelivery ? "primary" : "ghost";
   els.customersViewBtn.className = isCustomers ? "primary" : "ghost";
   els.documentsViewBtn.className = isDocuments ? "primary" : "ghost";
-  els.newBtn.hidden = isDelivery || isCustomers || isDocuments;
-  els.moduleTitle.textContent = isDelivery ? "Delivery" : isCustomers ? "Clientes" : isDocuments ? "Documentos clientes" : "Pedidos";
+  els.offersStudioViewBtn.className = isOffersStudio ? "primary" : "ghost";
+  els.newBtn.hidden = isDelivery || isCustomers || isDocuments || isOffersStudio;
+  els.moduleTitle.textContent = isDelivery ? "Delivery" : isCustomers ? "Clientes" : isDocuments ? "Documentos clientes" : isOffersStudio ? "Placas de ofertas" : "Pedidos";
   if (isDelivery) renderDelivery();
   if (isCustomers) renderCustomerAgenda();
   if (isDocuments) loadClientDocuments().catch(error => {
     els.documentsMessage.textContent = error.message;
     els.documentsMessage.style.color = "#b83232";
   });
+  if (isOffersStudio) updateOfferPoster();
   window.scrollTo(0, 0);
 }
 
@@ -1465,6 +1588,7 @@ els.ordersViewBtn.addEventListener("click", () => showModule("orders"));
 els.deliveryViewBtn.addEventListener("click", () => showModule("delivery"));
 els.customersViewBtn.addEventListener("click", () => showModule("customers"));
 els.documentsViewBtn.addEventListener("click", () => showModule("documents"));
+els.offersStudioViewBtn.addEventListener("click", () => showModule("offersStudio"));
 els.priceListUpload.addEventListener("click", () => uploadClientDocument("price-list"));
 els.offersUpload.addEventListener("click", () => uploadClientDocument("offers"));
 els.viewOnlineOrdersBtn.addEventListener("click", showPendingOnlineOrders);
@@ -1488,8 +1612,19 @@ els.addCustomerBtn.addEventListener("click", () => openCustomerDialog());
 els.closeCustomerDialogBtn.addEventListener("click", closeCustomerDialog);
 els.cancelCustomerBtn.addEventListener("click", closeCustomerDialog);
 els.customerForm.addEventListener("submit", saveCustomer);
+els.offerPosterForm.addEventListener("submit", event => event.preventDefault());
+els.offerPosterForm.addEventListener("input", updateOfferPoster);
+els.offerPosterForm.addEventListener("change", updateOfferPoster);
+els.addOfferItemBtn.addEventListener("click", () => {
+  createOfferItemRow();
+  updateOfferPoster();
+});
+els.resetOfferPosterBtn.addEventListener("click", resetOfferPoster);
+els.downloadOfferPosterBtn.addEventListener("click", downloadOfferPoster);
+offerPosterLogo.addEventListener("load", updateOfferPoster);
 
 resetForm();
+loadOfferPosterDraft();
 els.prepDateFilter.value = todayDate();
 els.deliveryDateFilter.value = todayDate();
 refreshAll().catch(error => setMessage(error.message, true));
