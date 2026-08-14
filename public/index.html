@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Sistema de pedidos</title>
-    <link rel="stylesheet" href="/styles.css?v=20260814-placas-ofertas">
+    <link rel="stylesheet" href="/styles.css?v=20260814-ofertas-masivas">
   </head>
   <body>
     <header class="topbar">
@@ -305,14 +305,25 @@
             <input id="offerPosterSubtitle" value="CALIDAD SAN CAYETANO" maxlength="70">
           </label>
 
-          <div class="offer-items-heading">
-            <div>
-              <h3>Productos y precios</h3>
-              <p>La placa acomoda automaticamente entre 1 y 6 ofertas.</p>
+          <label>Ofertas
+            <textarea id="offerPosterOffersText" class="offer-paste-area" rows="11" placeholder="Pega una oferta por linea. Ejemplo:&#10;ASADO | 9500 | EL KILO&#10;VACIO $11200 EL KILO&#10;2 KG DE MILANESAS $18000"></textarea>
+          </label>
+          <p class="offer-paste-help">Podes pegar todas juntas. El sistema reconoce el precio y acomoda automaticamente la cantidad de ofertas.</p>
+
+          <fieldset class="offer-business-fields">
+            <legend>Informacion del local</legend>
+            <div class="grid two">
+              <label>Telefono / WhatsApp
+                <input id="offerPosterPhone" maxlength="40" placeholder="Ej: 11 1234-5678">
+              </label>
+              <label>Instagram
+                <input id="offerPosterInstagram" maxlength="45" placeholder="Ej: @sancayetanocarnes">
+              </label>
             </div>
-            <button id="addOfferItemBtn" class="ghost" type="button">Agregar oferta</button>
-          </div>
-          <div id="offerItems" class="offer-items"></div>
+            <label>Link para pedidos
+              <input id="offerPosterOrderLink" maxlength="100" placeholder="Link del formulario de pedidos">
+            </label>
+          </fieldset>
 
           <label>Texto al pie
             <input id="offerPosterFooter" value="PEDIDOS POR WHATSAPP · STOCK LIMITADO" maxlength="90">
@@ -380,7 +391,7 @@
       </form>
     </dialog>
 
-    <script src="/offers-generator.js?v=20260814-placas-ofertas"></script>
-    <script src="/app.js?v=20260814-placas-ofertas"></script>
+    <script src="/offers-generator.js?v=20260814-ofertas-masivas"></script>
+    <script src="/app.js?v=20260814-ofertas-masivas"></script>
   </body>
 </html>

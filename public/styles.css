@@ -1372,8 +1372,7 @@ textarea:focus {
 }
 
 .offers-studio-head,
-.offer-preview-toolbar,
-.offer-items-heading {
+.offer-preview-toolbar {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -1384,8 +1383,7 @@ textarea:focus {
   margin-bottom: 18px;
 }
 
-.offers-studio-head p,
-.offer-items-heading p {
+.offers-studio-head p {
   margin: 5px 0 0;
   color: var(--muted);
 }
@@ -1408,35 +1406,36 @@ textarea:focus {
   padding: 20px;
 }
 
-.offer-items-heading {
-  align-items: center;
-  padding-top: 4px;
-}
-
-.offer-items-heading h3,
-.offer-items-heading p,
 .offer-preview-toolbar p {
   margin-bottom: 0;
 }
 
-.offer-items {
-  display: grid;
-  gap: 10px;
+.offer-paste-area {
+  min-height: 245px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  line-height: 1.55;
+  resize: vertical;
 }
 
-.offer-item-row {
+.offer-paste-help {
+  margin: -6px 0 2px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.offer-business-fields {
   display: grid;
-  grid-template-columns: minmax(150px, 1.2fr) minmax(100px, 0.65fr) minmax(110px, 0.7fr) auto;
-  gap: 8px;
-  align-items: end;
-  padding: 12px;
+  gap: 12px;
+  margin: 4px 0;
+  padding: 16px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: #f8fafb;
 }
 
-.offer-item-row button {
-  min-height: 40px;
+.offer-business-fields legend {
+  padding: 0 6px;
+  font-weight: 800;
 }
 
 .offer-preview-panel {
@@ -1591,7 +1590,6 @@ textarea:focus {
   }
 
   .offers-studio-head,
-  .offer-items-heading,
   .offer-preview-toolbar {
     align-items: stretch;
     flex-direction: column;
@@ -1600,14 +1598,6 @@ textarea:focus {
   .offers-studio-actions {
     display: grid;
     grid-template-columns: 1fr;
-  }
-
-  .offer-item-row {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .offer-item-row label:first-child {
-    grid-column: 1 / -1;
   }
 
   .route-top {
