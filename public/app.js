@@ -1025,13 +1025,20 @@ async function initializeRemoteOfferPosterSettings() {
   if (!response.ok) throw new Error("No se pudieron cargar los datos fijos online.");
   const result = await response.json();
   const local = fixedOfferPosterSettings();
-  if (result.configured) {
+  const localHasBusinessData = Boolean(local.phone || local.instagram || local.address);
+  const remoteHasBusinessData = Boolean(result.settings?.phone || result.settings?.instagram || result.settings?.address);
+  if (result.configured && remoteHasBusinessData) {
     applyFixedOfferPosterSettings(result.settings);
     fixedSettingsSyncReady = true;
     return;
   }
   fixedSettingsSyncReady = true;
-  if (local.phone || local.instagram || local.address) saveFixedOfferPosterSettings(local);
+  if (localHasBusinessData) {
+    applyFixedOfferPosterSettings(local);
+    saveFixedOfferPosterSettings(local);
+    return;
+  }
+  if (result.settings) applyFixedOfferPosterSettings(result.settings);
 }
 
 function readOfferPosterDraft() {
