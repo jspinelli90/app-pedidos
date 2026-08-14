@@ -2,6 +2,7 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const QRCode = require("qrcode");
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = "0.0.0.0";
@@ -667,6 +668,14 @@ async function handleApi(req, res) {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
 
   try {
+    if (url.pathname === "/api/offer-qr" && req.method === "GET") {
+      const target = String(url.searchParams.get("target") || "").trim();
+      if (!/^https?:\/\//i.test(target)) return sendJson(res, 400, { error: "El destino del QR debe ser un enlace valido." });
+      const png = await QRCode.toBuffer(target, { type: "png", width: 360, margin: 2, errorCorrectionLevel: "M" });
+      res.writeHead(200, { "Content-Type": "image/png", "Cache-Control": "public, max-age=3600" });
+      return res.end(png);
+    }
+
     if (url.pathname === "/api/public-client-documents" && req.method === "GET") {
       const records = await readClientDocuments();
       const visible = records.map(({ storageName, ...record }) => record).sort((a, b) => {

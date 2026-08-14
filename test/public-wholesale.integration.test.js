@@ -24,6 +24,11 @@ test("depura mayoristas historicos y permite un alta publica sin duplicarlos", a
   t.after(() => new Promise(resolve => server.close(resolve)));
   const baseUrl = `http://127.0.0.1:${server.address().port}`;
 
+  const qrResponse = await fetch(`${baseUrl}/api/offer-qr?target=${encodeURIComponent("https://app-pedidos-wi3l.onrender.com/cliente.html")}`);
+  assert.equal(qrResponse.status, 200);
+  assert.equal(qrResponse.headers.get("content-type"), "image/png");
+  assert.ok((await qrResponse.arrayBuffer()).byteLength > 500);
+
   let response = await fetch(`${baseUrl}/api/customers`);
   let customers = await response.json();
   assert.deepEqual(customers.map(customer => customer.name), ["Cliente Minorista"]);

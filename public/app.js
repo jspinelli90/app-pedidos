@@ -38,6 +38,7 @@ const els = {
   offerPosterOffersText: document.querySelector("#offerPosterOffersText"),
   offerPosterPhone: document.querySelector("#offerPosterPhone"),
   offerPosterInstagram: document.querySelector("#offerPosterInstagram"),
+  offerPosterAddress: document.querySelector("#offerPosterAddress"),
   offerPosterOrderLink: document.querySelector("#offerPosterOrderLink"),
   resetOfferPosterBtn: document.querySelector("#resetOfferPosterBtn"),
   downloadOfferPosterBtn: document.querySelector("#downloadOfferPosterBtn"),
@@ -943,6 +944,8 @@ function renderDelivery() {
 const OFFER_POSTER_STORAGE_KEY = "san-cayetano-offer-poster-draft";
 const offerPosterLogo = new Image();
 offerPosterLogo.src = "/san-cayetano-logo-blanco.png";
+const offerPosterQr = new Image();
+let offerPosterQrValue = "";
 
 function defaultOfferPosterDraft() {
   return {
@@ -954,6 +957,7 @@ function defaultOfferPosterDraft() {
     offersText: "ASADO | 9500 | EL KILO\nVACIO | 11200 | EL KILO\nMATAMBRE | 10800 | EL KILO",
     phone: "",
     instagram: "",
+    address: "",
     orderLink: `${window.location.origin}/cliente.html`
   };
 }
@@ -982,6 +986,7 @@ function offerPosterData() {
     offers: window.OfferImageGenerator.parseOffers(els.offerPosterOffersText.value),
     phone: els.offerPosterPhone.value.trim(),
     instagram: els.offerPosterInstagram.value.trim(),
+    address: els.offerPosterAddress.value.trim(),
     orderLink: els.offerPosterOrderLink.value.trim()
   };
 }
@@ -995,17 +1000,22 @@ function loadOfferPosterDraft(draft = readOfferPosterDraft()) {
   els.offerPosterOffersText.value = draft.offersText || "";
   els.offerPosterPhone.value = draft.phone || "";
   els.offerPosterInstagram.value = draft.instagram || "";
+  els.offerPosterAddress.value = draft.address || "";
   els.offerPosterOrderLink.value = draft.orderLink || `${window.location.origin}/cliente.html`;
   updateOfferPoster();
 }
 
 function updateOfferPoster() {
   const data = offerPosterData();
+  if (data.orderLink !== offerPosterQrValue) {
+    offerPosterQrValue = data.orderLink;
+    offerPosterQr.src = /^https?:\/\//i.test(data.orderLink) ? `/api/offer-qr?target=${encodeURIComponent(data.orderLink)}` : "";
+  }
   const dimensions = window.OfferImageGenerator.posterDimensions(data.format);
   els.offerPosterCanvas.width = dimensions.width;
   els.offerPosterCanvas.height = dimensions.height;
   els.offerPosterDimensions.textContent = `${dimensions.width} x ${dimensions.height} px`;
-  window.OfferImageGenerator.drawPoster(els.offerPosterCanvas.getContext("2d"), data, offerPosterLogo);
+  window.OfferImageGenerator.drawPoster(els.offerPosterCanvas.getContext("2d"), data, offerPosterLogo, offerPosterQr);
   localStorage.setItem(OFFER_POSTER_STORAGE_KEY, JSON.stringify(data));
   const count = data.offers.length;
   els.offerPosterMessage.textContent = `${count} ${count === 1 ? "oferta acomodada" : "ofertas acomodadas"}. El borrador se guarda automaticamente.`;
@@ -1017,6 +1027,7 @@ function resetOfferPoster() {
     ...defaultOfferPosterDraft(),
     phone: business.phone,
     instagram: business.instagram,
+    address: business.address,
     orderLink: business.orderLink
   });
   els.offerPosterMessage.textContent = "Nueva placa preparada. Reemplaza los ejemplos por tus ofertas.";
@@ -1613,6 +1624,7 @@ els.offerPosterForm.addEventListener("change", updateOfferPoster);
 els.resetOfferPosterBtn.addEventListener("click", resetOfferPoster);
 els.downloadOfferPosterBtn.addEventListener("click", downloadOfferPoster);
 offerPosterLogo.addEventListener("load", updateOfferPoster);
+offerPosterQr.addEventListener("load", updateOfferPoster);
 
 resetForm();
 loadOfferPosterDraft();
