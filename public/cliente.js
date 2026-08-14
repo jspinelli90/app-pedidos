@@ -151,8 +151,12 @@ function applyDatePolicy(policy, forceValue = false) {
 
 function validatePrepDate() {
   const sundaySelected = prepDate.value && isSunday(prepDate.value);
-  prepDate.setCustomValidity(sundaySelected ? "Los domingos no se toman pedidos." : "");
-  return !sundaySelected;
+  const unavailable = (orderDatePolicy?.unavailableDates || []).find(item => item.date === prepDate.value);
+  const unavailableMessage = unavailable
+    ? `${unavailable.type === "CLOSED" ? "El local estara cerrado" : "No tendremos delivery"} ese dia${unavailable.note ? `: ${unavailable.note}` : "."}`
+    : "";
+  prepDate.setCustomValidity(sundaySelected ? "Los domingos no se toman pedidos." : unavailableMessage);
+  return !sundaySelected && !unavailable;
 }
 
 async function refreshDatePolicy(forceValue = false) {

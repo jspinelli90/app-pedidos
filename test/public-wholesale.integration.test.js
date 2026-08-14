@@ -58,6 +58,19 @@ test("depura mayoristas historicos y permite un alta publica sin duplicarlos", a
   assert.equal(savedDraft.draft.title, "OFERTAS DEL VIERNES");
   assert.equal(savedDraft.draft.format, "post");
 
+  let availabilityResponse = await fetch(`${baseUrl}/api/order-availability`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ date: "2026-08-20", type: "NO_DELIVERY", note: "Sin reparto" })
+  });
+  assert.equal(availabilityResponse.status, 201);
+  availabilityResponse = await fetch(`${baseUrl}/api/public-order-policy?deliveryType=DELIVERY`);
+  const deliveryPolicy = await availabilityResponse.json();
+  assert.ok(deliveryPolicy.unavailableDates.some(item => item.date === "2026-08-20" && item.type === "NO_DELIVERY"));
+  availabilityResponse = await fetch(`${baseUrl}/api/public-order-policy?deliveryType=RETIRO`);
+  const pickupPolicy = await availabilityResponse.json();
+  assert.ok(!pickupPolicy.unavailableDates.some(item => item.date === "2026-08-20"));
+
   let response = await fetch(`${baseUrl}/api/customers`);
   let customers = await response.json();
   assert.deepEqual(customers.map(customer => customer.name), ["Cliente Minorista"]);
