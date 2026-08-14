@@ -5,7 +5,8 @@
 })(typeof window !== "undefined" ? window : null, function createOfferImageGenerator() {
   const FORMATS = {
     story: { width: 1080, height: 1920 },
-    post: { width: 1080, height: 1350 }
+    post: { width: 1080, height: 1350 },
+    a4: { width: 2480, height: 3508 }
   };
 
   function formatPrice(value) {
@@ -66,11 +67,11 @@
     return minSize;
   }
 
-  function drawContactIcon(ctx, type, x, baseline, size) {
+  function drawContactIcon(ctx, type, x, baseline, size, color = "#ffffff") {
     const top = baseline - size * 0.82;
     ctx.save();
-    ctx.strokeStyle = "#ffffff";
-    ctx.fillStyle = "#ffffff";
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
     ctx.lineWidth = Math.max(2, size * 0.1);
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -110,7 +111,7 @@
     ctx.restore();
   }
 
-  function drawIconItems(ctx, items, centerX, baseline, maxWidth, startSize) {
+  function drawIconItems(ctx, items, centerX, baseline, maxWidth, startSize, color = "#ffffff") {
     if (!items.length) return;
     let fontSize = startSize;
     let iconSize;
@@ -128,8 +129,8 @@
     let x = centerX - total / 2;
     ctx.textAlign = "left";
     items.forEach((item, index) => {
-      drawContactIcon(ctx, item.type, x, baseline, iconSize);
-      ctx.fillStyle = "#ffffff";
+      drawContactIcon(ctx, item.type, x, baseline, iconSize, color);
+      ctx.fillStyle = color;
       ctx.fillText(item.text, x + iconSize + gap, baseline);
       x += widths[index] + fontSize * 1.35;
     });
@@ -137,24 +138,70 @@
   }
 
   function drawPoster(ctx, data, logo, qr) {
+    if (data.format === "a4") {
+      const sheet = ctx.canvas;
+      const documentRef = sheet.ownerDocument || (typeof document !== "undefined" ? document : null);
+      if (!documentRef) return;
+      const flyer = documentRef.createElement("canvas");
+      flyer.width = FORMATS.post.width;
+      flyer.height = FORMATS.post.height;
+      drawPoster(flyer.getContext("2d"), { ...data, format: "post", lightTheme: true }, logo, qr);
+      ctx.clearRect(0, 0, sheet.width, sheet.height);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, sheet.width, sheet.height);
+      const margin = 80;
+      const gap = 50;
+      const cellWidth = (sheet.width - margin * 2 - gap) / 2;
+      const cellHeight = (sheet.height - margin * 2 - gap) / 2;
+      const scale = Math.min(cellWidth / flyer.width, cellHeight / flyer.height);
+      const flyerWidth = flyer.width * scale;
+      const flyerHeight = flyer.height * scale;
+      for (let row = 0; row < 2; row += 1) {
+        for (let column = 0; column < 2; column += 1) {
+          const cellX = margin + column * (cellWidth + gap);
+          const cellY = margin + row * (cellHeight + gap);
+          const x = cellX + (cellWidth - flyerWidth) / 2;
+          const y = cellY + (cellHeight - flyerHeight) / 2;
+          ctx.drawImage(flyer, x, y, flyerWidth, flyerHeight);
+        }
+      }
+      ctx.save();
+      ctx.strokeStyle = "#777777";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([16, 14]);
+      ctx.beginPath();
+      ctx.moveTo(sheet.width / 2, 30);
+      ctx.lineTo(sheet.width / 2, sheet.height - 30);
+      ctx.moveTo(30, sheet.height / 2);
+      ctx.lineTo(sheet.width - 30, sheet.height / 2);
+      ctx.stroke();
+      ctx.restore();
+      return;
+    }
     const { width, height } = ctx.canvas;
+    const lightTheme = Boolean(data.lightTheme);
+    const backgroundColor = lightTheme ? "#ffffff" : "#050505";
+    const foregroundColor = lightTheme ? "#111111" : "#ffffff";
     const offers = (data.offers || []).filter(item => item.product || item.price);
     const visibleOffers = offers.length ? offers : [{ product: "TU OFERTA", price: "0", unit: "EL KILO" }];
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = "#050505";
+    ctx.fillStyle = backgroundColor;
     ctx.fillRect(0, 0, width, height);
 
-    ctx.strokeStyle = "#ffffff";
+    ctx.strokeStyle = foregroundColor;
     ctx.lineWidth = 5;
     ctx.strokeRect(34, 34, width - 68, height - 68);
 
     if (logo?.complete && logo.naturalWidth) {
       const logoSize = height >= 1800 ? 390 : 300;
+      ctx.save();
+      if (lightTheme) ctx.filter = "invert(1)";
       ctx.drawImage(logo, (width - logoSize) / 2, height >= 1800 ? 50 : 20, logoSize, logoSize);
+      ctx.restore();
     }
 
     ctx.textAlign = "center";
-    ctx.fillStyle = "#ffffff";
+    ctx.fillStyle = foregroundColor;
     ctx.font = `800 ${height >= 1800 ? 34 : 28}px Arial, Helvetica, sans-serif`;
     ctx.letterSpacing = "8px";
     ctx.fillText(String(data.date || "HOY · HASTA AGOTAR STOCK").toUpperCase(), width / 2, height >= 1800 ? 425 : 315);
@@ -165,7 +212,7 @@
     ctx.font = `900 ${titleSize}px Arial, Helvetica, sans-serif`;
     ctx.fillText(title, width / 2, height >= 1800 ? 525 : 400);
 
-    ctx.fillStyle = "#cfcfcf";
+    ctx.fillStyle = lightTheme ? "#333333" : "#cfcfcf";
     ctx.font = `700 ${height >= 1800 ? 30 : 25}px Arial, Helvetica, sans-serif`;
     ctx.fillText(String(data.subtitle || "CALIDAD SAN CAYETANO").toUpperCase(), width / 2, height >= 1800 ? 585 : 445);
 
@@ -179,6 +226,11 @@
       ctx.beginPath();
       ctx.roundRect(x, y, layout.width, layout.height, Math.min(22, layout.height * 0.16));
       ctx.fill();
+      if (lightTheme) {
+        ctx.strokeStyle = "#111111";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
 
       ctx.textAlign = "left";
       ctx.fillStyle = "#111111";
@@ -200,7 +252,7 @@
     });
 
     ctx.textAlign = "center";
-    ctx.fillStyle = "#ffffff";
+    ctx.fillStyle = foregroundColor;
     const footerY = height - (height >= 1800 ? 220 : 160);
     ctx.font = `900 ${height >= 1800 ? 28 : 22}px Arial, Helvetica, sans-serif`;
     ctx.fillText(String(data.footer || "PEDIDOS POR WHATSAPP · STOCK LIMITADO").toUpperCase(), width / 2, footerY);
@@ -212,9 +264,9 @@
       data.phone && { type: "whatsapp", text: String(data.phone) },
       data.instagram && { type: "instagram", text: String(data.instagram) }
     ].filter(Boolean);
-    drawIconItems(ctx, contactItems, textCenter, footerY + (height >= 1800 ? 44 : 32), textWidth, height >= 1800 ? 25 : 19);
+    drawIconItems(ctx, contactItems, textCenter, footerY + (height >= 1800 ? 44 : 32), textWidth, height >= 1800 ? 25 : 19, foregroundColor);
     if (data.address) {
-      drawIconItems(ctx, [{ type: "location", text: String(data.address) }], textCenter, footerY + (height >= 1800 ? 84 : 62), textWidth, height >= 1800 ? 22 : 17);
+      drawIconItems(ctx, [{ type: "location", text: String(data.address) }], textCenter, footerY + (height >= 1800 ? 84 : 62), textWidth, height >= 1800 ? 22 : 17, foregroundColor);
     }
     if (hasQr) {
       const qrX = width - 70 - qrSize;
@@ -223,7 +275,7 @@
       ctx.fillRect(qrX - 8, qrY - 8, qrSize + 16, qrSize + 16);
       ctx.drawImage(qr, qrX, qrY, qrSize, qrSize);
     }
-    ctx.fillStyle = "#bdbdbd";
+    ctx.fillStyle = lightTheme ? "#333333" : "#bdbdbd";
     ctx.font = `700 ${height >= 1800 ? 20 : 16}px Arial, Helvetica, sans-serif`;
     ctx.fillText("SAN CAYETANO CARNES", width / 2, height - (height >= 1800 ? 82 : 58));
   }

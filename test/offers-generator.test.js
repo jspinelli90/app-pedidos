@@ -11,6 +11,7 @@ test("formatea precios argentinos para la placa", () => {
 test("usa dimensiones correctas para historia y publicacion", () => {
   assert.deepEqual(posterDimensions("story"), { width: 1080, height: 1920 });
   assert.deepEqual(posterDimensions("post"), { width: 1080, height: 1350 });
+  assert.deepEqual(posterDimensions("a4"), { width: 2480, height: 3508 });
 });
 
 test("interpreta ofertas pegadas con distintos formatos", () => {

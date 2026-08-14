@@ -249,7 +249,7 @@ async function writeOfferPosterSettings(settings) {
 
 function normalizeOfferPosterDraft(value = {}) {
   return {
-    format: value.format === "post" ? "post" : "story",
+    format: ["story", "post", "a4"].includes(value.format) ? value.format : "story",
     title: cleanText(value.title).slice(0, 42) || "OFERTAS DEL DIA",
     subtitle: cleanText(value.subtitle).slice(0, 70) || "CALIDAD SAN CAYETANO",
     offersText: String(value.offersText || "").slice(0, 20_000),
