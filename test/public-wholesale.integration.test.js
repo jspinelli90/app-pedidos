@@ -44,6 +44,20 @@ test("depura mayoristas historicos y permite un alta publica sin duplicarlos", a
   assert.equal(savedSettings.settings.phone, "11 5555-1234");
   assert.equal(savedSettings.settings.date, "HASTA AGOTAR STOCK");
 
+  let draftResponse = await fetch(`${baseUrl}/api/offer-poster-draft`);
+  assert.equal((await draftResponse.json()).configured, false);
+  draftResponse = await fetch(`${baseUrl}/api/offer-poster-draft`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ format: "post", title: "OFERTAS DEL VIERNES", subtitle: "CALIDAD", offersText: "ASADO | 9500 | EL KILO" })
+  });
+  assert.equal(draftResponse.status, 200);
+  draftResponse = await fetch(`${baseUrl}/api/offer-poster-draft`);
+  const savedDraft = await draftResponse.json();
+  assert.equal(savedDraft.configured, true);
+  assert.equal(savedDraft.draft.title, "OFERTAS DEL VIERNES");
+  assert.equal(savedDraft.draft.format, "post");
+
   let response = await fetch(`${baseUrl}/api/customers`);
   let customers = await response.json();
   assert.deepEqual(customers.map(customer => customer.name), ["Cliente Minorista"]);

@@ -15,6 +15,7 @@ const USERS_FILE = path.join(DATA_DIR, "users.json");
 const MOVEMENTS_FILE = path.join(DATA_DIR, "movements.json");
 const CLIENT_DOCUMENTS_FILE = path.join(DATA_DIR, "client-documents.json");
 const OFFER_POSTER_SETTINGS_FILE = path.join(DATA_DIR, "offer-poster-settings.json");
+const OFFER_POSTER_DRAFT_FILE = path.join(DATA_DIR, "offer-poster-draft.json");
 const CLIENT_DOCUMENTS_BUCKET = "client-documents";
 const CLIENT_DOCUMENT_TYPES = {
   "price-list": { label: "Lista de precios", legacyFileName: "lista-de-precios.pdf" },
@@ -243,6 +244,27 @@ async function readOfferPosterSettings() {
 async function writeOfferPosterSettings(settings) {
   const normalized = normalizeOfferPosterSettings(settings);
   await writeStore("offer_poster_settings", OFFER_POSTER_SETTINGS_FILE, [normalized]);
+  return normalized;
+}
+
+function normalizeOfferPosterDraft(value = {}) {
+  return {
+    format: value.format === "post" ? "post" : "story",
+    title: cleanText(value.title).slice(0, 42) || "OFERTAS DEL DIA",
+    subtitle: cleanText(value.subtitle).slice(0, 70) || "CALIDAD SAN CAYETANO",
+    offersText: String(value.offersText || "").slice(0, 20_000),
+    savedAt: new Date().toISOString()
+  };
+}
+
+async function readOfferPosterDraft() {
+  const records = await readStore("offer_poster_draft", OFFER_POSTER_DRAFT_FILE);
+  return records[0] ? { configured: true, draft: records[0] } : { configured: false, draft: null };
+}
+
+async function writeOfferPosterDraft(draft) {
+  const normalized = normalizeOfferPosterDraft(draft);
+  await writeStore("offer_poster_draft", OFFER_POSTER_DRAFT_FILE, [normalized]);
   return normalized;
 }
 
@@ -712,6 +734,14 @@ async function handleApi(req, res) {
         return sendJson(res, 400, { error: "El destino del QR debe ser un enlace valido." });
       }
       return sendJson(res, 200, await writeOfferPosterSettings(payload));
+    }
+
+    if (url.pathname === "/api/offer-poster-draft" && req.method === "GET") {
+      return sendJson(res, 200, await readOfferPosterDraft());
+    }
+
+    if (url.pathname === "/api/offer-poster-draft" && req.method === "PUT") {
+      return sendJson(res, 200, await writeOfferPosterDraft(await readBody(req)));
     }
 
     if (url.pathname === "/api/public-client-documents" && req.method === "GET") {
