@@ -8,5 +8,8 @@
     "start": "node server.js",
     "test": "node --test",
     "migrar:supabase": "node scripts/migrar-supabase.js"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.4"
   }
 }

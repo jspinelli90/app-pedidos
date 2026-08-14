@@ -320,9 +320,13 @@
                 <input id="offerPosterInstagram" maxlength="45" placeholder="Ej: @sancayetanocarnes">
               </label>
             </div>
-            <label>Link para pedidos
+            <label>Direccion
+              <input id="offerPosterAddress" maxlength="90" placeholder="Direccion completa del local">
+            </label>
+            <label>Destino del codigo QR
               <input id="offerPosterOrderLink" maxlength="100" placeholder="Link del formulario de pedidos">
             </label>
+            <p class="offer-paste-help">Este enlace no se escribe en la placa: se convierte en un QR para ingresar al formulario.</p>
           </fieldset>
 
           <label>Texto al pie
@@ -391,7 +395,7 @@
       </form>
     </dialog>
 
-    <script src="/offers-generator.js?v=20260814-ofertas-masivas"></script>
-    <script src="/app.js?v=20260814-ofertas-masivas"></script>
+    <script src="/offers-generator.js?v=20260814-qr-direccion"></script>
+    <script src="/app.js?v=20260814-qr-direccion"></script>
   </body>
 </html>

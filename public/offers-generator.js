@@ -66,7 +66,7 @@
     return minSize;
   }
 
-  function drawPoster(ctx, data, logo) {
+  function drawPoster(ctx, data, logo, qr) {
     const { width, height } = ctx.canvas;
     const offers = (data.offers || []).filter(item => item.product || item.price);
     const visibleOffers = offers.length ? offers : [{ product: "TU OFERTA", price: "0", unit: "EL KILO" }];
@@ -134,16 +134,28 @@
     const footerY = height - (height >= 1800 ? 220 : 160);
     ctx.font = `900 ${height >= 1800 ? 28 : 22}px Arial, Helvetica, sans-serif`;
     ctx.fillText(String(data.footer || "PEDIDOS POR WHATSAPP · STOCK LIMITADO").toUpperCase(), width / 2, footerY);
+    const hasQr = Boolean(qr?.complete && qr.naturalWidth && data.orderLink);
+    const qrSize = height >= 1800 ? 128 : 92;
+    const textCenter = hasQr ? width / 2 - qrSize / 2 : width / 2;
+    const textWidth = hasQr ? width - qrSize - 230 : width - 130;
     const contact = [data.phone && `TEL / WHATSAPP ${data.phone}`, data.instagram && `INSTAGRAM ${data.instagram}`].filter(Boolean).join(" · ");
     if (contact) {
-      const contactSize = fitText(ctx, contact.toUpperCase(), width - 130, height >= 1800 ? 25 : 19, 14);
+      const contactSize = fitText(ctx, contact.toUpperCase(), textWidth, height >= 1800 ? 25 : 19, 14);
       ctx.font = `800 ${contactSize}px Arial, Helvetica, sans-serif`;
-      ctx.fillText(contact.toUpperCase(), width / 2, footerY + (height >= 1800 ? 48 : 36));
+      ctx.fillText(contact.toUpperCase(), textCenter, footerY + (height >= 1800 ? 44 : 32));
     }
-    if (data.orderLink) {
-      const linkSize = fitText(ctx, String(data.orderLink), width - 130, height >= 1800 ? 22 : 17, 13);
-      ctx.font = `700 ${linkSize}px Arial, Helvetica, sans-serif`;
-      ctx.fillText(String(data.orderLink), width / 2, footerY + (height >= 1800 ? 86 : 66));
+    if (data.address) {
+      const address = `DIRECCION ${String(data.address).toUpperCase()}`;
+      const addressSize = fitText(ctx, address, textWidth, height >= 1800 ? 22 : 17, 13);
+      ctx.font = `700 ${addressSize}px Arial, Helvetica, sans-serif`;
+      ctx.fillText(address, textCenter, footerY + (height >= 1800 ? 82 : 61));
+    }
+    if (hasQr) {
+      const qrX = width - 70 - qrSize;
+      const qrY = footerY + (height >= 1800 ? 4 : 1);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(qrX - 8, qrY - 8, qrSize + 16, qrSize + 16);
+      ctx.drawImage(qr, qrX, qrY, qrSize, qrSize);
     }
     ctx.fillStyle = "#bdbdbd";
     ctx.font = `700 ${height >= 1800 ? 20 : 16}px Arial, Helvetica, sans-serif`;
