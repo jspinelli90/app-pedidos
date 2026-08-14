@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Sistema de pedidos</title>
-    <link rel="stylesheet" href="/styles.css?v=20260814-ofertas-masivas">
+    <link rel="stylesheet" href="/styles.css?v=20260814-disponibilidad-clientes">
   </head>
   <body>
     <header class="topbar">
@@ -191,6 +191,32 @@
           <button id="mapsRouteBtn" class="ghost" type="button">Abrir en Maps</button>
           <button id="printRouteBtn" class="primary" type="button">Imprimir recorrido</button>
         </div>
+      </section>
+
+      <section class="panel availability-panel">
+        <div class="availability-heading">
+          <div>
+            <h3>Disponibilidad para clientes</h3>
+            <p>Bloquea una fecha completa o solamente el servicio de delivery.</p>
+          </div>
+        </div>
+        <form id="availabilityForm" class="availability-form">
+          <label>Fecha
+            <input id="availabilityDate" type="date" required>
+          </label>
+          <label>Disponibilidad
+            <select id="availabilityType">
+              <option value="CLOSED">Local cerrado</option>
+              <option value="NO_DELIVERY">Sin delivery</option>
+            </select>
+          </label>
+          <label>Motivo o aviso
+            <input id="availabilityNote" maxlength="120" placeholder="Opcional: feriado, mantenimiento...">
+          </label>
+          <button class="primary" type="submit">Guardar fecha</button>
+        </form>
+        <p id="availabilityMessage" class="message" role="status"></p>
+        <div id="availabilityList" class="availability-list"></div>
       </section>
 
       <section class="route-summary">
@@ -397,6 +423,6 @@
     </dialog>
 
     <script src="/offers-generator.js?v=20260814-a4-folletos-grandes"></script>
-    <script src="/app.js?v=20260814-a4-cuatro-folletos"></script>
+    <script src="/app.js?v=20260814-disponibilidad-clientes"></script>
   </body>
 </html>

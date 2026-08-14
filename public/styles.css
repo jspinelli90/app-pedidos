@@ -1371,6 +1371,62 @@ textarea:focus {
   padding: 18px clamp(16px, 4vw, 38px) 40px;
 }
 
+.availability-panel {
+  margin: 0 clamp(16px, 4vw, 38px) 18px;
+  padding: 18px;
+}
+
+.availability-heading p,
+.availability-item p {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+
+.availability-form {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.7fr) minmax(180px, 0.9fr) minmax(240px, 1.4fr) auto;
+  gap: 10px;
+  align-items: end;
+  margin-top: 14px;
+}
+
+.availability-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.availability-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #f8fafb;
+}
+
+.availability-badge {
+  display: inline-block;
+  margin-left: 9px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.availability-badge.closed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.availability-badge.no-delivery {
+  background: #fef3c7;
+  color: #92400e;
+}
+
 .offers-studio-head,
 .offer-preview-toolbar {
   display: flex;
@@ -1507,6 +1563,10 @@ textarea:focus {
     position: static;
   }
 
+  .availability-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
 }
 
 @media (max-width: 680px) {
@@ -1597,6 +1657,10 @@ textarea:focus {
 
   .offers-studio-actions {
     display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .availability-form {
     grid-template-columns: 1fr;
   }
 

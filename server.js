@@ -16,6 +16,7 @@ const MOVEMENTS_FILE = path.join(DATA_DIR, "movements.json");
 const CLIENT_DOCUMENTS_FILE = path.join(DATA_DIR, "client-documents.json");
 const OFFER_POSTER_SETTINGS_FILE = path.join(DATA_DIR, "offer-poster-settings.json");
 const OFFER_POSTER_DRAFT_FILE = path.join(DATA_DIR, "offer-poster-draft.json");
+const ORDER_AVAILABILITY_FILE = path.join(DATA_DIR, "order-availability.json");
 const CLIENT_DOCUMENTS_BUCKET = "client-documents";
 const CLIENT_DOCUMENT_TYPES = {
   "price-list": { label: "Lista de precios", legacyFileName: "lista-de-precios.pdf" },
@@ -266,6 +267,35 @@ async function writeOfferPosterDraft(draft) {
   const normalized = normalizeOfferPosterDraft(draft);
   await writeStore("offer_poster_draft", OFFER_POSTER_DRAFT_FILE, [normalized]);
   return normalized;
+}
+
+async function readOrderAvailability() {
+  return readStore("order_availability", ORDER_AVAILABILITY_FILE);
+}
+
+async function writeOrderAvailability(records) {
+  return writeStore("order_availability", ORDER_AVAILABILITY_FILE, records);
+}
+
+function isOrderDateUnavailable(exceptions, date, deliveryType) {
+  const normalizedType = normalizeDeliveryType(deliveryType);
+  return (exceptions || []).find(item => item.date === date && (item.type === "CLOSED" || (item.type === "NO_DELIVERY" && normalizedType === "DELIVERY"))) || null;
+}
+
+async function publicOrderPolicyWithAvailability(deliveryType = "RETIRO", now = new Date()) {
+  const policy = publicOrderDatePolicy(deliveryType, now);
+  const exceptions = await readOrderAvailability();
+  let minDate = policy.minDate;
+  while (isSundayDate(minDate) || isOrderDateUnavailable(exceptions, minDate, policy.deliveryType)) {
+    minDate = addDaysToDate(minDate, 1);
+  }
+  return {
+    ...policy,
+    minDate,
+    unavailableDates: exceptions
+      .filter(item => item.type === "CLOSED" || (item.type === "NO_DELIVERY" && policy.deliveryType === "DELIVERY"))
+      .map(item => ({ date: item.date, type: item.type, note: item.note || "" }))
+  };
 }
 
 function sendJson(res, status, payload) {
@@ -744,6 +774,29 @@ async function handleApi(req, res) {
       return sendJson(res, 200, await writeOfferPosterDraft(await readBody(req)));
     }
 
+    if (url.pathname === "/api/order-availability" && req.method === "GET") {
+      return sendJson(res, 200, (await readOrderAvailability()).sort((a, b) => a.date.localeCompare(b.date)));
+    }
+
+    if (url.pathname === "/api/order-availability" && req.method === "POST") {
+      const payload = await readBody(req);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(cleanText(payload.date))) return sendJson(res, 400, { error: "Selecciona una fecha valida." });
+      const date = payload.date;
+      const type = payload.type === "NO_DELIVERY" ? "NO_DELIVERY" : "CLOSED";
+      const records = await readOrderAvailability();
+      const existing = records.find(item => item.date === date);
+      const item = { id: existing?.id || cryptoId(), date, type, note: cleanText(payload.note).slice(0, 120), createdAt: existing?.createdAt || new Date().toISOString() };
+      await writeOrderAvailability(existing ? records.map(current => current.id === existing.id ? item : current) : [...records, item]);
+      return sendJson(res, existing ? 200 : 201, item);
+    }
+
+    const availabilityMatch = url.pathname.match(/^\/api\/order-availability\/([^/]+)$/);
+    if (availabilityMatch && req.method === "DELETE") {
+      const records = await readOrderAvailability();
+      await writeOrderAvailability(records.filter(item => item.id !== availabilityMatch[1]));
+      return sendJson(res, 200, { ok: true });
+    }
+
     if (url.pathname === "/api/public-client-documents" && req.method === "GET") {
       const records = await readClientDocuments();
       const visible = records.map(({ storageName, ...record }) => record).sort((a, b) => {
@@ -923,12 +976,12 @@ async function handleApi(req, res) {
     }
 
     if (url.pathname === "/api/public-order-policy" && req.method === "GET") {
-      return sendJson(res, 200, publicOrderDatePolicy(url.searchParams.get("deliveryType")));
+      return sendJson(res, 200, await publicOrderPolicyWithAvailability(url.searchParams.get("deliveryType")));
     }
 
     if (url.pathname === "/api/public-orders" && req.method === "POST") {
       const payload = await readBody(req);
-      const datePolicy = publicOrderDatePolicy(payload.deliveryType);
+      const datePolicy = await publicOrderPolicyWithAvailability(payload.deliveryType);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(cleanText(payload.prepDate)) || payload.prepDate < datePolicy.minDate) {
         const error = datePolicy.afterCutoff
           ? `Los pedidos con ${datePolicy.deliveryType === "DELIVERY" ? "delivery" : "retiro por el local"} para hoy cerraron a las ${datePolicy.cutoffHour}:00. Elegi una fecha desde ${datePolicy.minDate}.`
@@ -937,6 +990,11 @@ async function handleApi(req, res) {
       }
       if (isSundayDate(payload.prepDate)) {
         return sendJson(res, 400, { error: "Los domingos no trabajamos ni realizamos entregas. Elegi otra fecha." });
+      }
+      const unavailable = isOrderDateUnavailable(await readOrderAvailability(), payload.prepDate, payload.deliveryType);
+      if (unavailable) {
+        const reason = unavailable.type === "CLOSED" ? "El local permanecera cerrado" : "No habra delivery";
+        return sendJson(res, 400, { error: `${reason} el ${payload.prepDate}${unavailable.note ? `: ${unavailable.note}` : "."}` });
       }
       const orders = await readOrders();
       const order = normalizeOrder({
@@ -1049,4 +1107,4 @@ if (require.main === module) startServer().catch(error => {
   process.exitCode = 1;
 });
 
-module.exports = { findDuplicateCustomer, normalizeCustomer, normalizeSaleType, publicOrderDatePolicy, runDataMigrations, server, startServer };
+module.exports = { findDuplicateCustomer, isOrderDateUnavailable, normalizeCustomer, normalizeSaleType, publicOrderDatePolicy, runDataMigrations, server, startServer };

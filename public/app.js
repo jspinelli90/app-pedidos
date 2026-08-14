@@ -3,6 +3,7 @@ const state = {
   customers: [],
   users: [],
   movements: [],
+  availability: [],
   clientDocuments: { "price-list": [], offers: [] },
   editingId: null,
   editingCustomerId: null
@@ -86,6 +87,12 @@ const els = {
   deliveryDateFilter: document.querySelector("#deliveryDateFilter"),
   deliveryVehicleFilter: document.querySelector("#deliveryVehicleFilter"),
   deliveryStatusFilter: document.querySelector("#deliveryStatusFilter"),
+  availabilityForm: document.querySelector("#availabilityForm"),
+  availabilityDate: document.querySelector("#availabilityDate"),
+  availabilityType: document.querySelector("#availabilityType"),
+  availabilityNote: document.querySelector("#availabilityNote"),
+  availabilityMessage: document.querySelector("#availabilityMessage"),
+  availabilityList: document.querySelector("#availabilityList"),
   mapsRouteBtn: document.querySelector("#mapsRouteBtn"),
   printRouteBtn: document.querySelector("#printRouteBtn"),
   routeCount: document.querySelector("#routeCount"),
@@ -885,6 +892,67 @@ function deliveryOrders() {
     .sort(compareDeliveryRoute);
 }
 
+function renderAvailability() {
+  els.availabilityList.innerHTML = "";
+  if (!state.availability.length) {
+    els.availabilityList.innerHTML = '<div class="empty">No hay fechas especiales cargadas.</div>';
+    return;
+  }
+  state.availability.forEach(item => {
+    const row = document.createElement("div");
+    row.className = "availability-item";
+    row.innerHTML = `
+      <div>
+        <strong>${escapeHtml(formatDate(item.date))}</strong>
+        <span class="availability-badge ${item.type === "CLOSED" ? "closed" : "no-delivery"}">${item.type === "CLOSED" ? "Local cerrado" : "Sin delivery"}</span>
+        ${item.note ? `<p>${escapeHtml(item.note)}</p>` : ""}
+      </div>
+      <button class="danger" type="button">Eliminar</button>
+    `;
+    row.querySelector("button").addEventListener("click", () => deleteAvailability(item));
+    els.availabilityList.append(row);
+  });
+}
+
+async function loadAvailability() {
+  const response = await fetch("/api/order-availability", { cache: "no-store" });
+  if (!response.ok) throw new Error("No se pudo cargar la disponibilidad.");
+  state.availability = await response.json();
+  renderAvailability();
+}
+
+async function saveAvailability(event) {
+  event.preventDefault();
+  const response = await fetch("/api/order-availability", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ date: els.availabilityDate.value, type: els.availabilityType.value, note: els.availabilityNote.value })
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    els.availabilityMessage.textContent = result.error || "No se pudo guardar la fecha.";
+    els.availabilityMessage.style.color = "#b83232";
+    return;
+  }
+  els.availabilityMessage.textContent = "Fecha guardada. El formulario de clientes ya fue actualizado.";
+  els.availabilityMessage.style.color = "#0f6b5f";
+  els.availabilityNote.value = "";
+  await loadAvailability();
+}
+
+async function deleteAvailability(item) {
+  if (!confirm(`Habilitar nuevamente el ${formatDate(item.date)}?`)) return;
+  const response = await fetch(`/api/order-availability/${encodeURIComponent(item.id)}`, { method: "DELETE" });
+  if (!response.ok) {
+    els.availabilityMessage.textContent = "No se pudo eliminar la fecha.";
+    els.availabilityMessage.style.color = "#b83232";
+    return;
+  }
+  els.availabilityMessage.textContent = "Fecha habilitada nuevamente.";
+  els.availabilityMessage.style.color = "#0f6b5f";
+  await loadAvailability();
+}
+
 function renderDelivery() {
   const orders = deliveryOrders();
   els.routeCount.textContent = orders.length;
@@ -1183,7 +1251,13 @@ function showModule(name) {
   els.offersStudioViewBtn.className = isOffersStudio ? "primary" : "ghost";
   els.newBtn.hidden = isDelivery || isCustomers || isDocuments || isOffersStudio;
   els.moduleTitle.textContent = isDelivery ? "Delivery" : isCustomers ? "Clientes" : isDocuments ? "Documentos clientes" : isOffersStudio ? "Placas de ofertas" : "Pedidos";
-  if (isDelivery) renderDelivery();
+  if (isDelivery) {
+    renderDelivery();
+    loadAvailability().catch(error => {
+      els.availabilityMessage.textContent = error.message;
+      els.availabilityMessage.style.color = "#b83232";
+    });
+  }
   if (isCustomers) renderCustomerAgenda();
   if (isDocuments) loadClientDocuments().catch(error => {
     els.documentsMessage.textContent = error.message;
@@ -1710,6 +1784,7 @@ els.offersUpload.addEventListener("click", () => uploadClientDocument("offers"))
 els.viewOnlineOrdersBtn.addEventListener("click", showPendingOnlineOrders);
 els.deliveryStatusFilter.addEventListener("change", renderDelivery);
 els.deliveryDateFilter.addEventListener("change", renderDelivery);
+els.availabilityForm.addEventListener("submit", saveAvailability);
 els.deliveryVehicleFilter.addEventListener("change", renderDelivery);
 els.mapsRouteBtn.addEventListener("click", openMapsRoute);
 els.printRouteBtn.addEventListener("click", printRoute);
@@ -1747,5 +1822,7 @@ initializeRemoteOfferPosterDraft().catch(error => {
 });
 els.prepDateFilter.value = todayDate();
 els.deliveryDateFilter.value = todayDate();
+els.availabilityDate.min = todayDate();
+els.availabilityDate.value = todayDate();
 refreshAll().catch(error => setMessage(error.message, true));
 setInterval(() => loadOrders().catch(() => {}), 30000);
