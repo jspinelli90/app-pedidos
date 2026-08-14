@@ -1041,6 +1041,35 @@ async function initializeRemoteOfferPosterSettings() {
   if (result.settings) applyFixedOfferPosterSettings(result.settings);
 }
 
+function applyOfferPosterContentDraft(draft) {
+  els.offerPosterFormat.value = draft.format || "story";
+  els.offerPosterTitle.value = draft.title || "OFERTAS DEL DIA";
+  els.offerPosterSubtitle.value = draft.subtitle || "CALIDAD SAN CAYETANO";
+  els.offerPosterOffersText.value = draft.offersText || "";
+  updateOfferPoster();
+}
+
+async function initializeRemoteOfferPosterDraft() {
+  const response = await fetch("/api/offer-poster-draft");
+  if (!response.ok) throw new Error("No se pudo cargar la ultima placa.");
+  const result = await response.json();
+  if (result.configured && result.draft) applyOfferPosterContentDraft(result.draft);
+}
+
+async function saveRemoteOfferPosterDraft(data) {
+  const response = await fetch("/api/offer-poster-draft", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      format: data.format,
+      title: data.title,
+      subtitle: data.subtitle,
+      offersText: data.offersText
+    })
+  });
+  if (!response.ok) throw new Error("La imagen se descargo, pero no se pudo guardar como ultima placa.");
+}
+
 function readOfferPosterDraft() {
   try {
     const saved = JSON.parse(localStorage.getItem(OFFER_POSTER_STORAGE_KEY));
@@ -1107,8 +1136,15 @@ function resetOfferPoster() {
   els.offerPosterMessage.textContent = "Nueva placa preparada. Reemplaza los ejemplos por tus ofertas.";
 }
 
-function downloadOfferPoster() {
+async function downloadOfferPoster() {
   updateOfferPoster();
+  const data = offerPosterData();
+  let saveError = null;
+  try {
+    await saveRemoteOfferPosterDraft(data);
+  } catch (error) {
+    saveError = error;
+  }
   els.offerPosterCanvas.toBlob(blob => {
     if (!blob) return;
     const url = URL.createObjectURL(blob);
@@ -1117,8 +1153,8 @@ function downloadOfferPoster() {
     link.download = `ofertas-san-cayetano-${todayDate()}-${els.offerPosterFormat.value}.png`;
     link.click();
     URL.revokeObjectURL(url);
-    els.offerPosterMessage.textContent = "Imagen descargada. Ya esta lista para publicar.";
-    els.offerPosterMessage.style.color = "#0f6b5f";
+    els.offerPosterMessage.textContent = saveError ? saveError.message : "Imagen descargada y guardada como ultima placa.";
+    els.offerPosterMessage.style.color = saveError ? "#b83232" : "#0f6b5f";
   }, "image/png");
 }
 
@@ -1705,6 +1741,9 @@ loadOfferPosterDraft();
 initializeRemoteOfferPosterSettings().catch(error => {
   fixedSettingsSyncReady = true;
   els.offerPosterMessage.textContent = `${error.message} Se usa la copia guardada en este equipo.`;
+});
+initializeRemoteOfferPosterDraft().catch(error => {
+  els.offerPosterMessage.textContent = `${error.message} Se usa el borrador de este equipo.`;
 });
 els.prepDateFilter.value = todayDate();
 els.deliveryDateFilter.value = todayDate();
