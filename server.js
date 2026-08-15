@@ -723,7 +723,12 @@ function isSafePublicPath(filePath) {
 
 function serveStatic(req, res) {
   const rawUrl = new URL(req.url, `http://${req.headers.host || "localhost"}`);
-  const requested = rawUrl.pathname === "/" ? "/index.html" : decodeURIComponent(rawUrl.pathname);
+  const requestedPath =
+    rawUrl.pathname === "/pedido-mayorista.html"
+      ? "/cliente.html"
+      : rawUrl.pathname;
+  const requested =
+    requestedPath === "/" ? "/index.html" : decodeURIComponent(requestedPath);
   const filePath = path.join(PUBLIC_DIR, requested);
 
   if (!isSafePublicPath(filePath)) {
