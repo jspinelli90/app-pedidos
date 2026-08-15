@@ -11,3 +11,18 @@ test("el formulario público informa el pedido mínimo para delivery", () => {
 
   assert.match(html, /Pedido mínimo para delivery: \$50\.000\./);
 });
+
+test("el enlace mayorista reutiliza el formulario y fuerza pedidos mayoristas", () => {
+  const clientScript = fs.readFileSync(
+    path.join(__dirname, "..", "public", "cliente.js"),
+    "utf8"
+  );
+  const server = fs.readFileSync(
+    path.join(__dirname, "..", "server.js"),
+    "utf8"
+  );
+
+  assert.match(clientScript, /pedido-mayorista\.html/);
+  assert.match(clientScript, /isWholesaleOrder \? "Mayorista" : "Minorista"/);
+  assert.match(server, /rawUrl\.pathname === "\/pedido-mayorista\.html"/);
+});

@@ -12,9 +12,9 @@
         <div class="client-brand">
           <img src="/san-cayetano-logo-blanco.png" alt="San Cayetano Carnes" class="client-logo">
           <div class="client-brand-copy">
-            <p class="eyebrow">Pedidos online</p>
-            <h1>Hacé tu pedido</h1>
-            <p>Completá tus datos y contanos qué productos necesitás.</p>
+            <p id="clientBrandEyebrow" class="eyebrow">Pedidos online</p>
+            <h1 id="clientBrandTitle">Hacé tu pedido</h1>
+            <p id="clientBrandIntro">Completá tus datos y contanos qué productos necesitás.</p>
           </div>
         </div>
 
@@ -30,8 +30,8 @@
         </div>
 
         <form id="clientOrderForm" class="client-order-form">
-          <div class="client-notice" role="note" aria-label="Pedido mínimo para delivery">
-            <strong>Pedido mínimo para delivery: $50.000.</strong>
+          <div id="clientAudienceNotice" class="client-notice" role="note" aria-label="Pedido mínimo para delivery">
+            <strong id="clientAudienceNoticeText">Pedido mínimo para delivery: $50.000.</strong>
           </div>
 
           <div class="grid two">
@@ -158,11 +158,11 @@
           <p id="clientMessage" class="message" role="status"></p>
           <div id="clientSuccess" class="client-success" role="status" hidden></div>
 
-          <button class="primary client-submit" type="submit">Enviar pedido</button>
+          <button id="clientSubmitButton" class="primary client-submit" type="submit">Enviar pedido</button>
         </form>
       </section>
     </main>
 
-    <script src="/cliente.js?v=20260814-disponibilidad"></script>
+    <script src="/cliente.js?v=20260815-pedidos-mayoristas"></script>
   </body>
 </html>

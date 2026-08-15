@@ -17,6 +17,25 @@ const clientPriceListsGroup = document.querySelector("#clientPriceListsGroup");
 const clientOffersGroup = document.querySelector("#clientOffersGroup");
 const clientPriceLists = document.querySelector("#clientPriceLists");
 const clientOffers = document.querySelector("#clientOffers");
+const isWholesaleOrder = window.location.pathname.endsWith("/pedido-mayorista.html");
+const publicSaleType = isWholesaleOrder ? "Mayorista" : "Minorista";
+
+function applyOrderAudience() {
+  if (!isWholesaleOrder) return;
+  document.title = "Pedido mayorista | San Cayetano Carnes";
+  document.querySelector("#clientBrandEyebrow").textContent = "Pedidos mayoristas";
+  document.querySelector("#clientBrandTitle").textContent = "Hacé tu pedido mayorista";
+  document.querySelector("#clientBrandIntro").textContent =
+    "Este formulario carga exclusivamente pedidos de clientes mayoristas.";
+  document.querySelector("#clientAudienceNotice").setAttribute(
+    "aria-label",
+    "Formulario exclusivo para pedidos mayoristas"
+  );
+  document.querySelector("#clientAudienceNoticeText").textContent =
+    "Pedido exclusivo para clientes mayoristas.";
+  document.querySelector("#clientSubmitButton").textContent =
+    "Enviar pedido mayorista";
+}
 
 let orderDatePolicy = null;
 
@@ -241,7 +260,7 @@ async function sendOrder(event) {
     customer: document.querySelector("#clientCustomer").value,
     phone: document.querySelector("#clientPhone").value,
     address: addressText,
-    saleType: "Minorista",
+    saleType: publicSaleType,
     deliveryType: deliveryType.value,
     payment: document.querySelector("#clientPayment").value,
     prepDate: prepDate.value,
@@ -284,5 +303,6 @@ form.addEventListener("submit", sendOrder);
 updateLocalityOptions();
 updateDeliveryTypeVisibility();
 refreshDatePolicy(true);
+applyOrderAudience();
 loadClientDocuments();
 setInterval(() => refreshDatePolicy(), 60000);
