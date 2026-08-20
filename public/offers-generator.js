@@ -6,7 +6,8 @@
   const FORMATS = {
     story: { width: 1080, height: 1920 },
     post: { width: 1080, height: 1350 },
-    a4: { width: 2480, height: 3508 }
+    a4: { width: 2480, height: 3508 },
+    "a4-single": { width: 2480, height: 3508 }
   };
 
   function formatPrice(value) {
@@ -138,7 +139,7 @@
   }
 
   function drawPoster(ctx, data, logo, qr) {
-    if (data.format === "a4") {
+    if (data.format === "a4" || data.format === "a4-single") {
       const sheet = ctx.canvas;
       const documentRef = sheet.ownerDocument || (typeof document !== "undefined" ? document : null);
       if (!documentRef) return;
@@ -150,6 +151,17 @@
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, sheet.width, sheet.height);
       const margin = 40;
+      if (data.format === "a4-single") {
+        const availableWidth = sheet.width - margin * 2;
+        const availableHeight = sheet.height - margin * 2;
+        const scale = Math.min(availableWidth / flyer.width, availableHeight / flyer.height);
+        const flyerWidth = flyer.width * scale;
+        const flyerHeight = flyer.height * scale;
+        const x = (sheet.width - flyerWidth) / 2;
+        const y = (sheet.height - flyerHeight) / 2;
+        ctx.drawImage(flyer, x, y, flyerWidth, flyerHeight);
+        return;
+      }
       const gap = 20;
       const cellWidth = (sheet.width - margin * 2 - gap) / 2;
       const cellHeight = (sheet.height - margin * 2 - gap) / 2;
