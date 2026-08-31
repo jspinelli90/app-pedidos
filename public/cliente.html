@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Hacé tu pedido | San Cayetano Carnes</title>
-    <link rel="stylesheet" href="/styles.css?v=20260815-identidad-integral">
+    <link rel="stylesheet" href="/styles.css?v=20260831-horario-retiro">
   </head>
   <body class="client-page">
     <main class="client-shell">
@@ -50,6 +50,9 @@
                 <option>DELIVERY</option>
               </select>
             </label>
+            <div id="clientFulfillmentNotice" class="client-notice" role="note" aria-live="polite">
+              <strong id="clientFulfillmentNoticeText">Horario de retiro: de 6:00 a 13:00 hs.</strong>
+            </div>
           </div>
 
           <div id="clientAddressSection" hidden>
@@ -139,10 +142,6 @@
             <span id="clientCutoffText">Ya no tomamos pedidos para hoy. Elegi manana o cualquier fecha posterior.</span>
           </div>
 
-          <div class="client-notice">
-            El rango de entrega para delivery es de 11 a 15 hs.
-          </div>
-
           <label>Detalle del pedido
             <textarea id="clientDetail" class="order-detail-input" required rows="8" placeholder="Escribi aca tu pedido completo"></textarea>
           </label>
@@ -152,7 +151,7 @@
           </label>
 
           <div class="client-notice">
-            Los pedidos son provisorios hasta que el local los confirme por WhatsApp. El rango de entrega para delivery es de 11 a 15 hs.
+            Los pedidos son provisorios hasta que el local los confirme por WhatsApp.
           </div>
 
           <p id="clientMessage" class="message" role="status"></p>
@@ -163,6 +162,6 @@
       </section>
     </main>
 
-    <script src="/cliente.js?v=20260814-disponibilidad"></script>
+    <script src="/cliente.js?v=20260831-horario-retiro"></script>
   </body>
 </html>
