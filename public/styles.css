@@ -712,6 +712,15 @@ textarea:focus {
   gap: 18px;
 }
 
+#clientDeliveryTypeSection {
+  display: grid;
+  gap: 12px;
+}
+
+#clientDeliveryTypeSection[hidden] {
+  display: none;
+}
+
 .client-page label {
   color: #252525;
   font-size: 13px;

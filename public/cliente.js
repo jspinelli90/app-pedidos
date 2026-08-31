@@ -5,6 +5,7 @@ const customer = document.querySelector("#clientCustomer");
 const phone = document.querySelector("#clientPhone");
 const deliveryType = document.querySelector("#clientDeliveryType");
 const deliveryTypeSection = document.querySelector("#clientDeliveryTypeSection");
+const fulfillmentNoticeText = document.querySelector("#clientFulfillmentNoticeText");
 const addressSection = document.querySelector("#clientAddressSection");
 const address = document.querySelector("#clientAddress");
 const district = document.querySelector("#clientDistrict");
@@ -196,20 +197,26 @@ function setMessage(text, isError = false) {
   if (text) successBox.hidden = true;
 }
 
-function showSuccess(orderNumber) {
+function showSuccess(orderNumber, selectedDeliveryType) {
+  const schedule = selectedDeliveryType === "DELIVERY"
+    ? "Horario de entrega para delivery: de 11:00 a 15:00 hs."
+    : "Horario de retiro: de 6:00 a 13:00 hs.";
   message.textContent = "";
   successBox.hidden = false;
   successBox.innerHTML = `
     <strong>Pedido enviado con exito</strong>
     <span>Tu pedido quedo cargado como provisorio con el numero #${orderNumber}.</span>
     <span>El local lo va a confirmar por WhatsApp.</span>
-    <span>El rango de entrega para delivery es de 11 a 15 hs.</span>
+    <span>${schedule}</span>
   `;
   successBox.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 function updateAddressRequirement() {
   const isDelivery = deliveryType.value === "DELIVERY";
+  fulfillmentNoticeText.textContent = isDelivery
+    ? "Horario de entrega para delivery: de 11:00 a 15:00 hs."
+    : "Horario de retiro: de 6:00 a 13:00 hs.";
   addressSection.hidden = !isDelivery;
   address.required = isDelivery;
   district.required = isDelivery;
@@ -282,7 +289,7 @@ async function sendOrder(event) {
     await refreshDatePolicy(true);
     updateLocalityOptions();
     updateDeliveryTypeVisibility();
-    showSuccess(data.number);
+    showSuccess(data.number, payload.deliveryType);
   } catch (error) {
     setMessage(error.message, true);
   }
