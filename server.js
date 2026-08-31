@@ -28,6 +28,12 @@ loadEnvFile();
 const SUPABASE_URL = String(process.env.SUPABASE_URL || "").replace(/\/$/, "");
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const USE_SUPABASE = Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
+const configuredStoreCacheTtl = Number(process.env.SUPABASE_STORE_CACHE_TTL_MS || 300000);
+const SUPABASE_STORE_CACHE_TTL_MS = Number.isFinite(configuredStoreCacheTtl) && configuredStoreCacheTtl >= 0
+  ? configuredStoreCacheTtl
+  : 300000;
+const storeCache = new Map();
+const pendingStoreReads = new Map();
 const WHOLESALE_CLEANUP_MIGRATION = "2026-07-22-deactivate-wholesale-customers";
 
 const MIME_TYPES = {
@@ -100,11 +106,51 @@ async function supabaseRequest(pathname, options = {}) {
   return text ? JSON.parse(text) : null;
 }
 
+function cloneStoreRecords(records) {
+  return structuredClone(records);
+}
+
+function cachedStoreRecords(key) {
+  if (SUPABASE_STORE_CACHE_TTL_MS === 0) return null;
+  const cached = storeCache.get(key);
+  if (!cached || cached.expiresAt <= Date.now()) {
+    storeCache.delete(key);
+    return null;
+  }
+  return cloneStoreRecords(cached.records);
+}
+
+function rememberStoreRecords(key, records) {
+  if (SUPABASE_STORE_CACHE_TTL_MS === 0) return;
+  storeCache.set(key, {
+    records: cloneStoreRecords(records),
+    expiresAt: Date.now() + SUPABASE_STORE_CACHE_TTL_MS
+  });
+}
+
 async function readStore(key, filePath) {
   if (!USE_SUPABASE) return readJsonArray(filePath);
-  const rows = await supabaseRequest(`/rest/v1/app_data?key=eq.${encodeURIComponent(key)}&select=data`);
-  if (Array.isArray(rows) && rows[0] && Array.isArray(rows[0].data)) return rows[0].data;
-  return readJsonArray(filePath);
+  const cached = cachedStoreRecords(key);
+  if (cached) return cached;
+
+  let pendingRead = pendingStoreReads.get(key);
+  if (!pendingRead) {
+    pendingRead = (async () => {
+      const rows = await supabaseRequest(`/rest/v1/app_data?key=eq.${encodeURIComponent(key)}&select=data`);
+      const records = Array.isArray(rows) && rows[0] && Array.isArray(rows[0].data)
+        ? rows[0].data
+        : readJsonArray(filePath);
+      rememberStoreRecords(key, records);
+      return records;
+    })();
+    pendingStoreReads.set(key, pendingRead);
+  }
+
+  try {
+    return cloneStoreRecords(await pendingRead);
+  } finally {
+    if (pendingStoreReads.get(key) === pendingRead) pendingStoreReads.delete(key);
+  }
 }
 
 async function writeStore(key, filePath, records) {
@@ -118,6 +164,7 @@ async function writeStore(key, filePath, records) {
     headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
     body: JSON.stringify({ key, data: records, updated_at: new Date().toISOString() })
   });
+  rememberStoreRecords(key, records);
 }
 
 async function readOrders() {
