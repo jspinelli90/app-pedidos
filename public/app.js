@@ -480,41 +480,47 @@ function renderCustomers() {
   els.customersList.innerHTML = "";
   state.customers.forEach(customer => {
     const option = document.createElement("option");
-    option.value = customer.name;
-    option.label = [customer.saleType, customer.phone, customer.address].filter(Boolean).join(" - ");
+    option.value = customer.phone;
+    option.label = [customer.name, customer.saleType].filter(Boolean).join(" - ");
     els.customersList.append(option);
   });
 }
 
 function selectedCustomer() {
-  const typed = els.customer.value.trim().toLowerCase();
-  if (!typed) return null;
-  return state.customers.find(customer => customer.name.trim().toLowerCase() === typed) || null;
+  const typedPhone = agendaPhoneKey(els.phone.value);
+  if (!typedPhone) return null;
+  return state.customers.find(customer => agendaPhoneKey(customer.phone) === typedPhone) || null;
 }
 
 function fillCustomerData() {
   const customer = selectedCustomer();
   if (!customer) return;
-  els.phone.value = customer.phone || "";
-  els.address.value = customer.address || "";
+  els.customer.value = customer.name || "";
   els.saleType.value = orderSaleType(customer);
 }
 
 
 function agendaPhoneKey(value) {
-  const digits = String(value || "").replace(/\D/g, "");
+  let digits = String(value || "").replace(/\D/g, "");
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  if (digits.startsWith("54")) digits = digits.slice(2);
+  if (digits.length === 11 && digits.startsWith("9")) digits = digits.slice(1);
+  if (digits.startsWith("0")) digits = digits.slice(1);
+  if (digits.length === 12) {
+    for (let areaLength = 2; areaLength <= 4; areaLength += 1) {
+      if (digits.slice(areaLength, areaLength + 2) === "15") {
+        digits = digits.slice(0, areaLength) + digits.slice(areaLength + 2);
+        break;
+      }
+    }
+  }
   return digits.length > 10 ? digits.slice(-10) : digits;
 }
 
 function customerOrderHistory(customer) {
   const phone = agendaPhoneKey(customer.phone);
-  const name = String(customer.name || "").trim().toLowerCase();
   return state.orders
-    .filter(order => {
-      const samePhone = phone && agendaPhoneKey(order.phone) === phone;
-      const sameName = name && String(order.customer || "").trim().toLowerCase() === name;
-      return samePhone || sameName;
-    })
+    .filter(order => phone && agendaPhoneKey(order.phone) === phone)
     .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 }
 
@@ -668,7 +674,7 @@ function newOrderForCustomer(customer) {
   resetForm();
   els.customer.value = customer.name || "";
   els.phone.value = customer.phone || "";
-  els.address.value = customer.address || "";
+  els.address.value = "";
   els.saleType.value = orderSaleType(customer);
   els.notes.value = customer.notes || "";
   els.detail.focus();
@@ -1789,8 +1795,8 @@ els.deliveryVehicleFilter.addEventListener("change", renderDelivery);
 els.mapsRouteBtn.addEventListener("click", openMapsRoute);
 els.printRouteBtn.addEventListener("click", printRoute);
 els.deliveryType.addEventListener("change", () => applyPriorityRule());
-els.customer.addEventListener("change", fillCustomerData);
-els.customer.addEventListener("blur", fillCustomerData);
+els.phone.addEventListener("change", fillCustomerData);
+els.phone.addEventListener("blur", fillCustomerData);
 els.search.addEventListener("input", render);
 els.prepDateFilter.addEventListener("change", render);
 els.saleTypeFilter.addEventListener("change", render);
