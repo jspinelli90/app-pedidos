@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { findDuplicateCustomer, normalizeCustomer } = require("../server");
+const { customerPhoneKey, findDuplicateCustomer, normalizeCustomer, normalizeOrder } = require("../server");
 
 test("el numero de cliente solo se conserva para mayoristas", () => {
   assert.equal(normalizeCustomer({ name: "A", saleType: "Minorista", customerNumber: "99" }).customerNumber, "");
@@ -12,9 +12,20 @@ test("detecta duplicados por telefono normalizado", () => {
   assert.equal(findDuplicateCustomer(customers, { name: "Otro", phone: "541144445555" }).id, "1");
 });
 
-test("detecta duplicados por nombre sin acentos ni diferencias de mayusculas", () => {
-  const customers = [{ id: "1", name: "Almacén San José", phone: "", saleType: "Mayorista" }];
-  assert.equal(findDuplicateCustomer(customers, { name: "almacen san jose", phone: "" }).id, "1");
+test("normaliza variantes argentinas con codigo de pais, 9 y prefijo local 15", () => {
+  assert.equal(customerPhoneKey("+54 9 11 4444-5555"), "1144445555");
+  assert.equal(customerPhoneKey("0054 11 4444 5555"), "1144445555");
+  assert.equal(customerPhoneKey("011 15 4444-5555"), "1144445555");
+});
+
+test("nunca considera duplicados a dos clientes por compartir nombre", () => {
+  const customers = [{ id: "1", name: "Juan Perez", phone: "11 4000-0001" }];
+  assert.equal(findDuplicateCustomer(customers, { name: "Juan Perez", phone: "11 4000-0002" }), undefined);
+});
+
+test("la direccion queda guardada como snapshot independiente en el pedido", () => {
+  const order = normalizeOrder({ customer: "Ana", phone: "11 4444-5555", address: "Calle Nueva 123", detail: "1 pedido" });
+  assert.equal(order.address, "Calle Nueva 123");
 });
 
 test("detecta duplicados mayoristas por numero de cliente", () => {

@@ -157,28 +157,34 @@ function normalizeCustomer(input, existing = {}) {
 }
 
 function customerPhoneKey(value) {
-  const digits = cleanText(value).replace(/\D/g, "");
+  let digits = cleanText(value).replace(/\D/g, "");
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  if (digits.startsWith("54")) digits = digits.slice(2);
+  if (digits.length === 11 && digits.startsWith("9")) digits = digits.slice(1);
+  if (digits.startsWith("0")) digits = digits.slice(1);
+  if (digits.length === 12) {
+    for (let areaLength = 2; areaLength <= 4; areaLength += 1) {
+      if (digits.slice(areaLength, areaLength + 2) === "15") {
+        digits = digits.slice(0, areaLength) + digits.slice(areaLength + 2);
+        break;
+      }
+    }
+  }
   return digits.length > 10 ? digits.slice(-10) : digits;
 }
 
 function customerIdentity(customer) {
-  return customerPhoneKey(customer.phone) || cleanText(customer.name).toLowerCase();
-}
-
-function normalizedName(value) {
-  return cleanText(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ");
+  return customerPhoneKey(customer.phone);
 }
 
 function findDuplicateCustomer(customers, candidate, ignoredId = "") {
   const phone = customerPhoneKey(candidate.phone);
-  const name = normalizedName(candidate.name);
   const customerNumber = cleanText(candidate.customerNumber).toLowerCase();
   const cuit = cleanText(candidate.cuit).replace(/\D/g, "");
   return customers.find(current => {
     if (current.id === ignoredId) return false;
     return Boolean(
       (phone && customerPhoneKey(current.phone) === phone) ||
-      (name && normalizedName(current.name) === name) ||
       (customerNumber && normalizeSaleType(current.saleType) === "Mayorista" && cleanText(current.customerNumber).toLowerCase() === customerNumber) ||
       (cuit && cleanText(current.cuit).replace(/\D/g, "") === cuit)
     );
@@ -621,11 +627,11 @@ function nextNumber(orders) {
 }
 
 function customerKey(order) {
-  return customerPhoneKey(order.phone) || cleanText(order.customer).toLowerCase();
+  return customerPhoneKey(order.phone);
 }
 
 async function saveCustomerFromOrder(order, options = {}) {
-  if (!order.customer) return;
+  if (!order.customer || !customerPhoneKey(order.phone)) return;
   const customers = await readCustomers();
   const key = customerKey(order);
   const index = customers.findIndex(customer => customerIdentity(customer) === key);
@@ -633,7 +639,7 @@ async function saveCustomerFromOrder(order, options = {}) {
     id: index === -1 ? cryptoId() : customers[index].id,
     name: order.customer,
     phone: order.phone,
-    address: order.address,
+    address: index === -1 ? "" : customers[index].address,
     saleType: normalizeSaleType(order.saleType),
     active: true,
     createdAt: index === -1 ? new Date().toISOString() : customers[index].createdAt,
@@ -653,14 +659,14 @@ async function syncCustomersFromOrders() {
   let changed = false;
 
   for (const order of orders) {
-    if (!order.customer) continue;
+    if (!order.customer || !customerPhoneKey(order.phone)) continue;
     const key = customerKey(order);
     if (!key || knownKeys.has(key)) continue;
     customers.push({
       id: cryptoId(),
       name: order.customer,
       phone: order.phone,
-      address: order.address,
+      address: "",
       saleType: normalizeSaleType(order.saleType),
       active: true,
       createdAt: now,
@@ -881,10 +887,10 @@ async function handleApi(req, res) {
     if (url.pathname === "/api/customers" && req.method === "POST") {
       const payload = await readBody(req);
       const customer = normalizeCustomer(payload);
-      if (!customer.name) return sendJson(res, 400, { error: "Completa el nombre del cliente." });
+      if (!customer.name || customerPhoneKey(customer.phone).length < 8) return sendJson(res, 400, { error: "Completa el nombre y un telefono valido (al menos 8 numeros)." });
       const customers = await readCustomers();
       const duplicate = findDuplicateCustomer(customers, customer);
-      if (duplicate && duplicate.active !== false) return sendJson(res, 409, { error: "Ya existe un cliente con ese telefono o nombre." });
+      if (duplicate && duplicate.active !== false) return sendJson(res, 409, { error: "Ya existe un cliente con ese telefono, CUIT o numero de cliente/marcada." });
       if (duplicate) {
         const index = customers.findIndex(current => current.id === duplicate.id);
         customers[index] = { ...normalizeCustomer(payload, duplicate), active: true };
@@ -903,9 +909,9 @@ async function handleApi(req, res) {
       const index = customers.findIndex(customer => customer.id === customerMatch[1]);
       if (index === -1) return sendJson(res, 404, { error: "Cliente no encontrado." });
       const customer = normalizeCustomer(payload, customers[index]);
-      if (!customer.name) return sendJson(res, 400, { error: "Completa el nombre del cliente." });
+      if (!customer.name || customerPhoneKey(customer.phone).length < 8) return sendJson(res, 400, { error: "Completa el nombre y un telefono valido (al menos 8 numeros)." });
       const duplicate = findDuplicateCustomer(customers, customer, customers[index].id);
-      if (duplicate) return sendJson(res, 409, { error: "Ya existe otro cliente con ese telefono o nombre." });
+      if (duplicate) return sendJson(res, 409, { error: "Ya existe otro cliente con ese telefono, CUIT o numero de cliente/marcada." });
       customers[index] = customer;
       await writeCustomers(customers);
       return sendJson(res, 200, customer);
@@ -936,7 +942,7 @@ async function handleApi(req, res) {
       const customers = await readCustomers();
       const duplicate = findDuplicateCustomer(customers, customer);
       if (duplicate && duplicate.active !== false) {
-        return sendJson(res, 409, { error: "Ya existe un cliente con ese nombre, telefono, CUIT o numero de cliente/marcada." });
+        return sendJson(res, 409, { error: "Ya existe un cliente con ese telefono, CUIT o numero de cliente/marcada." });
       }
       if (duplicate) {
         const index = customers.findIndex(current => current.id === duplicate.id);
@@ -1107,4 +1113,4 @@ if (require.main === module) startServer().catch(error => {
   process.exitCode = 1;
 });
 
-module.exports = { findDuplicateCustomer, isOrderDateUnavailable, normalizeCustomer, normalizeSaleType, publicOrderDatePolicy, runDataMigrations, server, startServer };
+module.exports = { customerPhoneKey, findDuplicateCustomer, isOrderDateUnavailable, normalizeCustomer, normalizeOrder, normalizeSaleType, publicOrderDatePolicy, runDataMigrations, server, startServer };
