@@ -197,9 +197,7 @@ function orderDeliveryLabel(order) {
 
 function orderCabaCostDetail(order) {
   if (order.deliveryZone !== "CABA_VIERNES") return "";
-  const amount = Number(order.orderAmount || 0).toLocaleString("es-AR");
-  const shipping = Number(order.deliveryFee || 0) === 0 ? "ENVÍO GRATIS" : "ENVÍO $15.000";
-  return ` | Pedido estimado $${amount} | ${shipping}`;
+  return " | Envío gratis desde $50.000; pedidos menores $15.000";
 }
 
 function orderOrigin(order) {
@@ -1722,7 +1720,7 @@ function printTicket(order) {
           <p class="row"><span class="label">Tipo cliente:</span> ${escapeHtml(orderSaleType(order))}</p>
           <p class="row"><span class="label">Tipo:</span> ${escapeHtml(orderDeliveryLabel(order))}</p>
           ${order.address ? `<p class="row"><span class="label">Direccion:</span> ${escapeHtml(order.address)}</p>` : ""}
-          ${order.deliveryZone === "CABA_VIERNES" ? `<p class="row"><span class="label">Importe estimado:</span> $${escapeHtml(Number(order.orderAmount || 0).toLocaleString("es-AR"))}</p><p class="row"><span class="label">Envío:</span> ${Number(order.deliveryFee || 0) === 0 ? "GRATIS" : "$15.000"}</p>` : ""}
+          ${order.deliveryZone === "CABA_VIERNES" ? `<p class="row"><span class="label">Envío:</span> Gratis desde $50.000; pedidos menores $15.000</p>` : ""}
           ${order.payment ? `<p class="row"><span class="label">Pago:</span> ${escapeHtml(order.payment)}</p>` : ""}
           <p class="row"><span class="label">Estado:</span> ${escapeHtml(order.status)}</p>
           <p class="row"><span class="label">Prioridad:</span> ${escapeHtml(orderPriority(order))}</p>

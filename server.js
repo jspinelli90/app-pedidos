@@ -1133,16 +1133,10 @@ async function handleApi(req, res) {
         if (!validateCabaDeliveryAddress(payload.cabaNeighborhood, payload.cabaStreet, Number(payload.cabaStreetNumber))) {
           return sendJson(res, 400, { error: "La calle y altura no corresponden al barrio seleccionado o están fuera de la zona de entrega CABA." });
         }
-        const orderAmount = Number(payload.orderAmount);
-        if (!Number.isFinite(orderAmount) || orderAmount <= 0) {
-          return sendJson(res, 400, { error: "Ingresá el monto estimado del pedido para calcular el envío." });
-        }
         payload.deliveryType = "DELIVERY";
         payload.deliveryZone = "CABA_VIERNES";
         payload.cabaNeighborhood = normalizeCabaNeighborhood(payload.cabaNeighborhood);
         payload.cabaStreetNumber = Number.parseInt(payload.cabaStreetNumber, 10);
-        payload.orderAmount = Math.round(orderAmount);
-        payload.deliveryFee = orderAmount >= 50000 ? 0 : 15000;
         payload.address = [payload.cabaStreet, payload.cabaStreetNumber, cleanText(payload.cabaAddressExtra), payload.cabaNeighborhood, "CABA"].filter(Boolean).join(" - ");
       }
       const orders = await readOrders();
@@ -1163,7 +1157,7 @@ async function handleApi(req, res) {
       orders.push(order);
       await writeOrders(orders);
       await appendMovement(order, "Pedido provisorio recibido", "Cliente", "Cargado desde formulario de cliente");
-      return sendJson(res, 201, { ok: true, number: order.number, deliveryFee: order.deliveryFee });
+      return sendJson(res, 201, { ok: true, number: order.number });
     }
 
     if (url.pathname === "/api/orders" && req.method === "POST") {

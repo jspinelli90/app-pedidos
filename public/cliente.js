@@ -15,8 +15,6 @@ const cabaNeighborhood = document.querySelector("#clientCabaNeighborhood");
 const cabaStreet = document.querySelector("#clientCabaStreet");
 const cabaStreetNumber = document.querySelector("#clientCabaStreetNumber");
 const cabaAddressExtra = document.querySelector("#clientCabaAddressExtra");
-const cabaOrderAmount = document.querySelector("#clientCabaOrderAmount");
-const cabaShippingNotice = document.querySelector("#clientCabaShippingNotice");
 const successBox = document.querySelector("#clientSuccess");
 const cutoffNotice = document.querySelector("#clientCutoffNotice");
 const cutoffText = document.querySelector("#clientCutoffText");
@@ -227,9 +225,9 @@ function setMessage(text, isError = false) {
   if (text) successBox.hidden = true;
 }
 
-function showSuccess(orderNumber, selectedDeliveryType, deliveryZone, deliveryFee) {
+function showSuccess(orderNumber, selectedDeliveryType, deliveryZone) {
   const schedule = deliveryZone === "CABA_VIERNES"
-    ? `Entrega CABA el viernes. ${deliveryFee === 0 ? "Envío gratis." : "Costo de envío: $15.000."}`
+    ? "Entrega CABA el viernes. Envío gratis desde $50.000; pedidos menores abonan $15.000."
     : selectedDeliveryType === "DELIVERY"
       ? "Horario de entrega para delivery: de 11:00 a 15:00 hs."
     : "Horario de retiro: de 6:00 a 13:00 hs.";
@@ -260,7 +258,6 @@ function updateAddressRequirement() {
   cabaNeighborhood.required = cabaDelivery;
   cabaStreet.required = cabaDelivery;
   cabaStreetNumber.required = cabaDelivery;
-  cabaOrderAmount.required = cabaDelivery;
   address.placeholder = regularDelivery ? "Direccion obligatoria para delivery" : "Direccion si es delivery";
 }
 
@@ -287,18 +284,6 @@ async function updateCabaStreetOptions() {
     cabaStreet.innerHTML = '<option value="">No se pudieron cargar las calles</option>';
     setMessage(error.message, true);
   }
-}
-
-function updateCabaShippingNotice() {
-  const amount = Number(cabaOrderAmount.value);
-  if (!amount) {
-    cabaShippingNotice.textContent = "Envío gratis desde $50.000. En pedidos menores, el envío cuesta $15.000.";
-    cabaShippingNotice.classList.remove("free");
-    return;
-  }
-  const free = amount >= 50000;
-  cabaShippingNotice.textContent = free ? "Tu pedido tiene envío gratis." : "A este pedido se le agregarán $15.000 de envío.";
-  cabaShippingNotice.classList.toggle("free", free);
 }
 
 function updateDeliveryTypeVisibility() {
@@ -354,7 +339,6 @@ async function sendOrder(event) {
     cabaStreet: cabaStreet.value,
     cabaStreetNumber: cabaStreetNumber.value,
     cabaAddressExtra: cabaAddressExtra.value,
-    orderAmount: deliveryZone === "CABA_VIERNES" ? cabaOrderAmount.value : "",
     payment: document.querySelector("#clientPayment").value,
     prepDate: prepDate.value,
     scheduledTime: "",
@@ -375,7 +359,7 @@ async function sendOrder(event) {
     await refreshDatePolicy(true);
     updateLocalityOptions();
     updateDeliveryTypeVisibility();
-    showSuccess(data.number, payload.deliveryType, payload.deliveryZone, data.deliveryFee);
+    showSuccess(data.number, payload.deliveryType, payload.deliveryZone);
   } catch (error) {
     setMessage(error.message, true);
   }
@@ -393,11 +377,9 @@ customer.addEventListener("input", updateDeliveryTypeVisibility);
 phone.addEventListener("input", updateDeliveryTypeVisibility);
 district.addEventListener("change", updateLocalityOptions);
 cabaNeighborhood.addEventListener("change", updateCabaStreetOptions);
-cabaOrderAmount.addEventListener("input", updateCabaShippingNotice);
 form.addEventListener("submit", sendOrder);
 updateLocalityOptions();
 updateDeliveryTypeVisibility();
-updateCabaShippingNotice();
 refreshDatePolicy(true);
 applyOrderAudience();
 loadClientDocuments();

@@ -24,7 +24,7 @@ test("el formulario informa los horarios según el tipo de entrega", () => {
 
   assert.match(html, /Horario de retiro: de 6:00 a 13:00 hs\./);
   assert.match(clientScript, /Horario de entrega para delivery: de 11:00 a 15:00 hs\./);
-  assert.match(clientScript, /showSuccess\(data\.number, payload\.deliveryType, payload\.deliveryZone, data\.deliveryFee\)/);
+  assert.match(clientScript, /showSuccess\(data\.number, payload\.deliveryType, payload\.deliveryZone\)/);
 });
 
 test("el formulario ofrece delivery CABA con sus condiciones", () => {
@@ -34,6 +34,7 @@ test("el formulario ofrece delivery CABA con sus condiciones", () => {
   assert.match(html, /Villa Urquiza, Saavedra, Núñez y Belgrano/);
   assert.match(html, /Envío gratis desde \$50\.000/);
   assert.match(html, /envío cuesta \$15\.000/);
+  assert.doesNotMatch(html, /Monto estimado del pedido/);
   assert.match(clientScript, /CABA_VIERNES/);
 });
 
