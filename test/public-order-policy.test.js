@@ -21,6 +21,13 @@ test("despues de las 13 bloquea delivery y retiro para hoy", () => {
   assert.equal(publicOrderDatePolicy("RETIRO", twoPmInBuenosAires).afterCutoff, true);
 });
 
+test("delivery CABA ofrece solo viernes y cierra el viernes a las 11", () => {
+  const thursday = new Date("2026-08-13T13:00:00Z");
+  const fridayAfterCutoff = new Date("2026-08-14T15:00:00Z");
+  assert.equal(publicOrderDatePolicy("DELIVERY", thursday, "CABA_VIERNES").minDate, "2026-08-14");
+  assert.equal(publicOrderDatePolicy("DELIVERY", fridayAfterCutoff, "CABA_VIERNES").minDate, "2026-08-21");
+});
+
 test("distingue cierre total de fecha sin delivery", () => {
   const exceptions = [
     { date: "2026-08-20", type: "CLOSED" },

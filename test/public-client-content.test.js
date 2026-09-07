@@ -24,7 +24,17 @@ test("el formulario informa los horarios según el tipo de entrega", () => {
 
   assert.match(html, /Horario de retiro: de 6:00 a 13:00 hs\./);
   assert.match(clientScript, /Horario de entrega para delivery: de 11:00 a 15:00 hs\./);
-  assert.match(clientScript, /showSuccess\(data\.number, payload\.deliveryType\)/);
+  assert.match(clientScript, /showSuccess\(data\.number, payload\.deliveryType, payload\.deliveryZone, data\.deliveryFee\)/);
+});
+
+test("el formulario ofrece delivery CABA con sus condiciones", () => {
+  const html = fs.readFileSync(path.join(__dirname, "..", "public", "cliente.html"), "utf8");
+  const clientScript = fs.readFileSync(path.join(__dirname, "..", "public", "cliente.js"), "utf8");
+  assert.match(html, /DELIVERY CABA - VIERNES/);
+  assert.match(html, /Villa Urquiza, Saavedra, Núñez y Belgrano/);
+  assert.match(html, /Envío gratis desde \$50\.000/);
+  assert.match(html, /envío cuesta \$15\.000/);
+  assert.match(clientScript, /CABA_VIERNES/);
 });
 
 test("el enlace mayorista reutiliza el formulario y fuerza pedidos mayoristas", () => {

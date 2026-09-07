@@ -17,6 +17,8 @@ const CLIENT_DOCUMENTS_FILE = path.join(DATA_DIR, "client-documents.json");
 const OFFER_POSTER_SETTINGS_FILE = path.join(DATA_DIR, "offer-poster-settings.json");
 const OFFER_POSTER_DRAFT_FILE = path.join(DATA_DIR, "offer-poster-draft.json");
 const ORDER_AVAILABILITY_FILE = path.join(DATA_DIR, "order-availability.json");
+const CABA_DELIVERY_RANGES = JSON.parse(fs.readFileSync(path.join(ROOT, "data", "caba-delivery-streets.json"), "utf8"));
+const CABA_DELIVERY_NEIGHBORHOODS = ["Villa Urquiza", "Saavedra", "Nuñez", "Belgrano"];
 const CLIENT_DOCUMENTS_BUCKET = "client-documents";
 const CLIENT_DOCUMENT_TYPES = {
   "price-list": { label: "Lista de precios", legacyFileName: "lista-de-precios.pdf" },
@@ -335,11 +337,11 @@ function isOrderDateUnavailable(exceptions, date, deliveryType) {
   return (exceptions || []).find(item => item.date === date && (item.type === "CLOSED" || (item.type === "NO_DELIVERY" && normalizedType === "DELIVERY"))) || null;
 }
 
-async function publicOrderPolicyWithAvailability(deliveryType = "RETIRO", now = new Date()) {
-  const policy = publicOrderDatePolicy(deliveryType, now);
+async function publicOrderPolicyWithAvailability(deliveryType = "RETIRO", now = new Date(), deliveryZone = "REGULAR") {
+  const policy = publicOrderDatePolicy(deliveryType, now, deliveryZone);
   const exceptions = await readOrderAvailability();
   let minDate = policy.minDate;
-  while (isSundayDate(minDate) || isOrderDateUnavailable(exceptions, minDate, policy.deliveryType)) {
+  while ((policy.deliveryZone === "CABA_VIERNES" && !isFridayDate(minDate)) || isSundayDate(minDate) || isOrderDateUnavailable(exceptions, minDate, policy.deliveryType)) {
     minDate = addDaysToDate(minDate, 1);
   }
   return {
@@ -524,6 +526,45 @@ function cleanText(value) {
   return String(value || "").trim();
 }
 
+function normalizedAddressKey(value) {
+  return cleanText(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9 ]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeCabaNeighborhood(value) {
+  const key = normalizedAddressKey(value);
+  return CABA_DELIVERY_NEIGHBORHOODS.find(name => normalizedAddressKey(name) === key) || "";
+}
+
+function cabaStreetsForNeighborhood(value) {
+  const neighborhood = normalizeCabaNeighborhood(value);
+  if (!neighborhood) return [];
+  return [...new Set(CABA_DELIVERY_RANGES
+    .filter(range => range.neighborhood === neighborhood)
+    .map(range => range.street))]
+    .sort((a, b) => a.localeCompare(b, "es"));
+}
+
+function validateCabaDeliveryAddress(neighborhoodValue, streetValue, streetNumberValue) {
+  const neighborhood = normalizeCabaNeighborhood(neighborhoodValue);
+  const streetKey = normalizedAddressKey(streetValue);
+  const streetNumber = Number(streetNumberValue);
+  if (!neighborhood || !streetKey || !Number.isInteger(streetNumber) || streetNumber < 1) return false;
+  const parity = streetNumber % 2 === 0 ? "even" : "odd";
+  return CABA_DELIVERY_RANGES.some(range =>
+    range.neighborhood === neighborhood &&
+    range.key === streetKey &&
+    range.parity === parity &&
+    streetNumber >= range.from &&
+    streetNumber <= range.to
+  );
+}
+
 function actorName(input = {}) {
   return cleanText(input.currentUser || input.user || input.updatedBy || input.createdBy) || "Sin usuario";
 }
@@ -582,11 +623,21 @@ function isSundayDate(dateText) {
   return new Date(`${dateText}T12:00:00Z`).getUTCDay() === 0;
 }
 
+function isFridayDate(dateText) {
+  return new Date(`${dateText}T12:00:00Z`).getUTCDay() === 5;
+}
+
 function nextWorkingDate(dateText) {
   return isSundayDate(dateText) ? addDaysToDate(dateText, 1) : dateText;
 }
 
-function publicOrderDatePolicy(deliveryType = "RETIRO", now = new Date()) {
+function nextFridayDate(dateText, includeDate = true) {
+  let candidate = includeDate ? dateText : addDaysToDate(dateText, 1);
+  while (!isFridayDate(candidate)) candidate = addDaysToDate(candidate, 1);
+  return candidate;
+}
+
+function publicOrderDatePolicy(deliveryType = "RETIRO", now = new Date(), deliveryZone = "REGULAR") {
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat("en-CA", {
       timeZone: "America/Argentina/Buenos_Aires",
@@ -599,14 +650,17 @@ function publicOrderDatePolicy(deliveryType = "RETIRO", now = new Date()) {
   );
   const today = `${parts.year}-${parts.month}-${parts.day}`;
   const normalizedType = normalizeDeliveryType(deliveryType);
+  const normalizedZone = deliveryZone === "CABA_VIERNES" ? "CABA_VIERNES" : "REGULAR";
   const cutoffHour = normalizedType === "DELIVERY" ? 11 : 13;
   const afterCutoff = Number(parts.hour) >= cutoffHour;
+  const regularMinDate = nextWorkingDate(afterCutoff ? addDaysToDate(today, 1) : today);
   return {
     today,
     afterCutoff,
-    minDate: nextWorkingDate(afterCutoff ? addDaysToDate(today, 1) : today),
+    minDate: normalizedZone === "CABA_VIERNES" ? nextFridayDate(today, !(isFridayDate(today) && afterCutoff)) : regularMinDate,
     cutoffHour,
-    deliveryType: normalizedType
+    deliveryType: normalizedType,
+    deliveryZone: normalizedZone
   };
 }
 
@@ -640,6 +694,9 @@ function normalizeOrder(input, existing = {}) {
     .map(item => `${item.qty} x ${item.name}${item.note ? ` (${item.note})` : ""}`)
     .join("\n");
   const deliveryType = normalizeDeliveryType(input.deliveryType);
+  const deliveryZone = input.deliveryZone === "CABA_VIERNES" ? "CABA_VIERNES" : "REGULAR";
+  const orderAmountValue = Number(input.orderAmount ?? existing.orderAmount ?? 0);
+  const deliveryFeeValue = Number(input.deliveryFee ?? existing.deliveryFee ?? 0);
 
   return {
     id: existing.id || cryptoId(),
@@ -648,6 +705,13 @@ function normalizeOrder(input, existing = {}) {
     phone: cleanText(input.phone),
     address: cleanText(input.address),
     deliveryType,
+    deliveryZone,
+    cabaNeighborhood: deliveryZone === "CABA_VIERNES" ? normalizeCabaNeighborhood(input.cabaNeighborhood || existing.cabaNeighborhood) : "",
+    cabaStreet: deliveryZone === "CABA_VIERNES" ? cleanText(input.cabaStreet || existing.cabaStreet) : "",
+    cabaStreetNumber: deliveryZone === "CABA_VIERNES" ? Number.parseInt(input.cabaStreetNumber || existing.cabaStreetNumber, 10) || 0 : 0,
+    cabaAddressExtra: deliveryZone === "CABA_VIERNES" ? cleanText(input.cabaAddressExtra || existing.cabaAddressExtra) : "",
+    orderAmount: Number.isFinite(orderAmountValue) && orderAmountValue > 0 ? Math.round(orderAmountValue) : 0,
+    deliveryFee: Number.isFinite(deliveryFeeValue) && deliveryFeeValue >= 0 ? Math.round(deliveryFeeValue) : 0,
     saleType: normalizeSaleType(input.saleType),
     payment: cleanText(input.payment),
     status: normalizeStatus(input.status),
@@ -1034,12 +1098,20 @@ async function handleApi(req, res) {
     }
 
     if (url.pathname === "/api/public-order-policy" && req.method === "GET") {
-      return sendJson(res, 200, await publicOrderPolicyWithAvailability(url.searchParams.get("deliveryType")));
+      return sendJson(res, 200, await publicOrderPolicyWithAvailability(url.searchParams.get("deliveryType"), new Date(), url.searchParams.get("deliveryZone")));
+    }
+
+    if (url.pathname === "/api/caba-delivery-streets" && req.method === "GET") {
+      const neighborhood = normalizeCabaNeighborhood(url.searchParams.get("neighborhood"));
+      if (!neighborhood) return sendJson(res, 400, { error: "Seleccioná uno de los barrios habilitados." });
+      return sendJson(res, 200, { neighborhood, streets: cabaStreetsForNeighborhood(neighborhood) });
     }
 
     if (url.pathname === "/api/public-orders" && req.method === "POST") {
       const payload = await readBody(req);
-      const datePolicy = await publicOrderPolicyWithAvailability(payload.deliveryType);
+      const cabaDelivery = payload.deliveryZone === "CABA_VIERNES";
+      const effectiveDeliveryType = cabaDelivery ? "DELIVERY" : payload.deliveryType;
+      const datePolicy = await publicOrderPolicyWithAvailability(effectiveDeliveryType, new Date(), payload.deliveryZone);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(cleanText(payload.prepDate)) || payload.prepDate < datePolicy.minDate) {
         const error = datePolicy.afterCutoff
           ? `Los pedidos con ${datePolicy.deliveryType === "DELIVERY" ? "delivery" : "retiro por el local"} para hoy cerraron a las ${datePolicy.cutoffHour}:00. Elegi una fecha desde ${datePolicy.minDate}.`
@@ -1049,10 +1121,29 @@ async function handleApi(req, res) {
       if (isSundayDate(payload.prepDate)) {
         return sendJson(res, 400, { error: "Los domingos no trabajamos ni realizamos entregas. Elegi otra fecha." });
       }
-      const unavailable = isOrderDateUnavailable(await readOrderAvailability(), payload.prepDate, payload.deliveryType);
+      if (cabaDelivery && !isFridayDate(payload.prepDate)) {
+        return sendJson(res, 400, { error: "El delivery CABA se realiza únicamente los viernes." });
+      }
+      const unavailable = isOrderDateUnavailable(await readOrderAvailability(), payload.prepDate, effectiveDeliveryType);
       if (unavailable) {
         const reason = unavailable.type === "CLOSED" ? "El local permanecera cerrado" : "No habra delivery";
         return sendJson(res, 400, { error: `${reason} el ${payload.prepDate}${unavailable.note ? `: ${unavailable.note}` : "."}` });
+      }
+      if (cabaDelivery) {
+        if (!validateCabaDeliveryAddress(payload.cabaNeighborhood, payload.cabaStreet, Number(payload.cabaStreetNumber))) {
+          return sendJson(res, 400, { error: "La calle y altura no corresponden al barrio seleccionado o están fuera de la zona de entrega CABA." });
+        }
+        const orderAmount = Number(payload.orderAmount);
+        if (!Number.isFinite(orderAmount) || orderAmount <= 0) {
+          return sendJson(res, 400, { error: "Ingresá el monto estimado del pedido para calcular el envío." });
+        }
+        payload.deliveryType = "DELIVERY";
+        payload.deliveryZone = "CABA_VIERNES";
+        payload.cabaNeighborhood = normalizeCabaNeighborhood(payload.cabaNeighborhood);
+        payload.cabaStreetNumber = Number.parseInt(payload.cabaStreetNumber, 10);
+        payload.orderAmount = Math.round(orderAmount);
+        payload.deliveryFee = orderAmount >= 50000 ? 0 : 15000;
+        payload.address = [payload.cabaStreet, payload.cabaStreetNumber, cleanText(payload.cabaAddressExtra), payload.cabaNeighborhood, "CABA"].filter(Boolean).join(" - ");
       }
       const orders = await readOrders();
       const order = normalizeOrder({
@@ -1072,7 +1163,7 @@ async function handleApi(req, res) {
       orders.push(order);
       await writeOrders(orders);
       await appendMovement(order, "Pedido provisorio recibido", "Cliente", "Cargado desde formulario de cliente");
-      return sendJson(res, 201, { ok: true, number: order.number });
+      return sendJson(res, 201, { ok: true, number: order.number, deliveryFee: order.deliveryFee });
     }
 
     if (url.pathname === "/api/orders" && req.method === "POST") {
@@ -1165,4 +1256,4 @@ if (require.main === module) startServer().catch(error => {
   process.exitCode = 1;
 });
 
-module.exports = { customerPhoneKey, findDuplicateCustomer, isOrderDateUnavailable, normalizeCustomer, normalizeOrder, normalizeSaleType, publicOrderDatePolicy, runDataMigrations, server, startServer };
+module.exports = { cabaStreetsForNeighborhood, customerPhoneKey, findDuplicateCustomer, isOrderDateUnavailable, normalizeCustomer, normalizeOrder, normalizeSaleType, publicOrderDatePolicy, runDataMigrations, server, startServer, validateCabaDeliveryAddress };

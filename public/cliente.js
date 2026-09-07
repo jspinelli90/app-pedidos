@@ -10,6 +10,13 @@ const addressSection = document.querySelector("#clientAddressSection");
 const address = document.querySelector("#clientAddress");
 const district = document.querySelector("#clientDistrict");
 const locality = document.querySelector("#clientLocality");
+const cabaAddressSection = document.querySelector("#clientCabaAddressSection");
+const cabaNeighborhood = document.querySelector("#clientCabaNeighborhood");
+const cabaStreet = document.querySelector("#clientCabaStreet");
+const cabaStreetNumber = document.querySelector("#clientCabaStreetNumber");
+const cabaAddressExtra = document.querySelector("#clientCabaAddressExtra");
+const cabaOrderAmount = document.querySelector("#clientCabaOrderAmount");
+const cabaShippingNotice = document.querySelector("#clientCabaShippingNotice");
 const successBox = document.querySelector("#clientSuccess");
 const cutoffNotice = document.querySelector("#clientCutoffNotice");
 const cutoffText = document.querySelector("#clientCutoffText");
@@ -147,24 +154,41 @@ function nextWorkingDate(dateText) {
   return isSunday(dateText) ? addDays(dateText, 1) : dateText;
 }
 
+function isFriday(dateText) {
+  return new Date(`${dateText}T12:00:00`).getDay() === 5;
+}
+
+function nextFriday(dateText, includeDate = true) {
+  let candidate = includeDate ? dateText : addDays(dateText, 1);
+  while (!isFriday(candidate)) candidate = addDays(candidate, 1);
+  return candidate;
+}
+
+function isCabaDelivery() {
+  return deliveryType.value === "DELIVERY_CABA";
+}
+
 function localDatePolicy() {
   const now = new Date();
   const today = todayDate();
-  const selectedType = deliveryType.value === "DELIVERY" ? "DELIVERY" : "RETIRO";
+  const selectedType = deliveryType.value === "RETIRO" ? "RETIRO" : "DELIVERY";
+  const cabaDelivery = isCabaDelivery();
   const cutoffHour = selectedType === "DELIVERY" ? 11 : 13;
   const afterCutoff = now.getHours() >= cutoffHour;
-  return { today, afterCutoff, cutoffHour, deliveryType: selectedType, minDate: nextWorkingDate(afterCutoff ? addDays(today, 1) : today) };
+  const regularMinDate = nextWorkingDate(afterCutoff ? addDays(today, 1) : today);
+  const minDate = cabaDelivery ? nextFriday(today, !(isFriday(today) && afterCutoff)) : regularMinDate;
+  return { today, afterCutoff, cutoffHour, deliveryType: selectedType, deliveryZone: cabaDelivery ? "CABA_VIERNES" : "REGULAR", minDate };
 }
 
 function applyDatePolicy(policy, forceValue = false) {
   orderDatePolicy = policy;
-  policy.minDate = nextWorkingDate(policy.minDate);
+  policy.minDate = policy.deliveryZone === "CABA_VIERNES" ? nextFriday(policy.minDate) : nextWorkingDate(policy.minDate);
   prepDate.min = policy.minDate;
   if (forceValue || !prepDate.value || prepDate.value < policy.minDate || isSunday(prepDate.value)) prepDate.value = policy.minDate;
   validatePrepDate();
   cutoffNotice.hidden = !policy.afterCutoff;
   if (policy.afterCutoff) {
-    const method = policy.deliveryType === "DELIVERY" ? "delivery" : "retiro por el local";
+    const method = policy.deliveryZone === "CABA_VIERNES" ? "delivery CABA" : policy.deliveryType === "DELIVERY" ? "delivery" : "retiro por el local";
     cutoffText.textContent = `Los pedidos con ${method} para hoy cerraron a las ${policy.cutoffHour}:00. Elegi manana o cualquier fecha posterior.`;
   }
 }
@@ -175,14 +199,20 @@ function validatePrepDate() {
   const unavailableMessage = unavailable
     ? `${unavailable.type === "CLOSED" ? "El local estara cerrado" : "No tendremos delivery"} ese dia${unavailable.note ? `: ${unavailable.note}` : "."}`
     : "";
-  prepDate.setCustomValidity(sundaySelected ? "Los domingos no se toman pedidos." : unavailableMessage);
-  return !sundaySelected && !unavailable;
+  const invalidCabaDay = isCabaDelivery() && prepDate.value && !isFriday(prepDate.value);
+  const validityMessage = invalidCabaDay
+    ? "El delivery CABA se realiza únicamente los viernes."
+    : sundaySelected
+      ? "Los domingos no se toman pedidos."
+      : unavailableMessage;
+  prepDate.setCustomValidity(validityMessage);
+  return !invalidCabaDay && !sundaySelected && !unavailable;
 }
 
 async function refreshDatePolicy(forceValue = false) {
   let policy = localDatePolicy();
   try {
-    const response = await fetch(`/api/public-order-policy?deliveryType=${encodeURIComponent(deliveryType.value)}`, { cache: "no-store" });
+    const response = await fetch(`/api/public-order-policy?deliveryType=${encodeURIComponent(deliveryType.value)}&deliveryZone=${isCabaDelivery() ? "CABA_VIERNES" : "REGULAR"}`, { cache: "no-store" });
     if (response.ok) policy = await response.json();
   } catch {
     // El servidor vuelve a validar la fecha al enviar el pedido.
@@ -197,9 +227,11 @@ function setMessage(text, isError = false) {
   if (text) successBox.hidden = true;
 }
 
-function showSuccess(orderNumber, selectedDeliveryType) {
-  const schedule = selectedDeliveryType === "DELIVERY"
-    ? "Horario de entrega para delivery: de 11:00 a 15:00 hs."
+function showSuccess(orderNumber, selectedDeliveryType, deliveryZone, deliveryFee) {
+  const schedule = deliveryZone === "CABA_VIERNES"
+    ? `Entrega CABA el viernes. ${deliveryFee === 0 ? "Envío gratis." : "Costo de envío: $15.000."}`
+    : selectedDeliveryType === "DELIVERY"
+      ? "Horario de entrega para delivery: de 11:00 a 15:00 hs."
     : "Horario de retiro: de 6:00 a 13:00 hs.";
   message.textContent = "";
   successBox.hidden = false;
@@ -213,15 +245,60 @@ function showSuccess(orderNumber, selectedDeliveryType) {
 }
 
 function updateAddressRequirement() {
-  const isDelivery = deliveryType.value === "DELIVERY";
-  fulfillmentNoticeText.textContent = isDelivery
-    ? "Horario de entrega para delivery: de 11:00 a 15:00 hs."
+  const regularDelivery = deliveryType.value === "DELIVERY";
+  const cabaDelivery = isCabaDelivery();
+  fulfillmentNoticeText.textContent = cabaDelivery
+    ? "Delivery CABA los viernes. Pedidos hasta las 11:00 hs."
+    : regularDelivery
+      ? "Horario de entrega para delivery: de 11:00 a 15:00 hs."
     : "Horario de retiro: de 6:00 a 13:00 hs.";
-  addressSection.hidden = !isDelivery;
-  address.required = isDelivery;
-  district.required = isDelivery;
-  locality.required = isDelivery;
-  address.placeholder = isDelivery ? "Direccion obligatoria para delivery" : "Direccion si es delivery";
+  addressSection.hidden = !regularDelivery;
+  cabaAddressSection.hidden = !cabaDelivery;
+  address.required = regularDelivery;
+  district.required = regularDelivery;
+  locality.required = regularDelivery;
+  cabaNeighborhood.required = cabaDelivery;
+  cabaStreet.required = cabaDelivery;
+  cabaStreetNumber.required = cabaDelivery;
+  cabaOrderAmount.required = cabaDelivery;
+  address.placeholder = regularDelivery ? "Direccion obligatoria para delivery" : "Direccion si es delivery";
+}
+
+async function updateCabaStreetOptions() {
+  cabaStreet.disabled = true;
+  cabaStreet.innerHTML = '<option value="">Cargando calles...</option>';
+  if (!cabaNeighborhood.value) {
+    cabaStreet.innerHTML = '<option value="">Primero seleccioná el barrio</option>';
+    return;
+  }
+  try {
+    const response = await fetch(`/api/caba-delivery-streets?neighborhood=${encodeURIComponent(cabaNeighborhood.value)}`, { cache: "no-store" });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "No se pudieron cargar las calles.");
+    cabaStreet.innerHTML = '<option value="">Seleccionar calle</option>';
+    data.streets.forEach(name => {
+      const option = document.createElement("option");
+      option.value = name;
+      option.textContent = name;
+      cabaStreet.append(option);
+    });
+    cabaStreet.disabled = false;
+  } catch (error) {
+    cabaStreet.innerHTML = '<option value="">No se pudieron cargar las calles</option>';
+    setMessage(error.message, true);
+  }
+}
+
+function updateCabaShippingNotice() {
+  const amount = Number(cabaOrderAmount.value);
+  if (!amount) {
+    cabaShippingNotice.textContent = "Envío gratis desde $50.000. En pedidos menores, el envío cuesta $15.000.";
+    cabaShippingNotice.classList.remove("free");
+    return;
+  }
+  const free = amount >= 50000;
+  cabaShippingNotice.textContent = free ? "Tu pedido tiene envío gratis." : "A este pedido se le agregarán $15.000 de envío.";
+  cabaShippingNotice.classList.toggle("free", free);
 }
 
 function updateDeliveryTypeVisibility() {
@@ -261,14 +338,23 @@ async function sendOrder(event) {
   setMessage("Enviando pedido...");
   successBox.hidden = true;
 
-  const addressText = [address.value.trim(), locality.value.trim(), district.value.trim()].filter(Boolean).join(" - ");
+  const deliveryZone = isCabaDelivery() ? "CABA_VIERNES" : "REGULAR";
+  const addressText = deliveryZone === "CABA_VIERNES"
+    ? [cabaStreet.value, cabaStreetNumber.value, cabaAddressExtra.value.trim(), cabaNeighborhood.value, "CABA"].filter(Boolean).join(" - ")
+    : [address.value.trim(), locality.value.trim(), district.value.trim()].filter(Boolean).join(" - ");
 
   const payload = {
     customer: document.querySelector("#clientCustomer").value,
     phone: document.querySelector("#clientPhone").value,
     address: addressText,
     saleType: publicSaleType,
-    deliveryType: deliveryType.value,
+    deliveryType: deliveryType.value === "RETIRO" ? "RETIRO" : "DELIVERY",
+    deliveryZone,
+    cabaNeighborhood: cabaNeighborhood.value,
+    cabaStreet: cabaStreet.value,
+    cabaStreetNumber: cabaStreetNumber.value,
+    cabaAddressExtra: cabaAddressExtra.value,
+    orderAmount: deliveryZone === "CABA_VIERNES" ? cabaOrderAmount.value : "",
     payment: document.querySelector("#clientPayment").value,
     prepDate: prepDate.value,
     scheduledTime: "",
@@ -289,7 +375,7 @@ async function sendOrder(event) {
     await refreshDatePolicy(true);
     updateLocalityOptions();
     updateDeliveryTypeVisibility();
-    showSuccess(data.number, payload.deliveryType);
+    showSuccess(data.number, payload.deliveryType, payload.deliveryZone, data.deliveryFee);
   } catch (error) {
     setMessage(error.message, true);
   }
@@ -306,9 +392,12 @@ prepDate.addEventListener("change", () => {
 customer.addEventListener("input", updateDeliveryTypeVisibility);
 phone.addEventListener("input", updateDeliveryTypeVisibility);
 district.addEventListener("change", updateLocalityOptions);
+cabaNeighborhood.addEventListener("change", updateCabaStreetOptions);
+cabaOrderAmount.addEventListener("input", updateCabaShippingNotice);
 form.addEventListener("submit", sendOrder);
 updateLocalityOptions();
 updateDeliveryTypeVisibility();
+updateCabaShippingNotice();
 refreshDatePolicy(true);
 applyOrderAudience();
 loadClientDocuments();

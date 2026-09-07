@@ -47,7 +47,8 @@
             <label>Tipo de entrega
               <select id="clientDeliveryType">
                 <option>RETIRO</option>
-                <option>DELIVERY</option>
+                <option value="DELIVERY">DELIVERY ZONA NORTE</option>
+                <option value="DELIVERY_CABA">DELIVERY CABA - VIERNES</option>
               </select>
             </label>
             <div id="clientFulfillmentNotice" class="client-notice" role="note" aria-live="polite">
@@ -123,6 +124,43 @@
             </div>
           </div>
 
+          <div id="clientCabaAddressSection" class="client-caba-section" hidden>
+            <div class="client-caba-heading">
+              <strong>Delivery CABA - viernes</strong>
+              <span>Disponible únicamente en Villa Urquiza, Saavedra, Núñez y Belgrano.</span>
+            </div>
+            <div class="grid two">
+              <label>Barrio
+                <select id="clientCabaNeighborhood">
+                  <option value="">Seleccionar barrio</option>
+                  <option>Villa Urquiza</option>
+                  <option>Saavedra</option>
+                  <option>Núñez</option>
+                  <option>Belgrano</option>
+                </select>
+              </label>
+              <label>Calle
+                <select id="clientCabaStreet" disabled>
+                  <option value="">Primero seleccioná el barrio</option>
+                </select>
+              </label>
+            </div>
+            <div class="grid two">
+              <label>Altura
+                <input id="clientCabaStreetNumber" type="number" inputmode="numeric" min="1" step="1" placeholder="Ej.: 3200">
+              </label>
+              <label>Piso, departamento o referencia
+                <input id="clientCabaAddressExtra" autocomplete="address-line2" placeholder="Opcional">
+              </label>
+            </div>
+            <label>Monto estimado del pedido
+              <input id="clientCabaOrderAmount" type="number" inputmode="numeric" min="1" step="1" placeholder="Ej.: 55000">
+            </label>
+            <div id="clientCabaShippingNotice" class="client-caba-shipping" aria-live="polite">
+              Envío gratis desde $50.000. En pedidos menores, el envío cuesta $15.000.
+            </div>
+          </div>
+
           <label>Forma de pago
             <select id="clientPayment">
               <option>A DEFINIR</option>
@@ -162,6 +200,6 @@
       </section>
     </main>
 
-    <script src="/cliente.js?v=20260831-horario-retiro"></script>
+    <script src="/cliente.js?v=20260907-delivery-caba"></script>
   </body>
 </html>

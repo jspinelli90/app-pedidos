@@ -721,6 +721,49 @@ textarea:focus {
   display: none;
 }
 
+.client-caba-section {
+  display: grid;
+  gap: 16px;
+  border: 2px solid #9f171b;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #fff 0%, #fff6f6 100%);
+  padding: 18px;
+}
+
+.client-caba-section[hidden] {
+  display: none;
+}
+
+.client-caba-heading {
+  display: grid;
+  gap: 5px;
+  color: #1b1b1b;
+}
+
+.client-caba-heading strong {
+  color: #921418;
+  font-size: 20px;
+}
+
+.client-caba-heading span {
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.client-caba-shipping {
+  border-radius: 10px;
+  background: #161616;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.45;
+  padding: 14px;
+}
+
+.client-caba-shipping.free {
+  background: #17613c;
+}
+
 .client-page label {
   color: #252525;
   font-size: 13px;
