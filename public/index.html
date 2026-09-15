@@ -5,8 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Pedidos | San Cayetano Carnes</title>
     <link rel="stylesheet" href="/styles.css?v=20260815-identidad-integral">
+  <link rel="stylesheet" href="/sc-loading.css">
   </head>
   <body>
+    <div id="sc-loading" class="sc-screen" role="status" aria-live="polite">
+      <div class="sc-content">
+        <div class="sc-logo"><img src="/san-cayetano-loading.png" alt="San Cayetano Carnes" width="2048" height="2048" fetchpriority="high"></div>
+        <p class="sc-message">CARGANDO SISTEMA...</p>
+        <div class="sc-track" aria-hidden="true"><span></span></div>
+        <button type="button" hidden>Reintentar</button>
+      </div>
+    </div>
+    <noscript><style>#sc-loading { display:none; }</style></noscript>
+    <script src="/sc-loading.js"></script>
     <header class="topbar">
       <div class="admin-brand">
         <img src="/san-cayetano-logo-blanco.png" alt="San Cayetano Carnes" class="admin-logo">
@@ -429,6 +440,6 @@
     </dialog>
 
     <script src="/offers-generator.js?v=20260814-a4-folletos-grandes"></script>
-    <script src="/app.js?v=20260901-identidad-telefono"></script>
+    <script src="/app.js?v=20260915-pantalla-carga"></script>
   </body>
 </html>

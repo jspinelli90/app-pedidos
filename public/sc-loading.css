@@ -1,0 +1,22 @@
+.sc-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  background: #000;
+  color: #fff;
+  padding: 24px;
+  box-sizing: border-box;
+}
+.sc-content { width: min(350px, 76vw, 55vh); text-align: center; }
+.sc-logo { position: relative; width: 100%; aspect-ratio: 1.29; overflow: hidden; }
+.sc-logo img { position: absolute; width: 156.25%; max-width: none; height: auto; left: -28.125%; top: -46.4%; }
+.sc-message { margin: 44px 0 22px; color: #d5d5d5; font: 500 11px/1.5 Arial, sans-serif; letter-spacing: .24em; }
+.sc-track { width: 76%; height: 3px; margin: auto; border-radius: 99px; overflow: hidden; background: #242424; }
+.sc-track span { display: block; height: 100%; width: 45%; border-radius: inherit; background: linear-gradient(90deg, transparent, #b9b9b9 30%, #fff 65%, transparent); box-shadow: 0 0 12px #fff9; animation: travel 1.8s ease-in-out infinite; }
+@keyframes travel { from { transform: translateX(-110%); } to { transform: translateX(330%); } }
+@media (prefers-reduced-motion: reduce) { .sc-track span { animation: none; transform: translateX(65%); } }
+
+#sc-loading [hidden] { display: none !important; } #sc-loading button { margin:24px auto 0; padding:10px 18px; color:white; background:#222; border:1px solid #666; border-radius:5px; }

@@ -1840,5 +1840,6 @@ els.prepDateFilter.value = todayDate();
 els.deliveryDateFilter.value = todayDate();
 els.availabilityDate.min = todayDate();
 els.availabilityDate.value = todayDate();
-refreshAll().catch(error => setMessage(error.message, true));
+const initialOrdersLoad = refreshAll().catch(error => setMessage(error.message, true));
+window.SanCayetanoLoading?.wait(initialOrdersLoad);
 setInterval(() => loadOrders().catch(() => {}), 30000);

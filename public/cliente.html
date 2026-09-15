@@ -5,8 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Hacé tu pedido | San Cayetano Carnes</title>
     <link rel="stylesheet" href="/styles.css?v=20260831-horario-retiro">
+  <link rel="stylesheet" href="/sc-loading.css">
   </head>
   <body class="client-page">
+    <div id="sc-loading" class="sc-screen" role="status" aria-live="polite">
+      <div class="sc-content">
+        <div class="sc-logo"><img src="/san-cayetano-loading.png" alt="San Cayetano Carnes" width="2048" height="2048" fetchpriority="high"></div>
+        <p class="sc-message">CARGANDO SISTEMA...</p>
+        <div class="sc-track" aria-hidden="true"><span></span></div>
+        <button type="button" hidden>Reintentar</button>
+      </div>
+    </div>
+    <noscript><style>#sc-loading { display:none; }</style></noscript>
+    <script src="/sc-loading.js"></script>
     <main class="client-shell">
       <section class="panel client-panel">
         <div class="client-brand">
@@ -197,6 +208,6 @@
       </section>
     </main>
 
-    <script src="/cliente.js?v=20260907-delivery-caba-2"></script>
+    <script src="/cliente.js?v=20260915-pantalla-carga"></script>
   </body>
 </html>
