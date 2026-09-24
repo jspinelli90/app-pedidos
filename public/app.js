@@ -1746,7 +1746,7 @@ function printTicket(order) {
           ${order.deliveryType === "DELIVERY" ? `<p class="row"><span class="label">Vehiculo:</span> ${escapeHtml(orderRouteVehicle(order))}</p>` : ""}
           <p class="row"><span class="label">Cargado:</span> ${dateTime(order.createdAt)}</p>
           <div class="line"></div>
-          <div class="detail">${escapeHtml(orderDetail(order))}</div>
+          <div class="detail">${escapeHtml(orderTicketDetail(order, orderDetail(order)))}</div>
           ${order.notes ? `<div class="line"></div><div class="notes"><span class="label">Notas:</span><br>${escapeHtml(order.notes)}</div>` : ""}
         </main>
         <script>
