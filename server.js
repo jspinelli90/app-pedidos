@@ -5,6 +5,7 @@ const os = require("os");
 const QRCode = require("qrcode");
 const { validatePriceList, importPriceList, generatePricePdf } = require("./lib/price-lists");
 const RetailOffers = require("./public/retail-offers-model");
+const RetailCart = require("./public/retail-cart-model");
 const { createHash } = require("node:crypto");
 
 const PORT = Number(process.env.PORT || 3000);
@@ -482,6 +483,21 @@ function retailCatalog(documents) {
   return { revision, lists, products };
 }
 
+async function publicRetailCatalog() {
+  const catalog = retailCatalog(await readClientDocuments());
+  const stored = await readRetailOffers();
+  const offers = stored.state.offers.filter(offer => RetailOffers.status(offer, catalog.products).code === "active");
+  const products = catalog.products.map(product => {
+    const offerUnits = [...new Set(offers.filter(o => o.productId === product.id).map(o => o.unit))];
+    return { ...product, unit: product.unit || (offerUnits.length === 1 ? offerUnits[0] : "") };
+  });
+  return { products, offers, notice: RetailCart.NOTICE };
+}
+async function quoteRetailCart(payload) {
+  const quote = RetailCart.quote(await publicRetailCatalog(), payload.cart, payload);
+  return { ...quote, quoteId: createHash("sha256").update(JSON.stringify(quote)).digest("hex") };
+}
+
 async function readRetailOffers() {
   if (!USE_SUPABASE) return { state: readJsonArray(RETAIL_OFFERS_FILE)[0] || { revision: "initial", offers: [] }, updatedAt: null };
   const records = await supabaseRequest("/rest/v1/app_data?key=eq.retail_offers&select=data,updated_at");
@@ -878,6 +894,7 @@ function normalizeOrder(input, existing = {}) {
     detail,
     notes: cleanText(input.notes),
     items: legacyItems,
+    ...(existing.retailCart ? { retailCart: existing.retailCart, retailRequestId: existing.retailRequestId } : {}),
     createdBy: existing.createdBy || actor,
     updatedBy: actor,
     createdAt: existing.createdAt || now,
@@ -1025,7 +1042,7 @@ function serveStatic(req, res) {
 let documentQueue = Promise.resolve();
 async function handleApi(req, res) {
   const pathname = new URL(req.url, `http://${req.headers.host || "localhost"}`).pathname;
-  if (!/^\/api\/(?:(?:public-)?client-documents|(?:public-)?retail-offers)(?:\/|$)/.test(pathname)) return handleApiRequest(req, res);
+  if (!/^\/api\/(?:(?:public-)?client-documents|(?:public-)?retail-offers|public-retail-catalog|public-retail-quote|public-orders|orders)(?:\/|$)/.test(pathname)) return handleApiRequest(req, res);
   const previous = documentQueue;
   let release;
   documentQueue = new Promise(resolve => { release = resolve; });
@@ -1043,6 +1060,8 @@ async function handleApiRequest(req, res) {
     if (url.pathname === "/api/retail-offers/catalog" && req.method === "GET") {
       return sendJson(res, 200, retailCatalog(await readClientDocuments()));
     }
+    if (url.pathname === "/api/public-retail-catalog" && req.method === "GET") return sendJson(res, 200, await publicRetailCatalog());
+    if (url.pathname === "/api/public-retail-quote" && req.method === "POST") return sendJson(res, 200, await quoteRetailCart(await readBody(req)));
     if (url.pathname === "/api/retail-offers/catalog" && req.method === "PUT") {
       const payload = await readBody(req);
       const documents = await readClientDocuments();
@@ -1338,6 +1357,20 @@ async function handleApiRequest(req, res) {
 
     if (url.pathname === "/api/public-orders" && req.method === "POST") {
       const payload = await readBody(req);
+      let cartQuote = null;
+      if (payload.cart !== undefined) {
+        if (normalizeSaleType(payload.saleType) !== "Minorista") return sendJson(res, 400, { error: "El carrito está disponible para pedidos minoristas." });
+        if (payload.estimatedAccepted !== true) return sendJson(res, 400, { error: "Confirmá que entendés que el total es estimado y varía según el peso real." });
+        if (typeof payload.requestId !== "string" || !/^[a-zA-Z0-9_-]{16,80}$/.test(payload.requestId)) return sendJson(res, 400, { error: "Volvé a revisar el carrito antes de enviarlo." });
+        const duplicate = (await readOrders()).find(order => order.retailRequestId === payload.requestId);
+        if (duplicate) return sendJson(res, 200, { ok: true, number: duplicate.number, retailCart: duplicate.retailCart });
+        cartQuote = await quoteRetailCart(payload);
+        if (payload.quoteId !== cartQuote.quoteId) return sendJson(res, 409, { error: "Cambió un precio, una oferta o el envío. Revisá el nuevo total estimado antes de enviar.", quote: cartQuote });
+        payload.detail = RetailCart.detail(cartQuote);
+        payload.items = [];
+        payload.orderAmount = 0;
+        payload.deliveryFee = 0;
+      }
       const cabaDelivery = payload.deliveryZone === "CABA_VIERNES";
       const effectiveDeliveryType = cabaDelivery ? "DELIVERY" : payload.deliveryType;
       const datePolicy = await publicOrderPolicyWithAvailability(effectiveDeliveryType, new Date(), payload.deliveryZone);
@@ -1382,11 +1415,15 @@ async function handleApiRequest(req, res) {
       }
       order.number = nextNumber(orders);
       order.createdBy = "Cliente";
+      if (cartQuote) {
+        order.retailCart = { ...cartQuote, estimatedAccepted: true, acceptedAt: new Date().toISOString() };
+        order.retailRequestId = payload.requestId;
+      }
       order.updatedBy = "Cliente";
       orders.push(order);
       await writeOrders(orders);
       await appendMovement(order, "Pedido provisorio recibido", "Cliente", "Cargado desde formulario de cliente");
-      return sendJson(res, 201, { ok: true, number: order.number });
+      return sendJson(res, 201, { ok: true, number: order.number, ...(cartQuote ? { retailCart: order.retailCart } : {}) });
     }
 
     if (url.pathname === "/api/orders" && req.method === "POST") {

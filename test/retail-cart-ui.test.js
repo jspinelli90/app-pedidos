@@ -1,0 +1,26 @@
+const test=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const path=require('node:path');const {JSDOM}=require('jsdom');const M=require('../public/retail-cart-model');
+test('carrito exige revisión y aceptación, conserva notas y vuelve a pedir aceptación al editar',async t=>{
+ const html=fs.readFileSync(path.join(__dirname,'../public/cliente.html'),'utf8');const dom=new JSDOM(html,{runScripts:'outside-only',url:'http://localhost/cliente.html'});t.after(()=>dom.window.close());
+ const w=dom.window;w.RetailCartModel=M;w.HTMLElement.prototype.scrollIntoView=function(){};const el=id=>w.document.getElementById(id);const tick=()=>new Promise(r=>setImmediate(r));
+ const catalog={products:[{id:'p',documentId:'list',listName:'Carne.pdf',name:'Asado',unit:'kg',price:10000},{id:'u',documentId:'list',listName:'Carne.pdf',name:'Pendiente',unit:'',price:500}],offers:[]};
+ w.fetch=async(url,options)=>({ok:true,json:async()=>url.endsWith('catalog')?catalog:{...M.quote(catalog,JSON.parse(options.body).cart,JSON.parse(options.body)),quoteId:'quote'}});
+ w.eval(fs.readFileSync(path.join(__dirname,'../public/retail-cart.js'),'utf8'));await tick();
+ assert.equal(el('retailCart').hidden,false);assert.equal(el('clientDetail').required,false);
+ assert.equal(el('cartCatalog').querySelectorAll('button')[1].disabled,true);
+ el('cartCatalog').querySelector('button').click();
+ el('cartCatalog').querySelector('button').click();
+ assert.equal(el('cartLines').children.length,1);assert.equal(el('cartLines').querySelector('input').value,'2');
+ const qty=el('cartLines').querySelector('input');qty.value='0.75';qty.dispatchEvent(new w.Event('input'));
+ const note=el('cartLines').querySelector('textarea');note.value='Finito <script>alert(1)</script>';note.dispatchEvent(new w.Event('input'));
+ assert.throws(()=>w.RetailCartUI.payload());el('cartReview').click();await tick();
+ assert.equal(el('cartAccepted').disabled,false);el('cartAccepted').checked=true;
+ const payload=w.RetailCartUI.payload();assert.equal(payload.cart[0].quantity,.75);assert.match(payload.cart[0].note,/Finito/);assert.equal(payload.cart[0].unit,'kg');
+ assert.equal(el('cartLines').querySelectorAll('script').length,0);assert.match(el('cartEstimate').textContent,/7.500/);
+ el('cartLines').querySelector('textarea').dispatchEvent(new w.Event('input'));assert.throws(()=>w.RetailCartUI.payload());
+ el('cartReview').click();await tick();el('cartAccepted').checked=true;
+ el('clientDeliveryType').value='DELIVERY_CABA';el('clientDeliveryType').dispatchEvent(new w.Event('change'));assert.throws(()=>w.RetailCartUI.payload());assert.match(el('cartEstimate').textContent,/22.500/);
+ w.RetailCartUI.reset();assert.equal(el('cartLines').children.length,0);
+});
+test('el formulario mayorista mantiene el pedido por texto',t=>{
+ const dom=new JSDOM(fs.readFileSync(path.join(__dirname,'../public/cliente.html'),'utf8'),{runScripts:'outside-only',url:'http://localhost/pedido-mayorista.html'});t.after(()=>dom.window.close());dom.window.eval(fs.readFileSync(path.join(__dirname,'../public/retail-cart.js'),'utf8'));assert.equal(dom.window.RetailCartUI,undefined);assert.equal(dom.window.document.getElementById('clientDetail').required,true);assert.equal(dom.window.document.getElementById('retailCart').hidden,true);
+});
