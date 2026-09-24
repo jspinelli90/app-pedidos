@@ -4,6 +4,20 @@
 <header class="topbar"><div><p class="eyebrow">San Cayetano Carnes</p><h1>Venta de mostrador</h1></div><nav><a class="ghost button-link" href="/">Volver a pedidos</a><button id="newSale" class="ghost" type="button">Nueva venta</button></nav></header>
 <div class="pos-warning"><strong>MODO DE PRUEBA · NO VÁLIDO COMO FACTURA</strong><span>Podés probar lectura, pesos, precios y cobro simulado. No se cobra dinero, no se modifica caja o stock y no se emiten comprobantes fiscales.</span></div>
 <p id="posMessage" role="status" class="pos-message"></p>
+<details id="salesCatalogEditor" class="panel pos-catalog-editor">
+<summary>Catálogo de ventas · precios, unidades e IVA</summary>
+<p>Este catálogo es independiente de las listas de pedidos. Los precios son finales, con IVA incluido. Las ofertas de Infoki son artículos propios; no se aplican automáticamente las placas del catálogo de pedidos.</p>
+<button id="loadSalesCatalog" class="ghost" type="button">Cargar catálogo para editar</button>
+<p id="salesCatalogStatus" role="status"></p>
+<form id="salesProductForm" hidden>
+<label>Buscar artículo<input id="salesProductSearch" type="search" placeholder="Nombre o código"></label>
+<label class="pos-check"><input id="salesOnlyPending" type="checkbox">Mostrar solo artículos pendientes</label>
+<label>Artículo<select id="salesProductSelect"></select></label>
+<p id="salesProductNotes"></p>
+<div class="grid two"><label>Precio final ($)<input id="salesProductPrice" type="number" min="0" max="999999999" step="0.01"></label><label>Unidad de venta<select id="salesProductUnit"><option value="">Pendiente</option><option value="kg">Kilogramo</option><option value="unit">Unidad / paquete / maple</option><option value="box">Caja / cajón</option></select></label></div>
+<label>IVA incluido<select id="salesProductVAT"><option value="">Pendiente</option><option value="10.5">10,5 %</option><option value="21">21 %</option></select></label>
+<button id="saveSalesProduct" class="primary" type="submit">Guardar artículo de ventas</button>
+</form></details>
 <main class="pos-layout">
 <section class="panel">
 <h2>Agregar artículos</h2>
@@ -29,4 +43,4 @@
 <section id="saleResult" hidden><h3>Venta de prueba guardada</h3><pre id="saleReceipt"></pre><button id="printPractice" class="ghost" type="button">Imprimir comprobante de prueba</button></section>
 <details class="pos-section"><summary>Últimas ventas de prueba</summary><button id="refreshSales" class="ghost" type="button">Actualizar historial</button><div id="posHistory"></div></details>
 </section>
-</main><script src="/retail-cart-model.js"></script><script src="/pos-model.js?v=1"></script><script src="/pos.js?v=1"></script></body></html>
+</main><script src="/retail-cart-model.js"></script><script src="/pos-model.js?v=1"></script><script src="/pos.js?v=2"></script><script src="/pos-catalog-ui.js?v=1"></script></body></html>

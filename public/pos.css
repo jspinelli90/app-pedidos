@@ -12,3 +12,4 @@
 .pos-mapping { border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 10px; }.pos-mapping input,.pos-mapping select { width: 100%; }
 .pos-page pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: .9rem; }.pos-page button { min-height: 40px; }.pos-page [hidden] { display: none !important; }
 @media(max-width:850px){.pos-layout{grid-template-columns:1fr;padding:0 12px 12px}.pos-warning,.pos-message{margin-left:12px;margin-right:12px}.pos-layout .panel{padding:14px}#scanForm{flex-wrap:wrap}}
+.pos-catalog-editor { margin: 0 24px 18px; padding: 18px; } .pos-catalog-editor summary { cursor:pointer; font-weight:700; } .pos-catalog-editor form { max-width:850px; }
