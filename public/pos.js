@@ -8,16 +8,21 @@
   const draft=()=>({mode:'practice',cart:state.lines,delivery:Number(el('posDelivery').value),sourceOrderId:state.sourceOrderId});
   function invalidate(){state.version++;state.quote=null;state.requestId=null;el('weightsConfirmed').checked=false;el('weightsConfirmed').disabled=true;renderTotal();}
   function localQuote(){const q=C.quote(state.catalog,state.lines,{deliveryType:'RETIRO'});const delivery=Number(el('posDelivery').value);if(!Number.isFinite(delivery)||delivery<0)throw new Error('Revisá el envío.');return {...q,total:Math.round((q.subtotal+delivery)*100)/100};}
-  function renderTotal(){try{const q=state.quote||localQuote();el('posTotal').textContent=`TOTAL DE PRUEBA: ${C.money(q.total)}${state.quote?'':' · pendiente de revisión'}`;}catch(e){el('posTotal').textContent=state.lines.length?e.message:'Agregá artículos para calcular.';}renderChange();}
+  function renderTotal(){try{const q=state.quote||localQuote();el('posTotal').textContent=`TOTAL DE PRUEBA: ${C.money(q.total)}${state.quote?'':' · pendiente de revisión'}`;}catch(e){el('posTotal').textContent=state.lines.length?e.message:'Agregá artículos para calcular.';}
+    el('posItemCount').textContent=state.lines.length+' renglones';el('posEmpty').hidden=state.lines.length>0;
+    const weight=state.lines.filter(l=>l.unit==='kg').reduce((sum,l)=>sum+(Number.isFinite(l.quantity)&&l.quantity>0?l.quantity:0),0);
+    el('posWeightTotal').textContent='Peso total: '+weight.toLocaleString('es-AR',{minimumFractionDigits:3,maximumFractionDigits:3})+' kg';renderChange();}
   function renderChange(){try{if(!state.quote){el('posChange').textContent='';return;}const p=M.payment(el('posPayment').value,Number(el('posReceived').value),state.quote.total);el('posChange').textContent=`Vuelto simulado: ${C.money(p.change)}`;}catch(e){el('posChange').textContent=e.message;}}
   function renderLines(){el('posLines').replaceChildren();state.lines.forEach((line,index)=>{
-    const p=state.catalog.products.find(p=>p.id===line.productId);const row=node('article',undefined,'pos-line');const heading=node('div',undefined,'pos-line-header');heading.append(node('strong',p?.name||'Artículo ya no disponible'));
-    const remove=node('button','Quitar','ghost');remove.type='button';remove.onclick=()=>{state.lines.splice(index,1);invalidate();renderLines();};heading.append(remove);row.append(heading);
-    const label=node('label',`Cantidad / peso real (${C.UNITS[line.unit]||'sin unidad'})`);const input=node('input');input.type='number';input.step=line.unit==='kg'?'0.001':'1';input.min=input.step;input.max='1000';input.value=line.quantity;input.required=true;label.append(input);
-    const subtotal=node('p');function lineTotal(){try{const q=state.quote?.lines[index]||C.quote(state.catalog,[line],{deliveryType:'RETIRO'}).lines[0];subtotal.textContent=`${C.money(q.subtotal)}${q.offer?' · '+q.offer:''}`;}catch(e){subtotal.textContent=e.message;}}
+    const p=state.catalog.products.find(p=>p.id===line.productId);const row=node('tr',undefined,'pos-line');const description=node('td');description.append(node('span',p?.name||'Artículo ya no disponible','pos-line-name'));
+    const remove=node('button','Quitar','ghost pos-remove');remove.type='button';remove.onclick=()=>{state.lines.splice(index,1);invalidate();renderLines();};
+    const quantity=node('td');const input=node('input');input.setAttribute('aria-label',`Cantidad / peso real (${C.UNITS[line.unit]||'sin unidad'}) - ${p?.name||'Artículo'}`);input.type='number';input.step=line.unit==='kg'?'0.001':'1';input.min=input.step;input.max='1000';input.value=line.quantity;input.required=true;quantity.append(input);
+    const price=node('td',undefined,'pos-number');const subtotal=node('td',undefined,'pos-number');const offer=node('span',undefined,'pos-line-offer');
+    function lineTotal(){try{const q=state.quote?.lines[index]||C.quote(state.catalog,[line],{deliveryType:'RETIRO'}).lines[0];price.textContent=C.money(q.unitPrice);subtotal.textContent=C.money(q.subtotal);offer.textContent=q.offer||'';}catch(e){price.textContent=p?.price==null?'—':C.money(p.price);subtotal.textContent=e.message;offer.textContent='';}}
     input.oninput=()=>{line.quantity=input.value===''?null:Number(input.value);invalidate();lineTotal();};
-    const noteLabel=node('label','Preparación / aclaración');const note=node('textarea');note.rows=1;note.maxLength=500;note.value=line.note;note.oninput=()=>{line.note=note.value;invalidate();};noteLabel.append(note);
-    lineTotal();row.append(label,subtotal,noteLabel);el('posLines').append(row);
+    const note=node('textarea');note.setAttribute('aria-label','Preparación / aclaración - '+(p?.name||'Artículo'));note.placeholder='Aclaración de corte o preparación';note.rows=1;note.maxLength=500;note.value=line.note;note.oninput=()=>{line.note=note.value;invalidate();};description.append(note,offer);
+    const action=node('td');action.append(remove);const vat=p?.vatRate==null?'—':p.vatRate.toLocaleString('es-AR')+' %';
+    lineTotal();row.append(node('td',p?.code||'—','pos-code'),description,quantity,node('td',C.UNITS[line.unit]||'Pendiente','pos-line-unit'),price,node('td',vat,'pos-number'),subtotal,action);el('posLines').append(row);
   });}
   function add(product,quantity){
     if(!product.unit||product.price===null)throw new Error('Completá precio y unidad en Catálogo de ventas.');

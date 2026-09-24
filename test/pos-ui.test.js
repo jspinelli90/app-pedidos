@@ -11,8 +11,13 @@ test('escaneo, notas seguras, revisión obligatoria y reintento conserva identif
   return {ok:true,json:async()=>({...q,number:1,payment:M.payment(data.paymentMethod,data.received,q.total),customer:data.customer,notes:data.notes})};
  };
  w.eval(fs.readFileSync(path.join(__dirname,'../public/pos.js'),'utf8'));await tick();
+ w.eval(fs.readFileSync(path.join(__dirname,'../public/pos-layout.js'),'utf8'));
  el('scanCode').value='2000010001057';el('scanForm').dispatchEvent(new w.Event('submit',{cancelable:true}));
  assert.equal(el('posLines').querySelector('input').value,'0.105');assert.match(el('posTotal').textContent,/1.785/);
+ assert.equal(el('posLines').firstElementChild.tagName,'TR');assert.match(el('posWeightTotal').textContent,/0,105 kg/);
+ w.document.querySelector('[data-pos-view="catalog"]').click();assert.equal(w.document.querySelector('[data-pos-panel="sale"]').hidden,true);
+ w.document.querySelector('[data-pos-view="sale"]').click();assert.equal(el('posLines').children.length,1);
+ el('toggleProductSearch').click();assert.equal(el('posProductFinder').hidden,false);el('toggleProductSearch').click();assert.equal(el('posProductFinder').hidden,true);
  el('saveSale').click();await tick();assert.equal(submissions.length,0);
  el('reviewSale').click();await tick();assert.equal(el('weightsConfirmed').disabled,false);
  const note=el('posLines').querySelector('textarea');note.value='<img src=x onerror=alert(1)> Fino';note.dispatchEvent(new w.Event('input'));assert.equal(el('weightsConfirmed').disabled,true);
