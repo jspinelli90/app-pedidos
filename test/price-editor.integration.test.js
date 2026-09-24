@@ -36,7 +36,8 @@ test("importa, previsualiza, guarda, detecta conflictos y recupera PDFs sin camb
   assert.deepEqual(saves.map(response => response.status).sort(), [200, 409]);
   const saved = await (await call(url + "/prices")).json();
   assert.equal(saved.imported, false);
-  assert.deepEqual(saved.data, draft);
+  assert.deepEqual({ ...saved.data, rows: saved.data.rows.map(({ id, ...row }) => row) }, draft);
+  assert.equal(new Set(saved.data.rows.map(row => row.id)).size, 2);
   const versions = await (await call(url + "/versions")).json();
   assert.equal(versions.length, 2);
   const originalVersion = versions.find(version => version.original);

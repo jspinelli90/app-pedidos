@@ -4,6 +4,8 @@ const path = require("path");
 const os = require("os");
 const QRCode = require("qrcode");
 const { validatePriceList, importPriceList, generatePricePdf } = require("./lib/price-lists");
+const RetailOffers = require("./public/retail-offers-model");
+const { createHash } = require("node:crypto");
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = "0.0.0.0";
@@ -17,6 +19,7 @@ const MOVEMENTS_FILE = path.join(DATA_DIR, "movements.json");
 const CLIENT_DOCUMENTS_FILE = path.join(DATA_DIR, "client-documents.json");
 const OFFER_POSTER_SETTINGS_FILE = path.join(DATA_DIR, "offer-poster-settings.json");
 const OFFER_POSTER_DRAFT_FILE = path.join(DATA_DIR, "offer-poster-draft.json");
+const RETAIL_OFFERS_FILE = path.join(DATA_DIR, "retail-offers.json");
 const ORDER_AVAILABILITY_FILE = path.join(DATA_DIR, "order-availability.json");
 const CABA_DELIVERY_RANGES = JSON.parse(fs.readFileSync(path.join(ROOT, "data", "caba-delivery-streets.json"), "utf8"));
 const CABA_DELIVERY_NEIGHBORHOODS = ["Villa Urquiza", "Saavedra", "Nuñez", "Belgrano"];
@@ -306,10 +309,12 @@ async function writeOfferPosterSettings(settings) {
 
 function normalizeOfferPosterDraft(value = {}) {
   return {
-    format: ["story", "post", "a4"].includes(value.format) ? value.format : "story",
+    format: ["story", "post", "a4", "a4-single"].includes(value.format) ? value.format : "story",
     title: cleanText(value.title).slice(0, 42) || "OFERTAS DEL DIA",
     subtitle: cleanText(value.subtitle).slice(0, 70) || "CALIDAD SAN CAYETANO",
     offersText: String(value.offersText || "").slice(0, 20_000),
+    offerMode: value.offerMode === "linked" ? "linked" : "legacy",
+    retailOfferIds: Array.isArray(value.retailOfferIds) ? [...new Set(value.retailOfferIds.filter(id => typeof id === "string"))].slice(0, 30) : [],
     savedAt: new Date().toISOString()
   };
 }
@@ -418,6 +423,11 @@ async function readClientDocuments() {
     records = rows?.[0] && Array.isArray(rows[0].data) ? rows[0].data : readJsonArray(CLIENT_DOCUMENTS_FILE);
   } else records = readJsonArray(CLIENT_DOCUMENTS_FILE);
   let changed = false;
+  for (const record of records) {
+    for (const row of record.priceData?.rows || []) {
+      if (!row.id) { row.id = cryptoId(); changed = true; }
+    }
+  }
   Object.keys(CLIENT_DOCUMENT_TYPES).forEach(type => {
     records.filter(item => item.type === type).forEach((item, index) => {
       if (!item.id) {
@@ -457,7 +467,42 @@ async function writeClientDocuments(records) {
   storeCache.delete("client_documents");
 }
 
-function publicDocumentMetadata({ storageName, priceData, priceHistory, priceRevision, ...record }) {
+function retailCatalog(documents) {
+  const configured = documents.some(document => typeof document.retailEnabled === "boolean");
+  const enabled = document => configured ? document.retailEnabled === true : !/mayorista/i.test(document.name) && /minorista|pollo.*cerdo/i.test(document.name);
+  const lists = documents.filter(document => document.type === "price-list").map(document => ({
+    id: document.id, name: document.name, ready: Boolean(document.priceData?.rows?.length),
+    enabled: enabled(document)
+  }));
+  const products = documents.filter(document => document.type === "price-list" && enabled(document)).flatMap(document => (document.priceData?.rows || []).map(row => ({
+    id: `${document.id}:${row.id}`, documentId: document.id, rowId: row.id, name: row.name,
+    listName: document.name, price: row.price, unit: row.unit || ""
+  })));
+  const revision = createHash("sha256").update(JSON.stringify({ lists, products })).digest("hex");
+  return { revision, lists, products };
+}
+
+async function readRetailOffers() {
+  if (!USE_SUPABASE) return { state: readJsonArray(RETAIL_OFFERS_FILE)[0] || { revision: "initial", offers: [] }, updatedAt: null };
+  const records = await supabaseRequest("/rest/v1/app_data?key=eq.retail_offers&select=data,updated_at");
+  return { state: records?.[0]?.data?.[0] || { revision: "initial", offers: [] }, updatedAt: records?.[0]?.updated_at || null };
+}
+
+async function writeRetailOffers(state, expectedUpdatedAt) {
+  if (!USE_SUPABASE) {
+    ensureDataFile();
+    fs.writeFileSync(`${RETAIL_OFFERS_FILE}.tmp`, JSON.stringify([state]));
+    fs.renameSync(`${RETAIL_OFFERS_FILE}.tmp`, RETAIL_OFFERS_FILE);
+    return;
+  }
+  const updated_at = new Date(Math.max(Date.now(), (Date.parse(expectedUpdatedAt) || 0) + 1)).toISOString();
+  const result = expectedUpdatedAt === null
+    ? await supabaseRequest("/rest/v1/app_data?on_conflict=key", { method: "POST", headers: { Prefer: "resolution=ignore-duplicates,return=representation" }, body: JSON.stringify({ key: "retail_offers", data: [state], updated_at }) })
+    : await supabaseRequest(`/rest/v1/app_data?key=eq.retail_offers&updated_at=eq.${encodeURIComponent(expectedUpdatedAt)}`, { method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify({ data: [state], updated_at }) });
+  if (!Array.isArray(result) || result.length !== 1) throw Object.assign(new Error("Otra computadora modificó las ofertas. Recargá antes de guardar."), { statusCode: 409 });
+}
+
+function publicDocumentMetadata({ storageName, priceData, priceHistory, priceRevision, retailEnabled, ...record }) {
   return record;
 }
 
@@ -519,6 +564,19 @@ async function handlePriceEditor(req, res, documentId, action, versionId) {
       return res.end(buffer);
     }
     const nextRevision = cryptoId();
+    const previousRows = document.priceData?.rows || [];
+    const assignedIds = new Set(data.rows.filter(row => row.id).map(row => row.id));
+    for (const row of data.rows) {
+      if (!row.id) {
+        const matches = previousRows.filter(previous => previous.name === row.name);
+        row.id = matches.length === 1 && !assignedIds.has(matches[0].id) ? matches[0].id : cryptoId();
+      }
+      assignedIds.add(row.id);
+      if (row.unit === undefined) {
+        const previous = previousRows.find(previous => previous.id === row.id);
+        if (previous?.unit) row.unit = previous.unit;
+      }
+    }
     const updated = { ...document, priceData: data, priceHistory: versions, priceRevision: nextRevision, storageName: `price-list/${documentId}/${nextRevision}.pdf`, size: buffer.length, updatedAt: new Date().toISOString() };
     // Upload an immutable object first; a metadata failure leaves the published
     // PDF and its history untouched. Never overwrite the original object.
@@ -967,7 +1025,7 @@ function serveStatic(req, res) {
 let documentQueue = Promise.resolve();
 async function handleApi(req, res) {
   const pathname = new URL(req.url, `http://${req.headers.host || "localhost"}`).pathname;
-  if (!/^\/api\/(?:public-)?client-documents(?:\/|$)/.test(pathname)) return handleApiRequest(req, res);
+  if (!/^\/api\/(?:(?:public-)?client-documents|(?:public-)?retail-offers)(?:\/|$)/.test(pathname)) return handleApiRequest(req, res);
   const previous = documentQueue;
   let release;
   documentQueue = new Promise(resolve => { release = resolve; });
@@ -982,6 +1040,36 @@ async function handleApiRequest(req, res) {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
 
   try {
+    if (url.pathname === "/api/retail-offers/catalog" && req.method === "GET") {
+      return sendJson(res, 200, retailCatalog(await readClientDocuments()));
+    }
+    if (url.pathname === "/api/retail-offers/catalog" && req.method === "PUT") {
+      const payload = await readBody(req);
+      const documents = await readClientDocuments();
+      const catalog = retailCatalog(documents);
+      if (payload.revision !== catalog.revision) return sendJson(res, 409, { error: "Las listas cambiaron. Recargá las listas antes de guardar la selección." });
+      if (!Array.isArray(payload.documentIds) || new Set(payload.documentIds).size !== payload.documentIds.length || payload.documentIds.some(id => !catalog.lists.some(list => list.id === id && list.ready))) return sendJson(res, 400, { error: "Elegí listas con precios revisados y guardados en el editor." });
+      await writeClientDocuments(documents.map(document => document.type === "price-list" ? { ...document, retailEnabled: payload.documentIds.includes(document.id) } : document));
+      return sendJson(res, 200, retailCatalog(await readClientDocuments()));
+    }
+    if (["/api/retail-offers", "/api/public-retail-offers"].includes(url.pathname)) {
+      const catalog = retailCatalog(await readClientDocuments());
+      const stored = await readRetailOffers();
+      if (req.method === "GET") {
+        const offers = stored.state.offers.map(offer => ({ ...offer, status: RetailOffers.status(offer, catalog.products) }));
+        if (url.pathname === "/api/public-retail-offers") return sendJson(res, 200, { audience: "retail", date: RetailOffers.today(), offers: offers.filter(offer => offer.status.code === "active").map(({ status, ...offer }) => offer) });
+        return sendJson(res, 200, { revision: stored.state.revision, offers });
+      }
+      if (req.method === "PUT" && url.pathname === "/api/retail-offers") {
+        const payload = await readBody(req);
+        if (payload.revision !== stored.state.revision) return sendJson(res, 409, { error: "Las ofertas cambiaron en otra computadora. Recargá antes de guardar." });
+        const offers = RetailOffers.normalizeOffers(payload.offers, catalog.products, stored.state.offers, cryptoId);
+        const state = { revision: cryptoId(), offers };
+        await writeRetailOffers(state, stored.updatedAt);
+        return sendJson(res, 200, { ...state, offers: offers.map(offer => ({ ...offer, status: RetailOffers.status(offer, catalog.products) })) });
+      }
+      return sendJson(res, 405, { error: "Método no permitido." });
+    }
     if (url.pathname === "/api/offer-qr" && req.method === "GET") {
       const target = String(url.searchParams.get("target") || "").trim();
       if (!/^https?:\/\//i.test(target)) return sendJson(res, 400, { error: "El destino del QR debe ser un enlace valido." });
