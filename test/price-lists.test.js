@@ -34,7 +34,7 @@ test("rechaza precios inválidos y conserva Consultar y cero", () => {
   assert.throws(() => validatePriceList({ ...data, rows: [] }));
 });
 test("genera PDF multipágina con acentos, precio cero, notas y sin páginas de pie vacías", async () => {
-  const data = { title: "Lista de precios", notes: "Consultar disponibilidad", rows: Array.from({ length: 37 }, (_, i) => ({ name: `Picaña ${i}`, price: i * 100 })) };
+  const data = { title: "Lista de precios", notes: "Consultar disponibilidad", rows: Array.from({ length: 80 }, (_, i) => ({ name: `Picaña ${i}`, price: i * 100 })) };
   const buffer = await generatePricePdf(data);
   const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const task = getDocument({ data: new Uint8Array(buffer), verbosity: 0 });
@@ -49,4 +49,22 @@ test("genera PDF multipágina con acentos, precio cero, notas y sin páginas de 
   } finally { await task.destroy(); }
   const imported = await importPriceList(buffer, "Lista.pdf");
   assert.ok(imported.data.rows.some(row => row.name === "Picaña 0" && row.price === 0));
+});
+
+test("distribuye 51 artículos en dos columnas en una hoja sin reducir la letra", async () => {
+  const rows = Array.from({ length: 51 }, (_, i) => ({ name: `Producto ${i}`, price: 12345.5 }));
+  const buffer = await generatePricePdf({ title: "Lista compacta", notes: "Precios por kilo", rows });
+  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const task = getDocument({ data: new Uint8Array(buffer), verbosity: 0 });
+  try {
+    const pdf = await task.promise;
+    assert.equal(pdf.numPages, 1);
+    const items = (await (await pdf.getPage(1)).getTextContent()).items;
+    const products = items.filter(item => /^Producto \d+$/.test(item.str));
+    assert.equal(products.length, 51);
+    assert.equal(new Set(products.map(item => Math.round(item.transform[4]))).size, 2);
+    assert.ok(products.every(item => Math.abs(item.transform[0] - 10) < 0.01));
+    assert.equal(items.filter(item => item.str === "12.345,50").length, 51);
+    assert.ok(items.some(item => item.str === "Precios por kilo"));
+  } finally { await task.destroy(); }
 });

@@ -8,6 +8,8 @@ Se pueden modificar precios individuales, agregar o quitar productos, aplicar po
 
 El historial permite ver y recuperar cualquier versión, incluido el PDF original exacto. Recuperar conserva la versión anterior. El nombre, identificador, orden y enlace público del documento permanecen estables.
 
+Los PDF nuevos usan un formato compacto en A4: se mantienen los 10 puntos de letra de productos y precios, se reducen espacios y se distribuyen en dos columnas cuando esto ahorra hojas. Cada columna repite Producto/Precio y se lee de arriba hacia abajo, primero la izquierda. Las notas se muestran al final. Para aplicar este formato a un PDF ya guardado, previsualizar y guardar nuevamente desde el editor.
+
 ## Almacenamiento y compatibilidad
 
 - Requiere Node 22.13 o superior, hasta Node 24; las versiones de PDF.js y PDFKit están fijadas en el lockfile.
