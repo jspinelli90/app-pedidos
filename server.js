@@ -7,6 +7,7 @@ const { validatePriceList, importPriceList, generatePricePdf } = require("./lib/
 const RetailOffers = require("./public/retail-offers-model");
 const RetailCart = require("./public/retail-cart-model");
 const POS = require("./public/pos-model");
+const SalesCatalog = require("./lib/sales-catalog");
 const { createHash } = require("node:crypto");
 
 const PORT = Number(process.env.PORT || 3000);
@@ -517,12 +518,15 @@ async function writePOS(state, expectedUpdatedAt) {
   if (!Array.isArray(result) || result.length !== 1) throw Object.assign(new Error("Otra caja modificó los datos. Actualizá y reintentá sin cambiar el identificador de la operación."), { statusCode: 409 });
 }
 async function posCatalog() {
-  const catalog = await publicRetailCatalog(); const stored = await readPOS();
+  const stored = await readPOS(); if (stored.state.products) return SalesCatalog.catalog(stored.state);
+  const catalog = await publicRetailCatalog();
   return { ...catalog, revision: stored.state.revision, mappings: stored.state.mappings ?? POS.defaultMappings(catalog.products), mode: "practice" };
 }
 async function posQuote(payload) {
   if (payload.mode !== "practice") throw Object.assign(new Error("Esta caja solo admite operaciones de prueba. No emite facturas."), { statusCode: 400 });
-  const quote = RetailCart.quote(await publicRetailCatalog(), payload.cart, { deliveryType: "RETIRO" });
+  const catalog = await posCatalog();
+  const quote = RetailCart.quote(catalog, payload.cart, { deliveryType: "RETIRO" });
+  if (catalog.source === "sales") quote.lines = quote.lines.map(line => ({ ...line, vatRate: catalog.products.find(p => p.id === line.productId).vatRate }));
   const delivery = payload.delivery ?? 0;
   if (typeof delivery !== "number" || !Number.isFinite(delivery) || delivery < 0 || delivery > 999999 || Math.abs(delivery * 100 - Math.round(delivery * 100)) > 1e-5) throw Object.assign(new Error("Revisá el importe de envío."), { statusCode: 400 });
   let sourceOrder = null;
@@ -1099,8 +1103,17 @@ async function handleApiRequest(req, res) {
       return sendJson(res, 200, retailCatalog(await readClientDocuments()));
     }
     if (url.pathname === "/api/pos/catalog" && req.method === "GET") return sendJson(res, 200, await posCatalog());
+    if (url.pathname === "/api/pos/catalog" && req.method === "PUT") {
+      const payload = await readBody(req); const stored = await readPOS();
+      if (payload.revision !== stored.state.revision) return sendJson(res, 409, { error: "El catálogo cambió. Actualizá antes de guardar." });
+      const products = SalesCatalog.validateProducts(payload.products);
+      const mappings = payload.mappings === undefined ? (stored.state.products ? stored.state.mappings ?? SalesCatalog.mappings(products) : SalesCatalog.mappings(products)) : payload.mappings;
+      const normalizedMappings = POS.normalizeMappings(mappings, products);
+      await writePOS({ ...stored.state, revision: cryptoId(), products, mappings: normalizedMappings }, stored.updatedAt);
+      return sendJson(res, 200, await posCatalog());
+    }
     if (url.pathname === "/api/pos/mappings" && req.method === "PUT") {
-      const payload = await readBody(req); const catalog = await publicRetailCatalog(); const stored = await readPOS();
+      const payload = await readBody(req); const catalog = await posCatalog(); const stored = await readPOS();
       if (payload.revision !== stored.state.revision) return sendJson(res, 409, { error: "Los códigos cambiaron. Actualizá antes de guardar." });
       const mappings = POS.normalizeMappings(payload.mappings, catalog.products);
       await writePOS({ ...stored.state, revision: cryptoId(), mappings }, stored.updatedAt);
@@ -1110,7 +1123,12 @@ async function handleApiRequest(req, res) {
     if (url.pathname === "/api/pos/orders" && req.method === "GET") {
       storeCache.delete("orders");
       const orders = (await readOrders()).filter(o => o.saleType !== "Mayorista" && !["Despachado", "Cancelado"].includes(o.status));
-      return sendJson(res, 200, orders.map(o => ({ id: o.id, number: o.number, customer: o.customer, detail: o.detail, notes: o.notes, deliveryType: o.deliveryType, updatedAt: o.updatedAt, lines: o.retailCart && o.detail === RetailCart.detail(o.retailCart) ? o.retailCart.lines.map(l => ({ productId: l.productId, quantity: l.quantity, unit: l.unit, note: l.note })) : [] })));
+      const catalog = await posCatalog();
+      return sendJson(res, 200, orders.map(o => {
+        const unchanged = o.retailCart && o.detail === RetailCart.detail(o.retailCart);
+        const recovered = !unchanged ? {lines:[],missing:[]} : catalog.source === "sales" ? SalesCatalog.orderLines(o,catalog.products) : {lines:o.retailCart.lines.map(l=>({productId:l.productId,quantity:l.quantity,unit:l.unit,note:l.note})),missing:[]};
+        return { id:o.id, number:o.number, customer:o.customer, detail:o.detail, notes:o.notes, deliveryType:o.deliveryType, updatedAt:o.updatedAt, ...recovered };
+      }));
     }
     if (url.pathname === "/api/pos/sales" && req.method === "GET") return sendJson(res, 200, (await readPOS()).state.sales.slice(-100).reverse());
     if (url.pathname === "/api/pos/sales" && req.method === "POST") {
