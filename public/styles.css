@@ -1850,20 +1850,30 @@ textarea:focus {
   }
 }
 #priceNewRetailLabel[hidden], #priceEditorOriginal[hidden], #priceHistory[hidden] { display: none !important; }
-#retailCart[hidden], #clientDetailLabel[hidden] { display: none !important; }
-.retail-cart { border-top: 2px solid #0f6b5f; padding-top: 20px; }
+#retailCart[hidden], #clientDetailLabel[hidden], #orderModeChoice[hidden], #textOrderNotice[hidden] { display: none !important; }
+.order-mode-choice { border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin: 8px 0 20px; min-width: 0; }
+.order-mode-choice legend { font-weight: 750; padding: 0 6px; }
+.order-mode-choice label { display: inline-flex; align-items: center; gap: 8px; margin: 6px 20px 6px 0; cursor: pointer; }
+.order-mode-choice input { width: 20px; height: 20px; margin: 0; }
+.order-mode-choice p { margin: 8px 0 0; color: var(--muted); }
+.retail-cart { border: 0; border-top: 2px solid #0f6b5f; padding: 16px 0 0; margin: 0; min-width: 0; }
 .estimate-notice { background: #fff4d6; color: #4c3000; border: 3px solid #a76400; border-radius: 12px; padding: 18px; margin: 16px 0; }
 .estimate-notice > strong { display: block; font-size: 1.3rem; line-height: 1.4; }
 .estimate-notice p { margin: 10px 0 0; font-size: 1rem; }
-.cart-catalog { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 12px; max-height: 520px; overflow-y: auto; padding: 8px 4px; margin: 12px 0 24px; }
-.cart-product, .cart-line { background: #f5f8f7; border: 1px solid #c5d3ce; border-radius: 10px; padding: 16px; min-width: 0; }
-.cart-product { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
-.cart-product p { margin: 0; }.cart-product button { margin-top: auto; }
+.cart-catalog { display: block; max-height: 520px; overflow-y: auto; margin: 12px 0 24px; border-top: 1px solid var(--line); }
+.cart-product, .cart-line { border-bottom: 1px solid var(--line); padding: 10px 4px; min-width: 0; }
+.cart-product { display: grid; grid-template-columns: minmax(0,1fr) 150px auto; align-items: center; gap: 10px; }
+.cart-product:nth-child(even) { background: #f5f8f7; }
+.cart-product-name { min-width: 0; overflow-wrap: anywhere; }.cart-product-name strong { font-size: .95rem; }
+.cart-product p { margin: 0; }.cart-product-price { text-align: right; font-weight: 650; font-size: .9rem; }
+.cart-product button { min-height: 42px; padding: 8px 10px; }
 .cart-product small, .cart-line small { color: #465b54; display: block; }
-.cart-line { margin: 12px 0; }.cart-line h4 { margin: 0 0 6px; }.cart-line label { margin-top: 12px; }
-.cart-line input { max-width: 180px; }.cart-offer { font-weight: 700; color: #075b35; }
+.cart-line { display: grid; grid-template-columns: minmax(0,1fr) 130px auto; align-items: center; gap: 8px 12px; }.cart-line h4 { margin: 0 0 4px; }.cart-line label { margin: 0; }
+.cart-line-name { min-width: 0; overflow-wrap: anywhere; }.cart-line input { width: 100%; }.cart-line-subtotal { grid-column: 1 / -1; margin: 0; font-size: .9rem; }
+.cart-line-notes { grid-column: 1 / -1; }.cart-line-notes summary { cursor: pointer; color: #075b35; font-weight: 650; padding: 4px 0; }.cart-line-notes label { margin-top: 8px; }
+.cart-offer { font-weight: 700; color: #075b35; font-size: .85rem; }
 .cart-error { color: #ad2424; font-weight: 700; }
 .cart-accept { display: flex; align-items: flex-start; gap: 12px; margin: 18px 0; font-weight: 700; }
 .cart-accept input { width: 22px; height: 22px; flex: 0 0 22px; }
 .cart-receipt { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: .9rem; }
-@media(max-width:480px) { .cart-catalog { grid-template-columns: 1fr; max-height: 440px; }.estimate-notice { padding: 14px; }.estimate-notice > strong { font-size: 1.15rem; } }
+@media(max-width:480px) { .cart-catalog { max-height: 440px; }.cart-product { grid-template-columns: minmax(0,1fr) auto; gap: 4px 8px; }.cart-product-name { grid-column: 1; }.cart-product-price { grid-column: 1; text-align: left; }.cart-product button { grid-column: 2; grid-row: 1 / 3; }.cart-product small { font-size: .7rem; }.cart-line { grid-template-columns: minmax(0,1fr) 90px auto; gap: 8px; }.cart-line-name { grid-column: 1 / -1; }.cart-line > label { grid-column: 1 / 3; max-width: 180px; }.estimate-notice { padding: 14px; }.estimate-notice > strong { font-size: 1.15rem; } }

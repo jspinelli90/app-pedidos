@@ -1,5 +1,9 @@
 # Carrito minorista
 
+El cliente minorista puede elegir **Comprar con carrito** o **Escribir mi pedido**. Cambiar de modo conserva ambos borradores mientras la página permanece abierta, pero envía solo el modo seleccionado. El campo de texto exige contenido en modo escrito; los controles del carrito quedan deshabilitados para no bloquear el envío. En modo carrito se mantienen la revisión y aceptación del estimado. El pedido escrito no muestra una cotización automática y el local confirma su importe. Tras un envío exitoso se limpian los borradores.
+
+El catálogo usa filas con nombre, lista, precio/oferta y botón Agregar. Los renglones seleccionados muestran cantidad y subtotal, con un desplegable para aclarar el corte o la preparación. El aviso de importe estimado permanece destacado.
+
 `/cliente.html` permite buscar artículos de las listas habilitadas para minoristas, elegir cantidades y escribir una aclaración por renglón. El mismo producto puede agregarse varias veces para preparaciones distintas. El formulario mayorista mantiene su detalle por texto.
 
 Los kilos admiten tres decimales; unidades/paquetes y cajas requieren enteros. Un artículo sin precio o unidad queda visible como consulta y no se puede calcular. Una oferta activa puede aportar la unidad cuando el producto aún no la tiene y todas sus ofertas vigentes coinciden. Definir las demás unidades en Documentos clientes → Editar precios → Venta por. No se deducen unidades por nombre en el código del carrito.

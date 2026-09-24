@@ -2,7 +2,18 @@
   if(location.pathname.endsWith('/pedido-mayorista.html'))return;
   const M=window.RetailCartModel;
   const el=id=>document.getElementById(id);
-  const state={catalog:null,lines:[],quote:null,requestId:null,busy:false,version:0};
+  const state={catalog:null,lines:[],quote:null,requestId:null,busy:false,version:0,mode:'cart'};
+  function setMode(mode){
+    state.mode=mode;
+    const cart=mode==='cart';
+    el('retailCart').hidden=!cart;el('retailCart').disabled=!cart;
+    el('clientDetailLabel').hidden=cart;el('clientDetail').required=!cart;el('clientDetail').disabled=cart;
+    el('textOrderNotice').hidden=cart;
+    document.querySelectorAll('input[name="orderMode"]').forEach(input=>{input.checked=input.value===mode;});
+    el('clientSubmitButton').textContent=cart?'Enviar pedido con total estimado':'Enviar pedido escrito';
+    el('orderModeHelp').textContent=cart?'Elegí productos y cantidades para ver un total estimado.':'Escribí tu pedido como prefieras. Se enviará solo el texto; lo que agregaste al carrito queda guardado mientras estés en esta página.';
+    el('clientMessage').textContent='';
+  }
   const node=(tag,text,className)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(className)n.className=className;return n;};
   const context=()=>({deliveryType:el('clientDeliveryType').value==='RETIRO'?'RETIRO':'DELIVERY',deliveryZone:el('clientDeliveryType').value==='DELIVERY_CABA'?'CABA_VIERNES':'REGULAR'});
   const status=(text,error=false)=>{el('cartStatus').textContent=text;el('cartStatus').className=error?'cart-error':'';};
@@ -24,17 +35,17 @@
     const box=el('cartLines');box.replaceChildren();
     state.lines.forEach((line,index)=>{
       const p=state.catalog.products.find(p=>p.id===line.productId);
-      const card=node('article',undefined,'cart-line');card.append(node('h4',p?.name||'Artículo no disponible'));
-      card.append(node('small',p?.listName?.replace(/\.pdf$/i,'')||''));
+      const card=node('article',undefined,'cart-line');const identity=node('div',undefined,'cart-line-name');identity.append(node('h4',p?.name||'Artículo no disponible'),node('small',p?.listName?.replace(/\.pdf$/i,'')||''));card.append(identity);
       const label=node('label',`Cantidad (${M.UNITS[p?.unit]||'revisar unidad'})`);
       const qty=node('input');qty.type='number';qty.min=p?.unit==='kg'?'0.001':'1';qty.step=p?.unit==='kg'?'0.001':'1';qty.max='1000';qty.value=line.quantity;qty.required=true;
       qty.addEventListener('input',()=>{line.quantity=qty.value===''?null:Number(qty.value);invalidate();updateSubtotal();});label.append(qty);
+      const notes=node('details',undefined,'cart-line-notes');notes.open=Boolean(line.note);notes.append(node('summary','Aclarar corte o preparación'));
       const noteLabel=node('label','Aclaración para este artículo');const note=node('textarea');note.rows=2;note.maxLength=500;note.placeholder='Ej.: bifes finitos, sin grasa, separar en dos bolsas';note.value=line.note;
       note.addEventListener('input',()=>{line.note=note.value;invalidate();});noteLabel.append(note);
-      const subtotal=node('p');
+      notes.append(noteLabel);const subtotal=node('p',undefined,'cart-line-subtotal');
       function updateSubtotal(){try{const q=state.quote?.lines[index]||M.quote(state.catalog,[line],context()).lines[0];subtotal.textContent=`Subtotal estimado: ${M.money(q.subtotal)}${q.offer?` · ${q.offer}`:''}`;}catch(e){subtotal.textContent=e.message;}}
       updateSubtotal();const remove=node('button','Quitar','ghost');remove.type='button';remove.addEventListener('click',()=>{state.lines.splice(index,1);invalidate();renderLines();});
-      card.append(label,noteLabel,subtotal,remove);box.append(card);
+      card.append(label,remove,subtotal,notes);box.append(card);
     });
     el('cartCount').textContent=`(${state.lines.length})`;
   }
@@ -43,10 +54,10 @@
     const search=el('cartSearch').value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
     const products=state.catalog.products.filter(p=>(!el('cartCategory').value||p.documentId===el('cartCategory').value)&&p.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().includes(search));
     products.forEach(p=>{
-      const card=node('article',undefined,'cart-product');card.append(node('strong',p.name),node('small',p.listName.replace(/\.pdf$/i,'')));
+      const card=node('article',undefined,'cart-product');const identity=node('div',undefined,'cart-product-name');identity.append(node('strong',p.name),node('small',p.listName.replace(/\.pdf$/i,'')));card.append(identity);
       const ready=Boolean(M.UNITS[p.unit])&&p.price!==null;
-      card.append(node('p',ready?`${M.money(p.price)} / ${M.UNITS[p.unit]}`:'Consultar precio o forma de venta al local'));
-      for(const offer of state.catalog.offers.filter(o=>o.productId===p.id))card.append(node('p',offer.kind==='bundle'?`Oferta: ${offer.quantity} ${M.UNITS[offer.unit]} por ${M.money(offer.price)}`:`Oferta: ${M.money(offer.price)} por ${M.UNITS[offer.unit]}`,'cart-offer'));
+      card.append(node('p',ready?`${M.money(p.price)} / ${M.UNITS[p.unit]}`:'Consultar al local','cart-product-price'));
+      for(const offer of state.catalog.offers.filter(o=>o.productId===p.id))identity.append(node('p',offer.kind==='bundle'?`Oferta: ${offer.quantity} ${M.UNITS[offer.unit]} por ${M.money(offer.price)}`:`Oferta: ${M.money(offer.price)} por ${M.UNITS[offer.unit]}`,'cart-offer'));
       const add=node('button','Agregar','ghost');add.type='button';add.disabled=!ready;
       add.addEventListener('click',()=>{
         const existing=state.lines.find(line=>line.productId===p.id&&!line.note&&line.unit===p.unit&&Number.isFinite(line.quantity));
@@ -74,16 +85,16 @@
     finally{state.busy=false;el('cartReview').disabled=false;}
   }
   window.RetailCartUI={
-    payload(){if(!state.quote||!el('cartAccepted').checked)throw new Error('Revisá el total estimado y marcá que entendés que puede variar según el peso real.');return {cart:state.lines,quoteId:state.quote.quoteId,estimatedAccepted:true,requestId:state.requestId};},
+    payload(){if(state.mode==='text'){if(!el('clientDetail').value.trim())throw new Error('Escribí los productos y cantidades de tu pedido.');return {};}if(!state.quote||!el('cartAccepted').checked)throw new Error('Revisá el total estimado y marcá que entendés que puede variar según el peso real.');return {cart:state.lines,quoteId:state.quote.quoteId,estimatedAccepted:true,requestId:state.requestId};},
     changed(){invalidate();},
-    reset(){state.lines=[];invalidate();renderLines();},
+    reset(){state.lines=[];invalidate();renderLines();setMode(state.mode);},
     receipt(quote,notes){const box=node('div',undefined,'estimate-notice');box.append(node('strong',`TOTAL ESTIMADO: ${M.money(quote.total)}${quote.shippingPending?' + envío a confirmar':''}`),node('p',M.NOTICE));const lines=node('pre',M.detail(quote),'cart-receipt');box.append(lines);if(notes)box.append(node('p',`Observaciones generales: ${notes}`));el('clientSuccess').append(box);}
   };
-  el('retailCart').hidden=false;el('clientDetailLabel').hidden=true;el('clientDetail').required=false;
-  el('clientSubmitButton').textContent='Enviar pedido con total estimado';
-  el('clientBrandIntro').textContent='Elegí tus productos, indicá cómo querés cada corte y revisá el total estimado.';
+  el('orderModeChoice').hidden=false;setMode('cart');
+  document.querySelectorAll('input[name="orderMode"]').forEach(input=>input.addEventListener('change',()=>setMode(input.value)));
+  el('clientBrandIntro').textContent='Armá tu carrito o escribí tu pedido. Elegí la forma que te resulte más cómoda.';
   el('cartSearch').addEventListener('input',renderCatalog);el('cartCategory').addEventListener('change',renderCatalog);
   el('cartReload').addEventListener('click',load);el('cartReview').addEventListener('click',review);el('clientDeliveryType').addEventListener('change',invalidate);
   load();
-  window.addEventListener('beforeunload',event=>{if(state.lines.length){event.preventDefault();event.returnValue='';}});
+  window.addEventListener('beforeunload',event=>{if(state.lines.length||el('clientDetail').value.trim()){event.preventDefault();event.returnValue='';}});
 })();
