@@ -307,8 +307,13 @@ function updateLocalityOptions() {
   locality.value = localities.includes(currentLocality) ? currentLocality : "";
 }
 
+let sendingOrder = false;
 async function sendOrder(event) {
   event.preventDefault();
+  if (sendingOrder) return;
+  let cartPayload = {};
+  try { if (!isWholesaleOrder && window.RetailCartUI) cartPayload = window.RetailCartUI.payload(); }
+  catch (error) { setMessage(error.message, true); return; }
   const policy = await refreshDatePolicy();
   if (prepDate.value < policy.minDate) {
     applyDatePolicy(policy, true);
@@ -343,10 +348,14 @@ async function sendOrder(event) {
     prepDate: prepDate.value,
     scheduledTime: "",
     detail: document.querySelector("#clientDetail").value,
-    notes: document.querySelector("#clientNotes").value
+    notes: document.querySelector("#clientNotes").value,
+    ...cartPayload
   };
 
   try {
+    if (sendingOrder) return;
+    sendingOrder = true;
+    document.querySelector("#clientSubmitButton").disabled = true;
     const response = await fetch("/api/public-orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -354,14 +363,19 @@ async function sendOrder(event) {
     });
     const text = await response.text();
     const data = text ? JSON.parse(text) : {};
-    if (!response.ok) throw new Error(data.error || "No se pudo enviar el pedido.");
+    if (!response.ok) { if (response.status === 409) window.RetailCartUI?.changed(); throw new Error(data.error || "No se pudo enviar el pedido."); }
     form.reset();
+    window.RetailCartUI?.reset();
     await refreshDatePolicy(true);
     updateLocalityOptions();
     updateDeliveryTypeVisibility();
     showSuccess(data.number, payload.deliveryType, payload.deliveryZone);
+    if (data.retailCart) window.RetailCartUI?.receipt(data.retailCart, payload.notes);
   } catch (error) {
     setMessage(error.message, true);
+  } finally {
+    sendingOrder = false;
+    document.querySelector("#clientSubmitButton").disabled = false;
   }
 }
 

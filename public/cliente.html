@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Hacé tu pedido | San Cayetano Carnes</title>
-    <link rel="stylesheet" href="/styles.css?v=20260831-horario-retiro">
+    <link rel="stylesheet" href="/styles.css?v=20260924-carrito">
   <link rel="stylesheet" href="/sc-loading.css">
   </head>
   <body class="client-page">
@@ -188,11 +188,25 @@
             <span id="clientCutoffText">Ya no tomamos pedidos para hoy. Elegi manana o cualquier fecha posterior.</span>
           </div>
 
-          <label>Detalle del pedido
+          <section id="retailCart" class="retail-cart" hidden aria-labelledby="retailCartHeading">
+            <h2 id="retailCartHeading">Armá tu carrito</h2>
+            <div class="estimate-notice"><strong>LOS IMPORTES SON ESTIMADOS</strong><p>El importe final se calcula según el peso real de los productos al preparar tu pedido y puede ser mayor o menor al estimado.</p></div>
+            <p>Elegí kilos, unidades o paquetes. Las promociones se aplican al completar la cantidad indicada; se usa una promoción por artículo y el sobrante se cobra por medida.</p>
+            <div class="grid two"><label>Buscar producto<input id="cartSearch" type="search" placeholder="Nombre o código"></label><label>Lista<select id="cartCategory"><option value="">Todas las listas</option></select></label></div>
+            <p id="cartStatus" role="status"></p><button id="cartReload" type="button" class="ghost">Actualizar catálogo</button>
+            <div id="cartCatalog" class="cart-catalog"></div>
+            <h3>Tu pedido <span id="cartCount"></span></h3>
+            <p>En cada artículo podés indicar cómo querés el corte o la preparación.</p>
+            <div id="cartLines"></div>
+            <div class="estimate-notice" id="cartEstimate" aria-live="polite"></div>
+            <button id="cartReview" type="button" class="primary">Revisar total estimado</button>
+            <label class="cart-accept"><input id="cartAccepted" type="checkbox" disabled>Entiendo que el importe es estimado y que el total final puede ser mayor o menor según el peso real.</label>
+          </section>
+          <label id="clientDetailLabel">Detalle del pedido
             <textarea id="clientDetail" class="order-detail-input" required rows="8" placeholder="Escribi aca tu pedido completo"></textarea>
           </label>
 
-          <label>Aclaraciones
+          <label>Observaciones generales del pedido
             <textarea id="clientNotes" rows="3" placeholder="Cambios, referencias, horarios o comentarios"></textarea>
           </label>
 
@@ -208,6 +222,8 @@
       </section>
     </main>
 
-    <script src="/cliente.js?v=20260915-pantalla-carga"></script>
+    <script src="/retail-cart-model.js?v=20260924-carrito"></script>
+    <script src="/retail-cart.js?v=20260924-carrito"></script>
+    <script src="/cliente.js?v=20260924-carrito"></script>
   </body>
 </html>
