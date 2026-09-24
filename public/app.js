@@ -353,6 +353,7 @@ function renderDocumentList(container, documents, type) {
         <button class="ghost document-up" type="button" title="Subir" ${index === 0 ? "disabled" : ""}>Subir</button>
         <button class="ghost document-down" type="button" title="Bajar" ${index === documents.length - 1 ? "disabled" : ""}>Bajar</button>
         <a class="ghost button-link" href="/api/public-client-documents/${document.id || document.type}" target="_blank" rel="noopener">Ver</a>
+        ${type === "price-list" && document.id ? '<button class="primary document-edit-prices" type="button">Editar precios</button>' : ""}
         ${document.id ? '<button class="danger document-delete" type="button">Eliminar</button>' : ""}
       </div>
     `;
@@ -360,6 +361,7 @@ function renderDocumentList(container, documents, type) {
     row.querySelector(".document-down").addEventListener("click", () => moveClientDocument(type, index, 1));
     const deleteButton = row.querySelector(".document-delete");
     if (deleteButton) deleteButton.addEventListener("click", () => deleteClientDocument(document));
+    row.querySelector(".document-edit-prices")?.addEventListener("click", () => openPriceEditor(document));
     container.append(row);
   });
 }
@@ -1843,3 +1845,199 @@ els.availabilityDate.value = todayDate();
 const initialOrdersLoad = refreshAll().catch(error => setMessage(error.message, true));
 window.SanCayetanoLoading?.wait(initialOrdersLoad);
 setInterval(() => loadOrders().catch(() => {}), 30000);
+
+const priceEditor = { document: null, revision: null, imported: false, dirty: false, busy: false, previewUrl: null, undo: null };
+const priceElement = id => document.getElementById(id);
+function priceMessage(text, error = false) {
+  priceElement("priceEditorMessage").textContent = text;
+  priceElement("priceEditorMessage").style.color = error ? "#b83232" : "#0f6b5f";
+}
+function priceBusy(value) {
+  priceEditor.busy = value;
+  priceElement("priceEditorFields").disabled = value;
+  priceElement("priceEditorClose").disabled = value;
+}
+function clearPricePreview() {
+  priceElement("pricePreviewSection").hidden = true;
+  priceElement("pricePreviewFrame").removeAttribute("src");
+  priceElement("pricePreviewLink").removeAttribute("href");
+  if (priceEditor.previewUrl) URL.revokeObjectURL(priceEditor.previewUrl);
+  priceEditor.previewUrl = null;
+}
+function priceChanged() {
+  priceEditor.dirty = true;
+  clearPricePreview();
+}
+function priceRowCount() {
+  priceElement("priceRowCount").textContent = `${priceElement("priceEditorRows").children.length} productos`;
+}
+function addPriceRow(row = { name: "", price: null }) {
+  const tr = document.createElement("tr");
+  tr.innerHTML = `<td><input class="price-row-selected" type="checkbox" aria-label="Seleccionar producto"></td>
+    <td><input class="price-row-name" aria-label="Nombre del producto" maxlength="160" required></td>
+    <td><input class="price-row-value" aria-label="Precio del producto" type="number" min="0" max="999999999" step="0.01" placeholder="Consultar"></td>
+    <td><button class="danger" type="button">Quitar</button></td>`;
+  tr.querySelector(".price-row-name").value = row.name;
+  tr.querySelector(".price-row-value").value = row.price === null ? "" : row.price;
+  tr.querySelector("button").addEventListener("click", () => { tr.remove(); priceChanged(); priceRowCount(); });
+  priceElement("priceEditorRows").append(tr);
+  priceRowCount();
+  return tr;
+}
+function priceEditorData() {
+  return {
+    title: priceElement("priceEditorTitle").value,
+    notes: priceElement("priceEditorNotes").value,
+    rows: [...priceElement("priceEditorRows").children].map(tr => ({
+      name: tr.querySelector(".price-row-name").value,
+      price: tr.querySelector(".price-row-value").value === "" ? null : Number(tr.querySelector(".price-row-value").value)
+    }))
+  };
+}
+function priceApiPath(action) { return `/api/client-documents/${encodeURIComponent(priceEditor.document.id)}/${action}`; }
+async function loadPriceEditor() {
+  priceBusy(true);
+  priceMessage("Leyendo lista de precios...");
+  clearPricePreview();
+  try {
+    const result = await api(priceApiPath("prices"));
+    priceEditor.revision = result.revision;
+    priceEditor.imported = result.imported;
+    priceEditor.undo = null;
+    priceElement("priceUndoAdjustment").disabled = true;
+    priceElement("priceEditorTitle").value = result.data.title;
+    priceElement("priceEditorNotes").value = result.data.notes;
+    priceElement("priceEditorRows").replaceChildren();
+    result.data.rows.forEach(addPriceRow);
+    priceRowCount();
+    priceElement("priceImportNotice").hidden = !result.imported;
+    priceElement("priceImportWarnings").textContent = result.warnings.join(" ");
+    priceElement("priceImportText").textContent = result.unrecognized.join("\n") || "Sin texto adicional.";
+    priceElement("priceImportReviewed").checked = false;
+    priceElement("priceSelectAll").checked = false;
+    priceElement("priceAdjustment").value = "0";
+    priceElement("priceRounding").value = "0";
+    priceElement("priceScope").value = "all";
+    priceElement("priceEditorOriginal").href = `/api/public-client-documents/${encodeURIComponent(priceEditor.document.id)}`;
+    const versions = await api(priceApiPath("versions"));
+    priceElement("priceVersionList").replaceChildren();
+    versions.forEach(version => {
+      const row = document.createElement("div");
+      row.className = "price-version";
+      const label = document.createElement("span");
+      label.textContent = `${dateTime(version.updatedAt)}${version.original ? " · PDF original" : ""}${version.current ? " · Vigente" : ""}`;
+      const link = document.createElement("a");
+      link.textContent = "Ver PDF"; link.target = "_blank"; link.rel = "noopener";
+      link.href = priceApiPath(`versions/${encodeURIComponent(version.id)}`);
+      row.append(label, link);
+      if (!version.current) {
+        const button = document.createElement("button");
+        button.type = "button"; button.className = "ghost"; button.textContent = "Recuperar";
+        button.addEventListener("click", () => restorePriceVersion(version));
+        row.append(button);
+      }
+      priceElement("priceVersionList").append(row);
+    });
+    priceEditor.dirty = false;
+    priceMessage(result.imported ? "Importación lista para revisar. Todavía no se modificó el PDF publicado." : "Lista cargada. Los cambios se publican al guardar.");
+    priceBusy(false);
+  } catch (error) {
+    priceEditor.busy = false;
+    priceElement("priceEditorClose").disabled = false;
+    priceMessage(error.message, true);
+  }
+}
+async function openPriceEditor(document) {
+  priceEditor.document = document;
+  priceEditor.dirty = false;
+  priceElement("priceEditorDialog").showModal();
+  await loadPriceEditor();
+}
+function closePriceEditor() {
+  if (priceEditor.busy) return;
+  if (priceEditor.dirty && !confirm("Hay cambios sin guardar. ¿Querés cerrar el editor y descartarlos?")) return;
+  clearPricePreview();
+  priceEditor.dirty = false;
+  priceElement("priceEditorDialog").close();
+}
+async function restorePriceVersion(version) {
+  if (!confirm(`¿Recuperar la versión del ${dateTime(version.updatedAt)}? La versión actual quedará en el historial.${priceEditor.dirty ? " Se descartarán los cambios sin guardar." : ""}`)) return;
+  priceBusy(true);
+  try {
+    await api(priceApiPath("restore"), { method: "POST", body: JSON.stringify({ revision: priceEditor.revision, versionId: version.id }) });
+    priceEditor.dirty = false;
+    await loadPriceEditor();
+    await loadClientDocuments();
+  } catch (error) { priceMessage(error.message, true); priceBusy(false); }
+}
+priceElement("priceEditorClose").addEventListener("click", closePriceEditor);
+priceElement("priceEditorDialog").addEventListener("cancel", event => { event.preventDefault(); closePriceEditor(); });
+priceElement("priceEditorForm").addEventListener("input", event => {
+  if (event.target.matches(".price-row-name, .price-row-value, #priceEditorTitle, #priceEditorNotes")) priceChanged();
+});
+priceElement("priceAddRow").addEventListener("click", () => {
+  if (priceElement("priceEditorRows").children.length >= 1000) return priceMessage("El máximo es de 1000 productos por lista.", true);
+  addPriceRow().querySelector(".price-row-name").focus(); priceChanged();
+});
+priceElement("priceSelectAll").addEventListener("change", event => {
+  priceElement("priceEditorRows").querySelectorAll(".price-row-selected").forEach(input => { input.checked = event.target.checked; });
+});
+priceElement("priceApplyAdjustment").addEventListener("click", () => {
+  const percentageInput = priceElement("priceAdjustment");
+  if (percentageInput.value === "" || !percentageInput.reportValidity()) return;
+  const percent = Number(percentageInput.value);
+  const rounding = Number(priceElement("priceRounding").value);
+  const selectedOnly = priceElement("priceScope").value === "selected";
+  const changes = [...priceElement("priceEditorRows").children].filter(tr => !selectedOnly || tr.querySelector(".price-row-selected").checked)
+    .map(tr => tr.querySelector(".price-row-value")).filter(input => input.value !== "")
+    .map(input => {
+      const adjusted = Number(input.value) * (1 + percent / 100);
+      const value = rounding ? Math.round(adjusted / rounding) * rounding : Math.round((adjusted + Number.EPSILON) * 100) / 100;
+      return { input, before: input.value, value };
+    });
+  if (!changes.length) return priceMessage("Seleccioná productos que tengan precio para aplicar el cambio.", true);
+  if (changes.some(change => !Number.isFinite(change.value) || change.value < 0 || change.value > 999999999)) return priceMessage("El ajuste produce precios fuera del rango permitido.", true);
+  priceEditor.undo = changes;
+  changes.forEach(change => { change.input.value = change.value; });
+  priceElement("priceUndoAdjustment").disabled = false;
+  priceChanged(); priceMessage(`Cambio aplicado a ${changes.length} productos. Revisá el resultado antes de guardar.`);
+});
+priceElement("priceUndoAdjustment").addEventListener("click", () => {
+  priceEditor.undo?.forEach(change => { if (change.input.isConnected) change.input.value = change.before; });
+  priceEditor.undo = null;
+  priceElement("priceUndoAdjustment").disabled = true;
+  priceChanged(); priceMessage("Se deshizo el último ajuste porcentual.");
+});
+priceElement("pricePreview").addEventListener("click", async () => {
+  if (!priceElement("priceEditorForm").reportValidity()) return;
+  const data = priceEditorData();
+  priceBusy(true); priceMessage("Generando vista previa..."); clearPricePreview();
+  try {
+    const response = await fetch(priceApiPath("preview"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data }) });
+    if (!response.ok) throw new Error((await response.json()).error || "No se pudo generar el PDF.");
+    priceEditor.previewUrl = URL.createObjectURL(await response.blob());
+    priceElement("pricePreviewFrame").src = priceEditor.previewUrl;
+    priceElement("pricePreviewLink").href = priceEditor.previewUrl;
+    priceElement("pricePreviewSection").hidden = false;
+    priceElement("pricePreviewSection").scrollIntoView({ behavior: "smooth", block: "start" });
+    priceMessage("Vista previa lista. El PDF vigente todavía no cambió.");
+  } catch (error) { priceMessage(error.message, true); }
+  finally { priceBusy(false); }
+});
+priceElement("priceEditorForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  if (priceEditor.busy) return;
+  if (priceEditor.imported && !priceElement("priceImportReviewed").checked) return priceMessage("Confirmá que revisaste la importación contra el PDF original.", true);
+  const data = priceEditorData();
+  priceBusy(true); priceMessage("Guardando precios y nueva versión del PDF...");
+  try {
+    const result = await api(priceApiPath("prices"), { method: "PUT", body: JSON.stringify({ data, revision: priceEditor.revision, reviewed: priceElement("priceImportReviewed").checked }) });
+    priceEditor.revision = result.revision; priceEditor.dirty = false; priceEditor.imported = false;
+    await loadPriceEditor();
+    if (!priceElement("priceEditorFields").disabled) priceMessage("Precios guardados. Los clientes ya ven el nuevo PDF; la versión anterior está en el historial.");
+    await loadClientDocuments();
+  } catch (error) { priceMessage(error.message, true); priceBusy(false); }
+});
+window.addEventListener("beforeunload", event => {
+  if (priceElement("priceEditorDialog").open && priceEditor.dirty) { event.preventDefault(); event.returnValue = ""; }
+});

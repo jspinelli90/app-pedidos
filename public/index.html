@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Pedidos | San Cayetano Carnes</title>
-    <link rel="stylesheet" href="/styles.css?v=20260815-identidad-integral">
+    <link rel="stylesheet" href="/styles.css?v=20260924-editor-precios">
   <link rel="stylesheet" href="/sc-loading.css">
   </head>
   <body>
@@ -285,7 +285,7 @@
         <div>
           <p class="eyebrow dark">Contenido del formulario online</p>
           <h2>Documentos para clientes</h2>
-          <p>Desde aca podes cargar o reemplazar los PDF. Los botones del formulario siempre muestran la ultima version.</p>
+          <p>Agregá documentos o editá los precios de tus listas. Los clientes siempre ven la última versión guardada.</p>
         </div>
         <a class="ghost button-link" href="/cliente.html" target="_blank" rel="noopener">Ver formulario cliente</a>
       </section>
@@ -439,7 +439,47 @@
       </form>
     </dialog>
 
+    <dialog id="priceEditorDialog" class="price-editor" aria-labelledby="priceEditorHeading">
+      <form id="priceEditorForm">
+        <div class="price-editor-heading">
+          <div><p class="eyebrow">Documentos clientes</p><h2 id="priceEditorHeading">Editar lista de precios</h2></div>
+          <button id="priceEditorClose" class="ghost" type="button">Cerrar</button>
+        </div>
+        <p id="priceEditorMessage" class="message" role="status" aria-live="polite"></p>
+        <fieldset id="priceEditorFields">
+          <div class="price-editor-heading">
+            <label class="price-editor-title">Título del PDF<input id="priceEditorTitle" maxlength="160" required></label>
+            <a id="priceEditorOriginal" class="ghost button-link" target="_blank" rel="noopener">Ver PDF vigente</a>
+          </div>
+          <div id="priceImportNotice" class="price-import-notice" hidden>
+            <p id="priceImportWarnings"></p>
+            <details><summary>Texto adicional detectado en el PDF</summary><pre id="priceImportText"></pre></details>
+            <label class="price-review-check"><input id="priceImportReviewed" type="checkbox">Revisé todos los productos, precios y notas contra el PDF original.</label>
+          </div>
+          <div class="price-bulk-actions">
+            <label>Aumento o baja (%)<input id="priceAdjustment" type="number" step="0.01" min="-100" max="10000" value="0"></label>
+            <label>Redondear al más cercano<select id="priceRounding"><option value="0">Sin redondeo (centavos)</option><option value="10">$10</option><option value="50">$50</option><option value="100">$100</option><option value="500">$500</option></select></label>
+            <label>Aplicar a<select id="priceScope"><option value="all">Todos los productos</option><option value="selected">Solo seleccionados</option></select></label>
+            <button id="priceApplyAdjustment" class="ghost" type="button">Aplicar cambio</button>
+            <button id="priceUndoAdjustment" class="ghost" type="button" disabled>Deshacer cambio</button>
+          </div>
+          <p>Usá un porcentaje negativo para bajar precios. Un precio vacío se publica como “Consultar”.</p>
+          <div class="price-table-scroll"><table class="price-table">
+            <thead><tr><th><input id="priceSelectAll" type="checkbox" aria-label="Seleccionar todos los productos"></th><th>Producto</th><th>Precio ($)</th><th>Acción</th></tr></thead>
+            <tbody id="priceEditorRows"></tbody>
+          </table></div>
+          <div class="price-editor-heading"><button id="priceAddRow" class="ghost" type="button">Agregar producto</button><span id="priceRowCount"></span></div>
+          <label>Notas que aparecerán en el PDF<textarea id="priceEditorNotes" rows="3" maxlength="2000"></textarea></label>
+          <div class="form-actions">
+            <button id="pricePreview" class="ghost" type="button">Previsualizar PDF</button>
+            <button id="priceSave" class="primary" type="submit">Guardar y actualizar PDF</button>
+          </div>
+          <section id="pricePreviewSection" hidden><h3>Vista previa sin publicar</h3><a id="pricePreviewLink" target="_blank" rel="noopener">Abrir vista previa en otra pestaña</a><iframe id="pricePreviewFrame" title="Vista previa de lista de precios"></iframe></section>
+          <details class="price-history"><summary>Historial de versiones</summary><p>Recuperar una versión conserva también la lista actual en el historial.</p><div id="priceVersionList"></div></details>
+        </fieldset>
+      </form>
+    </dialog>
     <script src="/offers-generator.js?v=20260814-a4-folletos-grandes"></script>
-    <script src="/app.js?v=20260915-pantalla-carga"></script>
+    <script src="/app.js?v=20260924-editor-precios"></script>
   </body>
 </html>
