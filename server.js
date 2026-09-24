@@ -6,6 +6,7 @@ const QRCode = require("qrcode");
 const { validatePriceList, importPriceList, generatePricePdf } = require("./lib/price-lists");
 const RetailOffers = require("./public/retail-offers-model");
 const RetailCart = require("./public/retail-cart-model");
+const POS = require("./public/pos-model");
 const { createHash } = require("node:crypto");
 
 const PORT = Number(process.env.PORT || 3000);
@@ -496,6 +497,43 @@ async function publicRetailCatalog() {
 async function quoteRetailCart(payload) {
   const quote = RetailCart.quote(await publicRetailCatalog(), payload.cart, payload);
   return { ...quote, quoteId: createHash("sha256").update(JSON.stringify(quote)).digest("hex") };
+}
+
+async function readPOS() {
+  const file = path.join(DATA_DIR, "pos-practice.json");
+  if (!USE_SUPABASE) return { state: readJsonArray(file)[0] || { revision: "initial", mappings: null, sales: [] }, updatedAt: null };
+  const rows = await supabaseRequest("/rest/v1/app_data?key=eq.pos_practice&select=data,updated_at");
+  return { state: rows?.[0]?.data?.[0] || { revision: "initial", mappings: null, sales: [] }, updatedAt: rows?.[0]?.updated_at || null };
+}
+async function writePOS(state, expectedUpdatedAt) {
+  if (!USE_SUPABASE) {
+    ensureDataFile(); const file = path.join(DATA_DIR, "pos-practice.json");
+    fs.writeFileSync(file + ".tmp", JSON.stringify([state])); fs.renameSync(file + ".tmp", file); return;
+  }
+  const updated_at = new Date(Math.max(Date.now(), (Date.parse(expectedUpdatedAt) || 0) + 1)).toISOString();
+  const result = expectedUpdatedAt === null
+    ? await supabaseRequest("/rest/v1/app_data?on_conflict=key", { method: "POST", headers: { Prefer: "resolution=ignore-duplicates,return=representation" }, body: JSON.stringify({ key: "pos_practice", data: [state], updated_at }) })
+    : await supabaseRequest(`/rest/v1/app_data?key=eq.pos_practice&updated_at=eq.${encodeURIComponent(expectedUpdatedAt)}`, { method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify({ data: [state], updated_at }) });
+  if (!Array.isArray(result) || result.length !== 1) throw Object.assign(new Error("Otra caja modificó los datos. Actualizá y reintentá sin cambiar el identificador de la operación."), { statusCode: 409 });
+}
+async function posCatalog() {
+  const catalog = await publicRetailCatalog(); const stored = await readPOS();
+  return { ...catalog, revision: stored.state.revision, mappings: stored.state.mappings ?? POS.defaultMappings(catalog.products), mode: "practice" };
+}
+async function posQuote(payload) {
+  if (payload.mode !== "practice") throw Object.assign(new Error("Esta caja solo admite operaciones de prueba. No emite facturas."), { statusCode: 400 });
+  const quote = RetailCart.quote(await publicRetailCatalog(), payload.cart, { deliveryType: "RETIRO" });
+  const delivery = payload.delivery ?? 0;
+  if (typeof delivery !== "number" || !Number.isFinite(delivery) || delivery < 0 || delivery > 999999 || Math.abs(delivery * 100 - Math.round(delivery * 100)) > 1e-5) throw Object.assign(new Error("Revisá el importe de envío."), { statusCode: 400 });
+  let sourceOrder = null;
+  if (payload.sourceOrderId) {
+    storeCache.delete("orders");
+    const order = (await readOrders()).find(o => o.id === payload.sourceOrderId);
+    if (!order) throw Object.assign(new Error("El pedido de origen ya no existe."), { statusCode: 400 });
+    sourceOrder = { id: order.id, number: order.number, updatedAt: order.updatedAt };
+  }
+  const result = { mode: "practice", lines: quote.lines, subtotal: quote.subtotal, delivery, total: Math.round((quote.subtotal + delivery) * 100) / 100, sourceOrder };
+  return { ...result, quoteId: createHash("sha256").update(JSON.stringify(result)).digest("hex") };
 }
 
 async function readRetailOffers() {
@@ -1042,7 +1080,7 @@ function serveStatic(req, res) {
 let documentQueue = Promise.resolve();
 async function handleApi(req, res) {
   const pathname = new URL(req.url, `http://${req.headers.host || "localhost"}`).pathname;
-  if (!/^\/api\/(?:(?:public-)?client-documents|(?:public-)?retail-offers|public-retail-catalog|public-retail-quote|public-orders|orders)(?:\/|$)/.test(pathname)) return handleApiRequest(req, res);
+  if (!/^\/api\/(?:(?:public-)?client-documents|(?:public-)?retail-offers|public-retail-catalog|public-retail-quote|public-orders|orders|pos)(?:\/|$)/.test(pathname)) return handleApiRequest(req, res);
   const previous = documentQueue;
   let release;
   documentQueue = new Promise(resolve => { release = resolve; });
@@ -1059,6 +1097,35 @@ async function handleApiRequest(req, res) {
   try {
     if (url.pathname === "/api/retail-offers/catalog" && req.method === "GET") {
       return sendJson(res, 200, retailCatalog(await readClientDocuments()));
+    }
+    if (url.pathname === "/api/pos/catalog" && req.method === "GET") return sendJson(res, 200, await posCatalog());
+    if (url.pathname === "/api/pos/mappings" && req.method === "PUT") {
+      const payload = await readBody(req); const catalog = await publicRetailCatalog(); const stored = await readPOS();
+      if (payload.revision !== stored.state.revision) return sendJson(res, 409, { error: "Los códigos cambiaron. Actualizá antes de guardar." });
+      const mappings = POS.normalizeMappings(payload.mappings, catalog.products);
+      await writePOS({ ...stored.state, revision: cryptoId(), mappings }, stored.updatedAt);
+      return sendJson(res, 200, await posCatalog());
+    }
+    if (url.pathname === "/api/pos/quote" && req.method === "POST") return sendJson(res, 200, await posQuote(await readBody(req)));
+    if (url.pathname === "/api/pos/orders" && req.method === "GET") {
+      storeCache.delete("orders");
+      const orders = (await readOrders()).filter(o => o.saleType !== "Mayorista" && !["Despachado", "Cancelado"].includes(o.status));
+      return sendJson(res, 200, orders.map(o => ({ id: o.id, number: o.number, customer: o.customer, detail: o.detail, notes: o.notes, deliveryType: o.deliveryType, updatedAt: o.updatedAt, lines: o.retailCart && o.detail === RetailCart.detail(o.retailCart) ? o.retailCart.lines.map(l => ({ productId: l.productId, quantity: l.quantity, unit: l.unit, note: l.note })) : [] })));
+    }
+    if (url.pathname === "/api/pos/sales" && req.method === "GET") return sendJson(res, 200, (await readPOS()).state.sales.slice(-100).reverse());
+    if (url.pathname === "/api/pos/sales" && req.method === "POST") {
+      const payload = await readBody(req);
+      if (payload.mode !== "practice" || payload.weightsConfirmed !== true) return sendJson(res, 400, { error: "Confirmá las cantidades y pesos. Esta operación es solo de prueba." });
+      if (!/^[a-zA-Z0-9_-]{16,80}$/.test(payload.requestId || "")) return sendJson(res, 400, { error: "Revisá nuevamente la venta antes de guardarla." });
+      const stored = await readPOS(); const duplicate = stored.state.sales.find(s => s.requestId === payload.requestId);
+      if (duplicate) return sendJson(res, 200, duplicate);
+      const quote = await posQuote(payload);
+      if (payload.quoteId !== quote.quoteId) return sendJson(res, 409, { error: "Cambió un precio, una oferta o el pedido de origen. Revisá nuevamente la venta." });
+      const payment = POS.payment(payload.paymentMethod, payload.received, quote.total);
+      if (stored.state.sales.length >= 1000) return sendJson(res, 400, { error: "Se alcanzó el límite de 1000 ventas de prueba." });
+      const sale = { ...quote, id: cryptoId(), requestId: payload.requestId, number: stored.state.sales.length + 1, createdAt: new Date().toISOString(), customer: cleanText(payload.customer).slice(0, 160), notes: cleanText(payload.notes).slice(0, 1000), payment, fiscal: false };
+      await writePOS({ ...stored.state, revision: cryptoId(), sales: [...stored.state.sales, sale] }, stored.updatedAt);
+      return sendJson(res, 201, sale);
     }
     if (url.pathname === "/api/public-retail-catalog" && req.method === "GET") return sendJson(res, 200, await publicRetailCatalog());
     if (url.pathname === "/api/public-retail-quote" && req.method === "POST") return sendJson(res, 200, await quoteRetailCart(await readBody(req)));

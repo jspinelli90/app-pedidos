@@ -1,0 +1,17 @@
+const test=require('node:test');const assert=require('node:assert/strict');const http=require('node:http');const fs=require('node:fs');const path=require('node:path');const os=require('node:os');
+test('persistencia caja: conflictos y fallas no pierden ventas o códigos; reintentos no duplican',async t=>{
+ const stores=new Map([['client_documents',{updated_at:'2026-09-24T00:00:00Z',data:[{id:'retail',type:'price-list',name:'CARNE MINORISTA.pdf',retailEnabled:true,order:0,priceData:{rows:[{id:'a',name:'ASADO AMERICANO',price:17000,unit:'kg'}]}}]}],['migrations',{data:[{id:'2026-07-22-deactivate-wholesale-customers'}]}]]);
+ let failure='';const database=http.createServer(async(req,res)=>{const url=new URL(req.url,'http://localhost');const reply=(code,body)=>{res.writeHead(code,{'Content-Type':'application/json'});res.end(JSON.stringify(body));};const key=url.searchParams.get('key')?.replace(/^eq\./,'');if(req.method==='GET')return reply(200,stores.has(key)?[stores.get(key)]:[]);let raw='';for await(const chunk of req)raw+=chunk;const body=JSON.parse(raw);if(failure==='write')return reply(503,{});if(failure==='conflict')return reply(200,[]);if(req.method==='POST'){if(stores.has(body.key))return reply(200,[]);stores.set(body.key,body);return reply(200,[body]);}if(`eq.${stores.get(key)?.updated_at}`!==url.searchParams.get('updated_at'))return reply(200,[]);stores.set(key,body);reply(200,[body]);});
+ await new Promise(r=>database.listen(0,'127.0.0.1',r));const dir=fs.mkdtempSync(path.join(os.tmpdir(),'pos-db-test-'));process.env.DATA_DIR=dir;process.env.PORT='0';process.env.SUPABASE_URL=`http://127.0.0.1:${database.address().port}`;process.env.SUPABASE_SERVICE_ROLE_KEY='test-only';
+ const {server,startServer}=require('../server');await startServer();t.after(async()=>{await new Promise(r=>server.close(r));await new Promise(r=>database.close(r));fs.rmSync(dir,{recursive:true,force:true});});
+ const base=`http://127.0.0.1:${server.address().port}`;const call=async(url,body,method='POST')=>{const r=await fetch(base+url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return {status:r.status,data:await r.json()};};
+ const draft={mode:'practice',cart:[{productId:'retail:a',quantity:.105,note:''}]};const quote=(await call('/api/pos/quote',draft)).data;assert.equal(quote.total,1785);
+ const sale={...draft,quoteId:quote.quoteId,requestId:'supabase-pos-sale-01',weightsConfirmed:true,paymentMethod:'Efectivo',received:2000};
+ failure='conflict';assert.equal((await call('/api/pos/sales',sale)).status,409);assert.equal(stores.has('pos_practice'),false);
+ failure='';assert.equal((await call('/api/pos/sales',sale)).status,201);
+ const previous=structuredClone(stores.get('pos_practice'));const mappings=[{kind:'plu',code:'00001',productId:'retail:a'}];
+ for(failure of ['write','conflict']){assert.equal((await call('/api/pos/mappings',{revision:previous.data[0].revision,mappings},'PUT')).status,failure==='write'?500:409);assert.deepEqual(stores.get('pos_practice'),previous);}
+ failure='';assert.equal((await call('/api/pos/mappings',{revision:previous.data[0].revision,mappings},'PUT')).status,200);
+ assert.equal((await call('/api/pos/sales',sale)).status,200);assert.equal(stores.get('pos_practice').data[0].sales.length,1);
+ assert.equal((await call('/api/pos/sales',{...sale,requestId:'supabase-pos-sale-02'})).status,201);assert.deepEqual(stores.get('pos_practice').data[0].mappings,mappings);assert.equal(stores.get('pos_practice').data[0].sales.length,2);
+});

@@ -1,0 +1,14 @@
+.pos-page { background: #f3f1ee; }.pos-page h1 { margin: 0; }.pos-page nav { display: flex; flex-wrap: wrap; gap: 10px; }
+.pos-warning { margin: 18px 24px 0; padding: 16px; border: 3px solid #b26b00; background: #fff3cf; color: #503300; border-radius: 8px; }.pos-warning strong,.pos-warning span { display: block; }.pos-warning span { margin-top: 6px; }
+.pos-message { margin: 12px 24px; min-height: 24px; font-weight: 650; }.pos-error { color: #ab2020; }
+.pos-layout { display: grid; grid-template-columns: minmax(300px,1fr) minmax(350px,1.2fr); gap: 18px; padding: 0 24px 24px; }.pos-layout .panel { padding: 20px; min-width: 0; }
+.pos-layout label { margin: 10px 0; }.pos-layout h2 { margin-top: 0; }.pos-help { color: #5a5148; font-size: .9rem; }
+#scanForm { display: flex; align-items: end; gap: 8px; }#scanForm label { flex: 1; margin: 0; }#scanForm button { min-height: 46px; }
+.pos-products { max-height: 450px; overflow: auto; margin: 10px 0; }.pos-product { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 2px; border-bottom: 1px solid #ddd; }.pos-product small { display: block; color: #625b55; }.pos-product button { flex-shrink: 0; }
+.pos-line { border-bottom: 1px solid #ddd; padding: 12px 0; }.pos-line-header { display: flex; align-items: center; gap: 10px; justify-content: space-between; }.pos-line-header strong { flex: 1; }.pos-line label { max-width: 100%; }.pos-line input { max-width: 180px; }.pos-line p { margin: 6px 0; }
+.pos-total { padding: 18px; margin: 14px 0; background: #f4f8f6; border: 2px solid #32674f; font-size: 1.35rem; font-weight: 750; }
+.pos-check { display: flex; align-items: start; gap: 10px; }.pos-check input { width: 22px; height: 22px; flex: 0 0 22px; }
+.pos-section { margin-top: 22px; border-top: 1px solid #ddd; padding-top: 14px; }.pos-section summary { cursor: pointer; font-weight: 700; margin-bottom: 12px; }
+.pos-mapping { border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 10px; }.pos-mapping input,.pos-mapping select { width: 100%; }
+.pos-page pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: .9rem; }.pos-page button { min-height: 40px; }.pos-page [hidden] { display: none !important; }
+@media(max-width:850px){.pos-layout{grid-template-columns:1fr;padding:0 12px 12px}.pos-warning,.pos-message{margin-left:12px;margin-right:12px}.pos-layout .panel{padding:14px}#scanForm{flex-wrap:wrap}}
