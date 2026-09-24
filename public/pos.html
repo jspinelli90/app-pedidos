@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mostrador de prueba | San Cayetano</title><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/pos.css?v=1"></head>
+<body class="pos-page">
+<header class="topbar"><div><p class="eyebrow">San Cayetano Carnes</p><h1>Venta de mostrador</h1></div><nav><a class="ghost button-link" href="/">Volver a pedidos</a><button id="newSale" class="ghost" type="button">Nueva venta</button></nav></header>
+<div class="pos-warning"><strong>MODO DE PRUEBA · NO VÁLIDO COMO FACTURA</strong><span>Podés probar lectura, pesos, precios y cobro simulado. No se cobra dinero, no se modifica caja o stock y no se emiten comprobantes fiscales.</span></div>
+<p id="posMessage" role="status" class="pos-message"></p>
+<main class="pos-layout">
+<section class="panel">
+<h2>Agregar artículos</h2>
+<form id="scanForm"><label>Escanear código o etiqueta de balanza<input id="scanCode" inputmode="numeric" autocomplete="off" placeholder="Escaneá y presioná Enter" maxlength="14"></label><button class="primary">Agregar código</button></form>
+<p class="pos-help">La etiqueta aporta el producto y el peso. Se usan los precios actuales de la app, que pueden diferir de los impresos en la etiqueta.</p>
+<label>Buscar por nombre o código<input id="productSearch" type="search" placeholder="Ej.: asado, aceite, 00005"></label>
+<label>Lista<select id="productList"><option value="">Todas las listas habilitadas</option></select></label>
+<div id="posProducts" class="pos-products"></div><button id="refreshCatalog" class="ghost" type="button">Actualizar precios y códigos</button>
+<details class="pos-section"><summary>Recuperar un pedido</summary><button id="refreshOrders" class="ghost" type="button">Actualizar pedidos</button><label>Pedido<select id="orderSelect"><option value="">Seleccionar</option></select></label><button id="loadOrder" class="ghost" type="button">Cargar pedido en la caja de prueba</button><pre id="sourceDetail"></pre><p>Revisá los pesos reales y el envío. Los pedidos escritos o modificados en preparación se cargan como referencia para agregar sus artículos manualmente.</p></details>
+<details class="pos-section"><summary>Códigos de productos</summary><p>PLU de balanza: cinco dígitos. Vinculá cada código con un solo artículo. Los cambios se guardan al tocar Guardar códigos.</p><div id="codeMappings"></div><button id="addMapping" class="ghost" type="button">Agregar código</button><button id="saveMappings" class="primary" type="button">Guardar códigos</button></details>
+</section>
+<section class="panel">
+<h2>Venta actual <span id="sourceNumber"></span></h2>
+<label>Cliente / referencia<input id="posCustomer" maxlength="160" placeholder="Consumidor final / referencia de prueba"></label>
+<div id="posLines"></div>
+<label>Envío u otro cargo de entrega ($)<input id="posDelivery" type="number" min="0" max="999999" step="0.01" value="0"></label>
+<label>Observaciones<textarea id="posNotes" maxlength="1000" rows="2"></textarea></label>
+<div id="posTotal" class="pos-total" aria-live="polite">Agregá artículos para calcular.</div>
+<button id="reviewSale" class="primary" type="button">Revisar venta de prueba</button>
+<label class="pos-check"><input id="weightsConfirmed" type="checkbox" disabled>Revisé las cantidades, los pesos reales y los precios de esta prueba.</label>
+<div class="grid two"><label>Medio de pago simulado<select id="posPayment"><option>Efectivo</option><option>Transferencia</option><option>Tarjeta de débito</option><option>Tarjeta de crédito</option></select></label><label>Importe recibido simulado ($)<input id="posReceived" type="number" min="0" step="0.01"></label></div>
+<p id="posChange"></p><button id="saveSale" class="primary" type="button">Guardar venta de prueba</button>
+<section id="saleResult" hidden><h3>Venta de prueba guardada</h3><pre id="saleReceipt"></pre><button id="printPractice" class="ghost" type="button">Imprimir comprobante de prueba</button></section>
+<details class="pos-section"><summary>Últimas ventas de prueba</summary><button id="refreshSales" class="ghost" type="button">Actualizar historial</button><div id="posHistory"></div></details>
+</section>
+</main><script src="/retail-cart-model.js"></script><script src="/pos-model.js?v=1"></script><script src="/pos.js?v=1"></script></body></html>
