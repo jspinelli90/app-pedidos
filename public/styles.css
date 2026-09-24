@@ -15,6 +15,26 @@
   --shadow: 0 14px 34px rgba(28, 20, 17, 0.09);
 }
 
+.retail-offers-manager { margin-bottom: 22px; padding: 20px; }
+#legacyOffersLabel[hidden], #legacyOffersHelp[hidden] { display: none !important; }
+.retail-offers-manager fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.retail-offers-heading, .retail-offers-buttons { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.retail-offers-manager h3 { margin: 0 0 8px; }
+.retail-offers-manager p { color: var(--muted); }
+.retail-offers-manager summary { cursor: pointer; font-weight: 700; padding: 10px 0; }
+.retail-offers-manager .retail-check { display: flex; align-items: center; gap: 8px; padding: 8px 0; }
+.retail-offers-manager input[type="checkbox"] { width: 18px; height: 18px; min-height: 18px; flex-shrink: 0; }
+.retail-offer-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); gap: 16px; margin-top: 16px; }
+.retail-offer-card { border: 1px solid var(--line); border-radius: 10px; padding: 16px; background: var(--surface); }
+.retail-offer-card label, .retail-offers-heading > label { display: grid; gap: 6px; }
+.retail-offer-card .grid { margin-top: 12px; }
+.retail-offer-values { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; }
+.retail-offer-status { color: var(--primary); }
+.retail-product-reference { font-size: 12px; overflow-wrap: anywhere; }
+.retail-offers-manager select, .retail-offers-manager input { max-width: 100%; min-width: 0; }
+.price-row-unit { min-width: 110px; }
+@media (max-width: 600px) { .retail-offer-values { grid-template-columns: 1fr; } }
+
 .price-editor { width: min(1100px, 96vw); max-height: 94vh; padding: 24px; border: 1px solid var(--line); border-radius: 16px; color: var(--ink); overflow: auto; }
 .price-editor::backdrop { background: #191919aa; }
 .price-editor fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }

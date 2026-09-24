@@ -1127,6 +1127,8 @@ async function initializeRemoteOfferPosterSettings() {
 }
 
 function applyOfferPosterContentDraft(draft) {
+  window.retailPosterPendingDraft = draft;
+  window.RetailOffersStudio?.applyDraft(draft);
   els.offerPosterFormat.value = draft.format || "story";
   els.offerPosterTitle.value = draft.title || "OFERTAS DEL DIA";
   els.offerPosterSubtitle.value = draft.subtitle || "CALIDAD SAN CAYETANO";
@@ -1149,7 +1151,8 @@ async function saveRemoteOfferPosterDraft(data) {
       format: data.format,
       title: data.title,
       subtitle: data.subtitle,
-      offersText: data.offersText
+      offersText: data.offersText,
+      offerMode: data.offerMode, retailOfferIds: data.retailOfferIds
     })
   });
   if (!response.ok) throw new Error("La imagen se descargo, pero no se pudo guardar como ultima placa.");
@@ -1171,12 +1174,14 @@ function readOfferPosterDraft() {
 function offerPosterData() {
   return {
     format: els.offerPosterFormat.value,
-    date: els.offerPosterDate.value.trim(),
+    date: window.RetailOffersStudio?.isLinked() ? "OFERTAS MINORISTAS" : els.offerPosterDate.value.trim(),
     title: els.offerPosterTitle.value.trim(),
     subtitle: els.offerPosterSubtitle.value.trim(),
     footer: els.offerPosterFooter.value.trim(),
     offersText: els.offerPosterOffersText.value,
-    offers: window.OfferImageGenerator.parseOffers(els.offerPosterOffersText.value),
+    offers: window.RetailOffersStudio?.isLinked() ? window.RetailOffersStudio.posterOffers() : window.OfferImageGenerator.parseOffers(els.offerPosterOffersText.value),
+    offerMode: window.RetailOffersStudio?.isLinked() ? "linked" : "legacy",
+    retailOfferIds: window.RetailOffersStudio?.selectedIds() || [],
     phone: els.offerPosterPhone.value.trim(),
     instagram: els.offerPosterInstagram.value.trim(),
     address: els.offerPosterAddress.value.trim(),
@@ -1185,6 +1190,8 @@ function offerPosterData() {
 }
 
 function loadOfferPosterDraft(draft = readOfferPosterDraft()) {
+  window.retailPosterPendingDraft = draft;
+  window.RetailOffersStudio?.applyDraft(draft);
   const fixed = fixedOfferPosterSettings(draft);
   els.offerPosterFormat.value = draft.format || "story";
   els.offerPosterDate.value = "HASTA AGOTAR STOCK";
@@ -1217,11 +1224,19 @@ function updateOfferPoster() {
 }
 
 function resetOfferPoster() {
+  if (window.RetailOffersStudio?.isLinked()) {
+    window.RetailOffersStudio.clearSelection();
+    updateOfferPoster();
+    els.offerPosterMessage.textContent = "Nueva placa lista. Seleccioná las ofertas que querés incluir.";
+    return;
+  }
   loadOfferPosterDraft(defaultOfferPosterDraft());
   els.offerPosterMessage.textContent = "Nueva placa preparada. Reemplaza los ejemplos por tus ofertas.";
 }
 
 async function downloadOfferPoster() {
+  try { await window.RetailOffersStudio?.prepareDownload(); }
+  catch (error) { els.offerPosterMessage.textContent = error.message; els.offerPosterMessage.style.color = "#b83232"; return; }
   updateOfferPoster();
   const data = offerPosterData();
   let saveError = null;
@@ -1873,12 +1888,15 @@ function priceRowCount() {
 }
 function addPriceRow(row = { name: "", price: null }) {
   const tr = document.createElement("tr");
+  tr.dataset.productId = row.id || "";
   tr.innerHTML = `<td><input class="price-row-selected" type="checkbox" aria-label="Seleccionar producto"></td>
     <td><input class="price-row-name" aria-label="Nombre del producto" maxlength="160" required></td>
     <td><input class="price-row-value" aria-label="Precio del producto" type="number" min="0" max="999999999" step="0.01" placeholder="Consultar"></td>
+    <td><select class="price-row-unit" aria-label="Unidad de venta"><option value="">Sin definir</option><option value="kg">Kilo</option><option value="unit">Unidad</option><option value="box">Caja</option></select></td>
     <td><button class="danger" type="button">Quitar</button></td>`;
   tr.querySelector(".price-row-name").value = row.name;
   tr.querySelector(".price-row-value").value = row.price === null ? "" : row.price;
+  tr.querySelector(".price-row-unit").value = row.unit || "";
   tr.querySelector("button").addEventListener("click", () => { tr.remove(); priceChanged(); priceRowCount(); });
   priceElement("priceEditorRows").append(tr);
   priceRowCount();
@@ -1889,6 +1907,8 @@ function priceEditorData() {
     title: priceElement("priceEditorTitle").value,
     notes: priceElement("priceEditorNotes").value,
     rows: [...priceElement("priceEditorRows").children].map(tr => ({
+      ...(tr.dataset.productId ? { id: tr.dataset.productId } : {}),
+      unit: tr.querySelector(".price-row-unit").value,
       name: tr.querySelector(".price-row-name").value,
       price: tr.querySelector(".price-row-value").value === "" ? null : Number(tr.querySelector(".price-row-value").value)
     }))
@@ -1973,7 +1993,7 @@ async function restorePriceVersion(version) {
 priceElement("priceEditorClose").addEventListener("click", closePriceEditor);
 priceElement("priceEditorDialog").addEventListener("cancel", event => { event.preventDefault(); closePriceEditor(); });
 priceElement("priceEditorForm").addEventListener("input", event => {
-  if (event.target.matches(".price-row-name, .price-row-value, #priceEditorTitle, #priceEditorNotes")) priceChanged();
+  if (event.target.matches(".price-row-name, .price-row-value, .price-row-unit, #priceEditorTitle, #priceEditorNotes")) priceChanged();
 });
 priceElement("priceAddRow").addEventListener("click", () => {
   if (priceElement("priceEditorRows").children.length >= 1000) return priceMessage("El máximo es de 1000 productos por lista.", true);

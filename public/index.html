@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Pedidos | San Cayetano Carnes</title>
-    <link rel="stylesheet" href="/styles.css?v=20260924-editor-precios">
+    <link rel="stylesheet" href="/styles.css?v=20260924-ofertas-vinculadas">
   <link rel="stylesheet" href="/sc-loading.css">
   </head>
   <body>
@@ -319,7 +319,7 @@
         <div>
           <p class="eyebrow dark">Contenido para redes</p>
           <h2>Placas de ofertas</h2>
-          <p>Escribi las ofertas, revisa la vista previa y descarga una imagen lista para publicar.</p>
+          <p>Prepará promociones minoristas vinculadas a tus artículos y usá esos mismos datos en las placas.</p>
         </div>
         <div class="offers-studio-actions">
           <button id="resetOfferPosterBtn" class="ghost" type="button">Nueva placa</button>
@@ -327,6 +327,18 @@
         </div>
       </section>
 
+      <section class="panel retail-offers-manager" aria-labelledby="retailOffersHeading">
+        <div class="retail-offers-heading"><div><h3 id="retailOffersHeading">Ofertas minoristas</h3><p>El precio por kg/unidad y los paquetes se guardan por separado. La venta por peso tendrá un total estimado.</p></div>
+          <button id="retailOffersReload" type="button" class="ghost">Recargar ofertas</button></div>
+        <details><summary>Listas de artículos para minoristas</summary><p>Elegí las listas que podrán vincularse con las ofertas. Una lista debe tener sus precios revisados y guardados en “Editar precios”.</p><div id="retailCatalogLists"></div><button id="retailCatalogSave" type="button" class="ghost">Guardar selección de listas</button></details>
+        <p id="retailOffersMessage" class="message" role="status" aria-live="polite">Cargando ofertas...</p>
+        <fieldset id="retailOffersFields" disabled>
+          <div class="retail-offers-heading"><label>Contenido de la placa<select id="retailPosterMode"><option value="legacy">Placa anterior: texto libre</option><option value="linked">Ofertas vinculadas a artículos</option></select></label>
+            <div class="retail-offers-buttons"><button id="retailOfferAdd" type="button" class="ghost">Agregar oferta</button><button id="retailOfferImport" type="button" class="ghost">Importar texto como borradores</button><button id="retailOffersSave" type="button" class="primary">Guardar ofertas</button></div></div>
+          <p>Marcá “Incluir en placa” para elegir qué promociones vigentes mostrar. Las pausadas, vencidas o sin artículo no se incluyen. Las nuevas se crean pausadas hasta que las actives y guardes.</p>
+          <div id="retailOfferCards" class="retail-offer-cards"></div>
+        </fieldset>
+      </section>
       <section class="offers-studio-layout">
         <form id="offerPosterForm" class="panel offer-poster-form">
           <div class="grid two">
@@ -349,10 +361,10 @@
             <input id="offerPosterSubtitle" value="CALIDAD SAN CAYETANO" maxlength="70">
           </label>
 
-          <label>Ofertas
+          <label id="legacyOffersLabel">Ofertas anteriores (texto libre)
             <textarea id="offerPosterOffersText" class="offer-paste-area" rows="11" placeholder="Pega una oferta por linea. Ejemplo:&#10;ASADO | 9500 | EL KILO&#10;VACIO $11200 EL KILO&#10;2 KG DE MILANESAS $18000"></textarea>
           </label>
-          <p class="offer-paste-help">Podes pegar todas juntas. El sistema reconoce el precio y acomoda automaticamente la cantidad de ofertas.</p>
+          <p id="legacyOffersHelp" class="offer-paste-help">Este texto conserva tus placas anteriores. Para usar una promoción en el futuro carrito, importala como borrador, vinculá el artículo y guardala.</p>
 
           <fieldset class="offer-business-fields">
             <legend>Informacion del local</legend>
@@ -465,7 +477,7 @@
           </div>
           <p>Usá un porcentaje negativo para bajar precios. Un precio vacío se publica como “Consultar”.</p>
           <div class="price-table-scroll"><table class="price-table">
-            <thead><tr><th><input id="priceSelectAll" type="checkbox" aria-label="Seleccionar todos los productos"></th><th>Producto</th><th>Precio ($)</th><th>Acción</th></tr></thead>
+            <thead><tr><th><input id="priceSelectAll" type="checkbox" aria-label="Seleccionar todos los productos"></th><th>Producto</th><th>Precio ($)</th><th>Venta por</th><th>Acción</th></tr></thead>
             <tbody id="priceEditorRows"></tbody>
           </table></div>
           <div class="price-editor-heading"><button id="priceAddRow" class="ghost" type="button">Agregar producto</button><span id="priceRowCount"></span></div>
@@ -480,6 +492,8 @@
       </form>
     </dialog>
     <script src="/offers-generator.js?v=20260814-a4-folletos-grandes"></script>
-    <script src="/app.js?v=20260924-editor-precios"></script>
+    <script src="/retail-offers-model.js?v=20260924-ofertas"></script>
+    <script src="/app.js?v=20260924-ofertas-vinculadas"></script>
+    <script src="/retail-offers-studio.js?v=20260924-ofertas"></script>
   </body>
 </html>
