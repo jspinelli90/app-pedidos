@@ -1914,8 +1914,32 @@ function priceEditorData() {
     }))
   };
 }
-function priceApiPath(action) { return `/api/client-documents/${encodeURIComponent(priceEditor.document.id)}/${action}`; }
+function priceApiPath(action) { return priceEditor.document ? `/api/client-documents/${encodeURIComponent(priceEditor.document.id)}/${action}` : `/api/client-documents/create-price-list${action === "preview" ? "/preview" : ""}`; }
+function priceEditorMode(isNew) {
+  priceElement("priceEditorHeading").textContent = isNew ? "Crear lista de precios" : "Editar lista de precios";
+  priceElement("priceEditorOriginal").hidden = isNew;
+  priceElement("priceHistory").hidden = isNew;
+  priceElement("priceNewRetailLabel").hidden = !isNew;
+  priceElement("priceSave").textContent = isNew ? "Crear lista y PDF" : "Guardar y actualizar PDF";
+}
+function createPriceList() {
+  priceEditor.document = null; priceEditor.revision = null; priceEditor.imported = false;
+  priceEditor.dirty = false; priceEditor.undo = null;
+  clearPricePreview(); priceBusy(false); priceEditorMode(true);
+  priceElement("priceEditorForm").reset();
+  priceElement("priceEditorTitle").value = "";
+  priceElement("priceEditorNotes").value = "";
+  priceElement("priceEditorRows").replaceChildren(); addPriceRow();
+  priceElement("priceVersionList").replaceChildren();
+  priceElement("priceImportNotice").hidden = true;
+  priceElement("priceUndoAdjustment").disabled = true;
+  priceMessage("Poné un nombre a la lista y agregá los productos con su precio y forma de venta. Se publica al guardar.");
+  priceElement("priceEditorDialog").showModal();
+  priceElement("priceEditorTitle").focus();
+}
+priceElement("priceListCreate").addEventListener("click", createPriceList);
 async function loadPriceEditor() {
+  priceEditorMode(false);
   priceBusy(true);
   priceMessage("Leyendo lista de precios...");
   clearPricePreview();
@@ -1993,7 +2017,7 @@ async function restorePriceVersion(version) {
 priceElement("priceEditorClose").addEventListener("click", closePriceEditor);
 priceElement("priceEditorDialog").addEventListener("cancel", event => { event.preventDefault(); closePriceEditor(); });
 priceElement("priceEditorForm").addEventListener("input", event => {
-  if (event.target.matches(".price-row-name, .price-row-value, .price-row-unit, #priceEditorTitle, #priceEditorNotes")) priceChanged();
+  if (event.target.matches(".price-row-name, .price-row-value, .price-row-unit, #priceEditorTitle, #priceEditorNotes, #priceNewRetail")) priceChanged();
 });
 priceElement("priceAddRow").addEventListener("click", () => {
   if (priceElement("priceEditorRows").children.length >= 1000) return priceMessage("El máximo es de 1000 productos por lista.", true);
@@ -2047,14 +2071,17 @@ priceElement("pricePreview").addEventListener("click", async () => {
 priceElement("priceEditorForm").addEventListener("submit", async event => {
   event.preventDefault();
   if (priceEditor.busy) return;
+  if (!priceElement("priceEditorForm").reportValidity()) return;
   if (priceEditor.imported && !priceElement("priceImportReviewed").checked) return priceMessage("Confirmá que revisaste la importación contra el PDF original.", true);
   const data = priceEditorData();
   priceBusy(true); priceMessage("Guardando precios y nueva versión del PDF...");
   try {
-    const result = await api(priceApiPath("prices"), { method: "PUT", body: JSON.stringify({ data, revision: priceEditor.revision, reviewed: priceElement("priceImportReviewed").checked }) });
+    const isNew = !priceEditor.document;
+    const result = await api(priceApiPath("prices"), { method: isNew ? "POST" : "PUT", body: JSON.stringify({ data, revision: priceEditor.revision, reviewed: priceElement("priceImportReviewed").checked, retailEnabled: priceElement("priceNewRetail").checked }) });
+    if (isNew) priceEditor.document = result.document;
     priceEditor.revision = result.revision; priceEditor.dirty = false; priceEditor.imported = false;
     await loadPriceEditor();
-    if (!priceElement("priceEditorFields").disabled) priceMessage("Precios guardados. Los clientes ya ven el nuevo PDF; la versión anterior está en el historial.");
+    if (!priceElement("priceEditorFields").disabled) priceMessage(isNew ? "Lista creada. El PDF ya está disponible en Documentos clientes." : "Precios guardados. Los clientes ya ven el nuevo PDF; la versión anterior está en el historial.");
     await loadClientDocuments();
   } catch (error) { priceMessage(error.message, true); priceBusy(false); }
 });

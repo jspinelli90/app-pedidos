@@ -27,3 +27,8 @@ Los PDF nuevos usan un formato compacto en A4: se mantienen los 10 puntos de let
 Se comprobó la extracción sobre copias de las cinco listas vigentes al 24/09/2026: minorista (37 productos), pollo/cerdo/embutidos/achuras (51), mayorista (49), Grangys (10) y cajas (35). Ocho productos no tenían precio. Las copias reales se usaron fuera del repositorio y no se incluyen como fixtures.
 
 Para revertir el código, revertir el commit de implementación y desplegar. Los PDFs actuales continúan siendo compatibles con el sistema anterior; este no muestra el editor ni el historial. Para recuperar un precio o PDF anterior, usar el historial antes de retirar la funcionalidad.
+# Crear listas sin un PDF previo
+
+En **Documentos clientes → Crear lista de precios**, completar el título, cargar los productos, sus precios y la unidad de venta. **Agregar producto** suma filas. **Previsualizar PDF** no publica cambios; **Crear lista y PDF** publica la lista y permite continuar editándola.
+
+La opción **Usar esta lista para ofertas y catálogo minorista** está marcada inicialmente y puede desmarcarse antes de crear. Las selecciones de las listas existentes se conservan. Cerrar sin guardar no crea documentos.
