@@ -3,6 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const QRCode = require("qrcode");
+const { validatePriceList, importPriceList, generatePricePdf } = require("./lib/price-lists");
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = "0.0.0.0";
@@ -408,8 +409,14 @@ function readBodyWithLimit(req, maxBytes) {
   });
 }
 
+let documentStoreVersion = null;
 async function readClientDocuments() {
-  const records = await readStore("client_documents", CLIENT_DOCUMENTS_FILE);
+  let records;
+  if (USE_SUPABASE) {
+    const rows = await supabaseRequest("/rest/v1/app_data?key=eq.client_documents&select=data,updated_at");
+    documentStoreVersion = rows?.[0] ? rows[0].updated_at : null;
+    records = rows?.[0] && Array.isArray(rows[0].data) ? rows[0].data : readJsonArray(CLIENT_DOCUMENTS_FILE);
+  } else records = readJsonArray(CLIENT_DOCUMENTS_FILE);
   let changed = false;
   Object.keys(CLIENT_DOCUMENT_TYPES).forEach(type => {
     records.filter(item => item.type === type).forEach((item, index) => {
@@ -423,12 +430,103 @@ async function readClientDocuments() {
       }
     });
   });
-  if (changed) await writeStore("client_documents", CLIENT_DOCUMENTS_FILE, records);
+  if (changed) await writeClientDocuments(records);
   return records;
 }
 
 async function writeClientDocuments(records) {
-  return writeStore("client_documents", CLIENT_DOCUMENTS_FILE, records);
+  if (!USE_SUPABASE) {
+    ensureDataFile();
+    const temporary = `${CLIENT_DOCUMENTS_FILE}.tmp`;
+    fs.writeFileSync(temporary, `${JSON.stringify(records, null, 2)}\n`, "utf8");
+    fs.renameSync(temporary, CLIENT_DOCUMENTS_FILE);
+    return;
+  }
+  const updatedAt = new Date(Math.max(Date.now(), (Date.parse(documentStoreVersion) || 0) + 1)).toISOString();
+  const result = documentStoreVersion === null
+    ? await supabaseRequest("/rest/v1/app_data?on_conflict=key", {
+      method: "POST", headers: { Prefer: "resolution=ignore-duplicates,return=representation" },
+      body: JSON.stringify({ key: "client_documents", data: records, updated_at: updatedAt })
+    })
+    : await supabaseRequest(`/rest/v1/app_data?key=eq.client_documents&updated_at=eq.${encodeURIComponent(documentStoreVersion)}`, {
+      method: "PATCH", headers: { Prefer: "return=representation" },
+      body: JSON.stringify({ data: records, updated_at: updatedAt })
+    });
+  if (!Array.isArray(result) || !result.length) throw Object.assign(new Error("Los documentos cambiaron en otra sesión. Actualizá la pantalla antes de guardar."), { statusCode: 409 });
+  documentStoreVersion = updatedAt;
+  storeCache.delete("client_documents");
+}
+
+function publicDocumentMetadata({ storageName, priceData, priceHistory, priceRevision, ...record }) {
+  return record;
+}
+
+async function readClientDocumentBuffer(document) {
+  const storageName = clientDocumentStorageName(document);
+  if (USE_SUPABASE) {
+    const response = await fetch(`${SUPABASE_URL}/storage/v1/object/${CLIENT_DOCUMENTS_BUCKET}/${storageName}`, {
+      headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` }
+    });
+    if (!response.ok) throw new Error("No se pudo leer el PDF original.");
+    return Buffer.from(await response.arrayBuffer());
+  }
+  return fs.promises.readFile(path.join(DATA_DIR, storageName));
+}
+
+function priceSnapshot(document) {
+  return {
+    id: document.priceRevision || document.updatedAt,
+    updatedAt: document.updatedAt, storageName: clientDocumentStorageName(document),
+    size: document.size, data: document.priceData || null
+  };
+}
+
+async function handlePriceEditor(req, res, documentId, action, versionId) {
+  const records = await readClientDocuments();
+  const document = records.find(item => item.id === documentId && item.type === "price-list");
+  if (!document) return sendJson(res, 404, { error: "Lista de precios no encontrada." });
+  const revision = document.priceRevision || document.updatedAt;
+  const versions = [...(document.priceHistory || []), priceSnapshot(document)];
+  if (action === "versions" && req.method === "GET") {
+    if (versionId) {
+      const version = versions.find(item => item.id === versionId);
+      if (!version) return sendJson(res, 404, { error: "Versión no encontrada." });
+      return sendClientDocument(res, { ...document, storageName: version.storageName });
+    }
+    return sendJson(res, 200, versions.map(({ id, updatedAt, data }) => ({ id, updatedAt, original: !data, current: id === revision })).reverse());
+  }
+  if (action === "prices" && req.method === "GET") {
+    const result = document.priceData ? { data: document.priceData, warnings: [], unrecognized: [] } : await importPriceList(await readClientDocumentBuffer(document), document.name);
+    return sendJson(res, 200, { ...result, revision, imported: !document.priceData });
+  }
+  if ((action === "prices" && req.method === "PUT") || (action === "preview" && req.method === "POST") || (action === "restore" && req.method === "POST")) {
+    const payload = await readBody(req);
+    if (action !== "preview" && payload.revision !== revision) return sendJson(res, 409, { error: "Otra persona modificó esta lista. Cerrá y volvé a abrir el editor antes de guardar." });
+    if (action === "restore") {
+      const version = versions.find(item => item.id === payload.versionId);
+      if (!version) return sendJson(res, 404, { error: "Versión no encontrada." });
+      // Verify the archived object before making it the current public PDF.
+      await readClientDocumentBuffer({ ...document, storageName: version.storageName });
+      const updated = { ...document, storageName: version.storageName, size: version.size, priceData: version.data, priceHistory: versions, priceRevision: cryptoId(), updatedAt: new Date().toISOString() };
+      await writeClientDocuments(records.map(item => item.id === documentId ? updated : item));
+      return sendJson(res, 200, { ok: true, revision: updated.priceRevision });
+    }
+    if (!document.priceData && action === "prices" && payload.reviewed !== true) return sendJson(res, 400, { error: "Revisá la importación contra el original y confirmá la revisión antes de guardar." });
+    const data = validatePriceList(payload.data);
+    const buffer = await generatePricePdf(data);
+    if (action === "preview") {
+      res.writeHead(200, { "Content-Type": "application/pdf", "Content-Length": buffer.length, "Cache-Control": "no-store" });
+      return res.end(buffer);
+    }
+    const nextRevision = cryptoId();
+    const updated = { ...document, priceData: data, priceHistory: versions, priceRevision: nextRevision, storageName: `price-list/${documentId}/${nextRevision}.pdf`, size: buffer.length, updatedAt: new Date().toISOString() };
+    // Upload an immutable object first; a metadata failure leaves the published
+    // PDF and its history untouched. Never overwrite the original object.
+    await saveClientDocument(updated, buffer);
+    await writeClientDocuments(records.map(item => item.id === documentId ? updated : item));
+    return sendJson(res, 200, { ok: true, revision: nextRevision });
+  }
+  return sendJson(res, 405, { error: "Método no permitido." });
 }
 
 async function ensureClientDocumentsBucket() {
@@ -864,7 +962,23 @@ function serveStatic(req, res) {
   });
 }
 
+// Document writes share one record collection. Serialize uploads, reorders,
+// edits and deletes so concurrent requests in this server cannot lose updates.
+let documentQueue = Promise.resolve();
 async function handleApi(req, res) {
+  const pathname = new URL(req.url, `http://${req.headers.host || "localhost"}`).pathname;
+  if (!/^\/api\/(?:public-)?client-documents(?:\/|$)/.test(pathname)) return handleApiRequest(req, res);
+  const previous = documentQueue;
+  let release;
+  documentQueue = new Promise(resolve => { release = resolve; });
+  await previous;
+  try {
+    storeCache.delete("client_documents");
+    return await handleApiRequest(req, res);
+  } finally { release(); }
+}
+
+async function handleApiRequest(req, res) {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
 
   try {
@@ -921,7 +1035,7 @@ async function handleApi(req, res) {
 
     if (url.pathname === "/api/public-client-documents" && req.method === "GET") {
       const records = await readClientDocuments();
-      const visible = records.map(({ storageName, ...record }) => record).sort((a, b) => {
+      const visible = records.map(publicDocumentMetadata).sort((a, b) => {
         const orderA = Number.isFinite(a.order) ? a.order : Number.MAX_SAFE_INTEGER;
         const orderB = Number.isFinite(b.order) ? b.order : Number.MAX_SAFE_INTEGER;
         return orderA - orderB || new Date(a.updatedAt) - new Date(b.updatedAt);
@@ -936,6 +1050,9 @@ async function handleApi(req, res) {
       if (!document) return sendJson(res, 404, { error: "Documento no encontrado." });
       return sendClientDocument(res, document);
     }
+
+    const priceEditorMatch = url.pathname.match(/^\/api\/client-documents\/([^/]+)\/(prices|preview|versions|restore)(?:\/([^/]+))?$/);
+    if (priceEditorMatch) return await handlePriceEditor(req, res, priceEditorMatch[1], priceEditorMatch[2], priceEditorMatch[3] ? decodeURIComponent(priceEditorMatch[3]) : undefined);
 
     const documentUploadMatch = url.pathname.match(/^\/api\/client-documents\/(price-list|offers)$/);
     if (documentUploadMatch && req.method === "POST") {
@@ -983,8 +1100,11 @@ async function handleApi(req, res) {
       const records = await readClientDocuments();
       const document = records.find(item => item.id === documentDeleteMatch[1]);
       if (!document) return sendJson(res, 404, { error: "Documento no encontrado." });
-      await deleteClientDocumentFile(document);
       await writeClientDocuments(records.filter(item => item !== document));
+      const storageNames = new Set([clientDocumentStorageName(document), ...(document.priceHistory || []).map(version => version.storageName)]);
+      // The document is no longer published. Cleanup failure must not leave a
+      // published record pointing at an object that has already been deleted.
+      for (const storageName of storageNames) await deleteClientDocumentFile({ ...document, storageName }).catch(error => console.error("Document cleanup:", error.message));
       return sendJson(res, 200, { ok: true });
     }
 
@@ -1211,7 +1331,7 @@ async function handleApi(req, res) {
 
     return sendJson(res, 404, { error: "No encontrado." });
   } catch (error) {
-    return sendJson(res, 500, { error: error.message || "Error del servidor." });
+    return sendJson(res, error.statusCode || 500, { error: error.message || "Error del servidor." });
   }
 }
 

@@ -15,6 +15,36 @@
   --shadow: 0 14px 34px rgba(28, 20, 17, 0.09);
 }
 
+.price-editor { width: min(1100px, 96vw); max-height: 94vh; padding: 24px; border: 1px solid var(--line); border-radius: 16px; color: var(--ink); overflow: auto; }
+.price-editor::backdrop { background: #191919aa; }
+.price-editor fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.price-editor label { display: grid; gap: 6px; }
+.price-editor-heading, .price-version { display: flex; gap: 16px; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; }
+.price-editor-heading h2 { margin: 4px 0; }
+.price-editor-title { flex: 1; min-width: 220px; }
+.price-import-notice { background: #fff4d6; border: 1px solid #dfc372; padding: 16px; border-radius: 10px; margin-bottom: 18px; }
+.price-import-notice pre { white-space: pre-wrap; max-height: 160px; overflow: auto; }
+.price-editor .price-review-check { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+.price-editor input[type="checkbox"] { width: 19px; height: 19px; min-height: 19px; flex-shrink: 0; }
+.price-bulk-actions { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; padding: 16px; background: var(--surface-2); border-radius: 10px; }
+.price-bulk-actions label { flex: 1; min-width: 150px; }
+.price-table-scroll { max-height: 45vh; overflow: auto; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 14px; }
+.price-table { width: 100%; border-collapse: collapse; text-align: left; }
+.price-table th, .price-table td { padding: 9px; border-bottom: 1px solid var(--line); }
+.price-table th { position: sticky; top: 0; background: var(--surface-2); z-index: 1; }
+.price-table th:first-child { width: 42px; }
+.price-table th:nth-child(3) { width: 160px; }
+.price-table th:last-child { width: 86px; }
+.price-table input { width: 100%; }
+.price-table .price-row-name { min-width: 210px; }
+.price-table .price-row-value { min-width: 110px; }
+.price-editor iframe { width: 100%; height: 65vh; border: 1px solid var(--line); margin-top: 12px; }
+.price-history { margin-top: 20px; border-top: 1px solid var(--line); padding-top: 16px; }
+.price-history summary, .price-import-notice summary { cursor: pointer; font-weight: 700; }
+.price-version { border-bottom: 1px solid var(--line); padding: 10px 0; }
+.price-version span { flex: 1; }
+@media (max-width: 640px) { .price-editor { padding: 14px; } .price-bulk-actions label { min-width: 100%; } .price-editor .form-actions { flex-wrap: wrap; } }
+
 * {
   box-sizing: border-box;
 }

@@ -4,12 +4,20 @@
   "private": true,
   "description": "Sistema local para tomar y seguir pedidos.",
   "main": "server.js",
+  "engines": {
+    "node": ">=22.13.0 <25"
+  },
   "scripts": {
     "start": "node server.js",
     "test": "node --test",
     "migrar:supabase": "node scripts/migrar-supabase.js"
   },
   "dependencies": {
+    "pdfjs-dist": "6.3.289",
+    "pdfkit": "0.20.2",
     "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "jsdom": "30.1.1"
   }
 }
