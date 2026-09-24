@@ -19,7 +19,14 @@ test('carrito exige revisión y aceptación, conserva notas y vuelve a pedir ace
  el('cartLines').querySelector('textarea').dispatchEvent(new w.Event('input'));assert.throws(()=>w.RetailCartUI.payload());
  el('cartReview').click();await tick();el('cartAccepted').checked=true;
  el('clientDeliveryType').value='DELIVERY_CABA';el('clientDeliveryType').dispatchEvent(new w.Event('change'));assert.throws(()=>w.RetailCartUI.payload());assert.match(el('cartEstimate').textContent,/22.500/);
+ const textMode=w.document.querySelector('input[value="text"]');textMode.checked=true;textMode.dispatchEvent(new w.Event('change'));
+ assert.equal(el('retailCart').hidden,true);assert.equal(el('retailCart').disabled,true);assert.equal(el('clientDetail').required,true);assert.equal(el('clientDetail').disabled,false);
+ assert.throws(()=>w.RetailCartUI.payload());el('clientDetail').value='Dos kilos de asado, finito';assert.equal(Object.keys(w.RetailCartUI.payload()).length,0);
+ const cartMode=w.document.querySelector('input[value="cart"]');cartMode.checked=true;cartMode.dispatchEvent(new w.Event('change'));
+ assert.equal(el('cartLines').children.length,1);assert.equal(el('clientDetail').value,'Dos kilos de asado, finito');assert.equal(el('clientDetail').disabled,true);assert.equal(el('retailCart').disabled,false);
+ textMode.checked=true;textMode.dispatchEvent(new w.Event('change'));w.document.getElementById('clientOrderForm').reset();
  w.RetailCartUI.reset();assert.equal(el('cartLines').children.length,0);
+ assert.equal(textMode.checked,true);assert.equal(el('clientDetail').required,true);
 });
 test('el formulario mayorista mantiene el pedido por texto',t=>{
  const dom=new JSDOM(fs.readFileSync(path.join(__dirname,'../public/cliente.html'),'utf8'),{runScripts:'outside-only',url:'http://localhost/pedido-mayorista.html'});t.after(()=>dom.window.close());dom.window.eval(fs.readFileSync(path.join(__dirname,'../public/retail-cart.js'),'utf8'));assert.equal(dom.window.RetailCartUI,undefined);assert.equal(dom.window.document.getElementById('clientDetail').required,true);assert.equal(dom.window.document.getElementById('retailCart').hidden,true);
