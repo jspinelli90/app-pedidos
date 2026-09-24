@@ -66,4 +66,32 @@ test("el editor permite seleccionar, ajustar, deshacer, editar, previsualizar y 
   window.confirm = () => false;
   el("priceEditorClose").click();
   assert.equal(el("priceEditorDialog").open, true);
+  window.confirm = () => true;
+  el("priceEditorClose").click();
+  let created = null, createUrl = null;
+  const originalApi = window.api;
+  window.api = async (url, options = {}) => {
+    if (options.method === "POST") {
+      createUrl = url; created = JSON.parse(options.body); data = created.data;
+      return { document: { id: "new-list" }, revision: "new" };
+    }
+    return originalApi(url, options);
+  };
+  el("priceListCreate").click();
+  assert.equal(el("priceEditorTitle").value, "");
+  assert.equal(el("priceEditorRows").children.length, 1);
+  assert(el("priceEditorOriginal").hidden);
+  assert(el("priceHistory").hidden);
+  assert.equal(el("priceNewRetailLabel").hidden, false);
+  el("priceEditorTitle").value = "Huevos";
+  el("priceEditorRows").querySelector(".price-row-name").value = "Maple N1";
+  el("priceEditorRows").querySelector(".price-row-value").value = "7000";
+  el("priceEditorRows").querySelector(".price-row-unit").value = "unit";
+  el("priceSave").click();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(createUrl, "/api/client-documents/create-price-list");
+  assert.equal(created.retailEnabled, true);
+  assert.equal(created.data.rows[0].unit, "unit");
+  assert.equal(el("priceEditorOriginal").hidden, false);
+  assert.match(el("priceEditorMessage").textContent, /Lista creada/);
 });

@@ -1849,3 +1849,4 @@ textarea:focus {
     max-width: none;
   }
 }
+#priceNewRetailLabel[hidden], #priceEditorOriginal[hidden], #priceHistory[hidden] { display: none !important; }

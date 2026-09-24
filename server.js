@@ -1139,6 +1139,27 @@ async function handleApiRequest(req, res) {
       return sendClientDocument(res, document);
     }
 
+    if (["/api/client-documents/create-price-list", "/api/client-documents/create-price-list/preview"].includes(url.pathname) && req.method === "POST") {
+      const payload = await readBody(req);
+      const data = validatePriceList(payload.data);
+      const buffer = await generatePricePdf(data);
+      if (url.pathname.endsWith("/preview")) {
+        res.writeHead(200, { "Content-Type": "application/pdf", "Content-Length": buffer.length, "Cache-Control": "no-store" });
+        return res.end(buffer);
+      }
+      const records = await readClientDocuments();
+      const catalog = retailCatalog(records);
+      const id = cryptoId();
+      data.rows.forEach(row => { row.id = cryptoId(); });
+      const order = Math.max(-1, ...records.filter(item => item.type === "price-list").map(item => Number.isFinite(item.order) ? item.order : 0)) + 1;
+      const name = data.title.replace(/[\\/:*?"<>|]/g, "-").replace(/\.pdf$/i, "") + ".pdf";
+      const metadata = { id, type: "price-list", name, size: buffer.length, storageName: `price-list/${id}.pdf`, order, updatedAt: new Date().toISOString(), priceData: data, priceHistory: [], priceRevision: cryptoId(), retailEnabled: payload.retailEnabled === true };
+      await saveClientDocument(metadata, buffer);
+      // Preserve inferred source choices when introducing an explicit selection.
+      const updated = records.map(record => record.type === "price-list" ? { ...record, retailEnabled: catalog.lists.find(list => list.id === record.id).enabled } : record);
+      await writeClientDocuments([...updated, metadata]);
+      return sendJson(res, 201, { document: publicDocumentMetadata(metadata), revision: metadata.priceRevision });
+    }
     const priceEditorMatch = url.pathname.match(/^\/api\/client-documents\/([^/]+)\/(prices|preview|versions|restore)(?:\/([^/]+))?$/);
     if (priceEditorMatch) return await handlePriceEditor(req, res, priceEditorMatch[1], priceEditorMatch[2], priceEditorMatch[3] ? decodeURIComponent(priceEditorMatch[3]) : undefined);
 

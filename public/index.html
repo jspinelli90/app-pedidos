@@ -292,6 +292,8 @@
       <section class="document-grid">
         <article class="panel document-card" data-document-type="price-list">
           <h3>Lista de precios</h3>
+          <button id="priceListCreate" class="primary" type="button">Crear lista de precios</button>
+          <p>Cargá el nombre, los productos y sus precios. El PDF se genera al guardar.</p>
           <div id="priceListDocuments" class="document-list">Consultando...</div>
           <label>Elegir PDF
             <input id="priceListFile" type="file" accept="application/pdf,.pdf">
@@ -482,18 +484,19 @@
           </table></div>
           <div class="price-editor-heading"><button id="priceAddRow" class="ghost" type="button">Agregar producto</button><span id="priceRowCount"></span></div>
           <label>Notas que aparecerán en el PDF<textarea id="priceEditorNotes" rows="3" maxlength="2000"></textarea></label>
+          <label id="priceNewRetailLabel" class="price-review-check" hidden><input id="priceNewRetail" type="checkbox" checked>Usar esta lista para ofertas y catálogo minorista.</label>
           <div class="form-actions">
             <button id="pricePreview" class="ghost" type="button">Previsualizar PDF</button>
             <button id="priceSave" class="primary" type="submit">Guardar y actualizar PDF</button>
           </div>
           <section id="pricePreviewSection" hidden><h3>Vista previa sin publicar</h3><a id="pricePreviewLink" target="_blank" rel="noopener">Abrir vista previa en otra pestaña</a><iframe id="pricePreviewFrame" title="Vista previa de lista de precios"></iframe></section>
-          <details class="price-history"><summary>Historial de versiones</summary><p>Recuperar una versión conserva también la lista actual en el historial.</p><div id="priceVersionList"></div></details>
+          <details id="priceHistory" class="price-history"><summary>Historial de versiones</summary><p>Recuperar una versión conserva también la lista actual en el historial.</p><div id="priceVersionList"></div></details>
         </fieldset>
       </form>
     </dialog>
     <script src="/offers-generator.js?v=20260814-a4-folletos-grandes"></script>
     <script src="/retail-offers-model.js?v=20260924-ofertas"></script>
-    <script src="/app.js?v=20260924-ofertas-vinculadas"></script>
+    <script src="/app.js?v=20260924-crear-listas"></script>
     <script src="/retail-offers-studio.js?v=20260924-ofertas"></script>
   </body>
 </html>
