@@ -168,11 +168,15 @@ function isCabaDelivery() {
 
 function localDatePolicy() {
   const now = new Date();
-  const today = todayDate();
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Argentina/Buenos_Aires", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23"
+  }).formatToParts(now).filter(part => part.type !== "literal").map(part => [part.type, part.value]));
+  const today = `${parts.year}-${parts.month}-${parts.day}`;
   const selectedType = deliveryType.value === "RETIRO" ? "RETIRO" : "DELIVERY";
   const cabaDelivery = isCabaDelivery();
-  const cutoffHour = selectedType === "DELIVERY" ? 11 : 13;
-  const afterCutoff = now.getHours() >= cutoffHour;
+  const isSaturday = new Date(`${today}T12:00:00Z`).getUTCDay() === 6;
+  const cutoffHour = selectedType === "DELIVERY" ? 11 : isSaturday ? 8 : 13;
+  const afterCutoff = Number(parts.hour) >= cutoffHour;
   const regularMinDate = nextWorkingDate(afterCutoff ? addDays(today, 1) : today);
   const minDate = cabaDelivery ? nextFriday(today, !(isFriday(today) && afterCutoff)) : regularMinDate;
   return { today, afterCutoff, cutoffHour, deliveryType: selectedType, deliveryZone: cabaDelivery ? "CABA_VIERNES" : "REGULAR", minDate };
@@ -230,7 +234,7 @@ function showSuccess(orderNumber, selectedDeliveryType, deliveryZone) {
     ? "Entrega CABA el viernes. Envío gratis desde $50.000; pedidos menores abonan $15.000."
     : selectedDeliveryType === "DELIVERY"
       ? "Horario de entrega para delivery: de 11:00 a 15:00 hs."
-    : "Horario de retiro: de 6:00 a 13:00 hs.";
+    : "Horario de retiro: de 6:00 a 13:00 hs. Los sábados, pedidos para retirar ese día hasta las 8:00 hs.";
   message.textContent = "";
   successBox.hidden = false;
   successBox.innerHTML = `
@@ -249,7 +253,7 @@ function updateAddressRequirement() {
     ? "Delivery CABA los viernes. Pedidos hasta las 11:00 hs."
     : regularDelivery
       ? "Horario de entrega para delivery: de 11:00 a 15:00 hs."
-    : "Horario de retiro: de 6:00 a 13:00 hs.";
+    : "Horario de retiro: de 6:00 a 13:00 hs. Los sábados, pedidos para retirar ese día hasta las 8:00 hs.";
   addressSection.hidden = !regularDelivery;
   cabaAddressSection.hidden = !cabaDelivery;
   address.required = regularDelivery;
