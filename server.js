@@ -37,6 +37,10 @@ loadEnvFile();
 const SUPABASE_URL = String(process.env.SUPABASE_URL || "").replace(/\/$/, "");
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const USE_SUPABASE = Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
+const configuredRequestTimeout = Number(process.env.SUPABASE_REQUEST_TIMEOUT_MS || 15000);
+const SUPABASE_REQUEST_TIMEOUT_MS = Number.isFinite(configuredRequestTimeout) && configuredRequestTimeout > 0
+  ? configuredRequestTimeout
+  : 15000;
 const configuredStoreCacheTtl = Number(process.env.SUPABASE_STORE_CACHE_TTL_MS || 300000);
 const SUPABASE_STORE_CACHE_TTL_MS = Number.isFinite(configuredStoreCacheTtl) && configuredStoreCacheTtl >= 0
   ? configuredStoreCacheTtl
@@ -96,23 +100,43 @@ function readJsonArray(filePath) {
   }
 }
 
-async function supabaseRequest(pathname, options = {}) {
-  const response = await fetch(`${SUPABASE_URL}${pathname}`, {
+function fetchWithTimeout(url, options = {}) {
+  const deadline = AbortSignal.timeout(SUPABASE_REQUEST_TIMEOUT_MS);
+  return fetch(url, {
     ...options,
-    headers: {
-      apikey: SUPABASE_SERVICE_ROLE_KEY,
-      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-      "Content-Type": "application/json",
-      ...(options.headers || {})
-    }
+    signal: options.signal ? AbortSignal.any([options.signal, deadline]) : deadline
   });
-  if (!response.ok) {
-    const detail = await response.text().catch(() => "");
-    throw new Error(`Supabase no respondio correctamente: ${response.status} ${detail}`);
+}
+
+async function supabaseRequest(pathname, options = {}) {
+  const timeoutSignal = AbortSignal.timeout(SUPABASE_REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${SUPABASE_URL}${pathname}`, {
+      ...options,
+      signal: options.signal ? AbortSignal.any([options.signal, timeoutSignal]) : timeoutSignal,
+      headers: {
+        apikey: SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        "Content-Type": "application/json",
+        ...(options.headers || {})
+      }
+    });
+    if (!response.ok) {
+      const detail = await response.text().catch(() => "");
+      throw new Error(`Supabase no respondio correctamente: ${response.status} ${detail}`);
+    }
+    if (response.status === 204) return null;
+    const text = await response.text();
+    return text ? JSON.parse(text) : null;
+  } catch (error) {
+    if (timeoutSignal.aborted) {
+      const timeoutError = new Error("La consulta de datos tardo demasiado. Volve a actualizar en unos segundos. Si estabas guardando, verifica el listado antes de repetir la operacion.");
+      timeoutError.statusCode = 503;
+      console.error("Supabase request timed out", { method: options.method || "GET", timeoutMs: SUPABASE_REQUEST_TIMEOUT_MS });
+      throw timeoutError;
+    }
+    throw error;
   }
-  if (response.status === 204) return null;
-  const text = await response.text();
-  return text ? JSON.parse(text) : null;
 }
 
 function cloneStoreRecords(records) {
@@ -567,7 +591,7 @@ function publicDocumentMetadata({ storageName, priceData, priceHistory, priceRev
 async function readClientDocumentBuffer(document) {
   const storageName = clientDocumentStorageName(document);
   if (USE_SUPABASE) {
-    const response = await fetch(`${SUPABASE_URL}/storage/v1/object/${CLIENT_DOCUMENTS_BUCKET}/${storageName}`, {
+    const response = await fetchWithTimeout(`${SUPABASE_URL}/storage/v1/object/${CLIENT_DOCUMENTS_BUCKET}/${storageName}`, {
       headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` }
     });
     if (!response.ok) throw new Error("No se pudo leer el PDF original.");
@@ -651,13 +675,13 @@ async function ensureClientDocumentsBucket() {
     Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
     "Content-Type": "application/json"
   };
-  const existing = await fetch(`${SUPABASE_URL}/storage/v1/bucket/${CLIENT_DOCUMENTS_BUCKET}`, { headers });
+  const existing = await fetchWithTimeout(`${SUPABASE_URL}/storage/v1/bucket/${CLIENT_DOCUMENTS_BUCKET}`, { headers });
   if (existing.ok) return;
   if (existing.status !== 404) {
     const detail = await existing.text().catch(() => "");
     throw new Error(`No se pudo comprobar el almacenamiento de documentos (${existing.status}${detail ? `: ${detail}` : ""}).`);
   }
-  const response = await fetch(`${SUPABASE_URL}/storage/v1/bucket`, {
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/storage/v1/bucket`, {
     method: "POST",
     headers,
     body: JSON.stringify({ id: CLIENT_DOCUMENTS_BUCKET, name: CLIENT_DOCUMENTS_BUCKET, public: false, file_size_limit: 10_000_000, allowed_mime_types: ["application/pdf"] })
@@ -678,7 +702,7 @@ async function saveClientDocument(document, buffer) {
   if (!config) throw new Error("Tipo de documento invalido.");
   if (USE_SUPABASE) {
     await ensureClientDocumentsBucket();
-    const response = await fetch(`${SUPABASE_URL}/storage/v1/object/${CLIENT_DOCUMENTS_BUCKET}/${storageName}`, {
+    const response = await fetchWithTimeout(`${SUPABASE_URL}/storage/v1/object/${CLIENT_DOCUMENTS_BUCKET}/${storageName}`, {
       method: "POST",
       headers: {
         apikey: SUPABASE_SERVICE_ROLE_KEY,
@@ -702,7 +726,7 @@ async function sendClientDocument(res, document) {
   if (!storageName) return sendJson(res, 404, { error: "Documento no encontrado." });
   let buffer;
   if (USE_SUPABASE) {
-    const response = await fetch(`${SUPABASE_URL}/storage/v1/object/${CLIENT_DOCUMENTS_BUCKET}/${storageName}`, {
+    const response = await fetchWithTimeout(`${SUPABASE_URL}/storage/v1/object/${CLIENT_DOCUMENTS_BUCKET}/${storageName}`, {
       headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` }
     });
     if (!response.ok) return sendJson(res, 404, { error: "El documento todavia no fue cargado." });
@@ -725,7 +749,7 @@ async function deleteClientDocumentFile(document) {
   const storageName = clientDocumentStorageName(document);
   if (!storageName) return;
   if (USE_SUPABASE) {
-    const response = await fetch(`${SUPABASE_URL}/storage/v1/object/${CLIENT_DOCUMENTS_BUCKET}/${storageName}`, {
+    const response = await fetchWithTimeout(`${SUPABASE_URL}/storage/v1/object/${CLIENT_DOCUMENTS_BUCKET}/${storageName}`, {
       method: "DELETE",
       headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` }
     });
@@ -1085,6 +1109,9 @@ function serveStatic(req, res) {
 let documentQueue = Promise.resolve();
 async function handleApi(req, res) {
   const pathname = new URL(req.url, `http://${req.headers.host || "localhost"}`).pathname;
+  // Listing orders must not wait behind a PDF upload or another write.
+  // Mutations still use the queue to protect read-modify-write operations.
+  if (pathname === "/api/orders" && req.method === "GET") return handleApiRequest(req, res);
   if (!/^\/api\/(?:(?:public-)?client-documents|(?:public-)?retail-offers|public-retail-catalog|public-retail-quote|public-orders|orders|pos)(?:\/|$)/.test(pathname)) return handleApiRequest(req, res);
   const previous = documentQueue;
   let release;
