@@ -70,7 +70,7 @@
   }
   async function load(){
     status('Cargando productos y ofertas...');
-    try{const r=await fetch('/api/public-retail-catalog',{cache:'no-store'});if(!r.ok)throw new Error('No se pudo cargar el catálogo. Tocá Actualizar catálogo para reintentar.');state.catalog=await r.json();
+    try{const r=await (window.ClientRequest?.fetch || fetch)('/api/public-retail-catalog',{cache:'no-store'});if(!r.ok)throw new Error('No se pudo cargar el catálogo. Tocá Actualizar catálogo para reintentar.');state.catalog=await r.json();
       const category=el('cartCategory');const chosen=category.value;category.replaceChildren(new Option('Todas las listas',''));
       const lists=new Map(state.catalog.products.map(p=>[p.documentId,p.listName]));for(const [id,name]of lists)category.add(new Option(name.replace(/\.pdf$/i,''),id));category.value=chosen;
       invalidate();renderCatalog();renderLines();status('Para pedir un corte con dos preparaciones, escribí su aclaración y volvé a agregarlo.');
@@ -79,7 +79,7 @@
   async function review(){
     if(state.busy)return;state.busy=true;el('cartReview').disabled=true;
     const version=state.version;
-    try{M.quote(state.catalog,state.lines,context());const r=await fetch('/api/public-retail-quote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cart:state.lines,...context()})});const quote=await r.json();if(!r.ok)throw new Error(quote.error);if(version!==state.version)return;
+    try{M.quote(state.catalog,state.lines,context());const r=await (window.ClientRequest?.fetch || fetch)('/api/public-retail-quote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cart:state.lines,...context()})});const quote=await r.json();if(!r.ok)throw new Error(quote.error);if(version!==state.version)return;
       state.quote=quote;state.requestId=crypto.randomUUID();el('cartAccepted').disabled=false;el('cartAccepted').checked=false;renderLines();renderEstimate();status('Total actualizado. Leé y marcá la aclaración del importe estimado antes de enviar.');el('cartEstimate').scrollIntoView({behavior:'smooth',block:'center'});
     }catch(e){state.quote=null;el('cartAccepted').disabled=true;el('cartAccepted').checked=false;status(e.message,true);}
     finally{state.busy=false;el('cartReview').disabled=false;}

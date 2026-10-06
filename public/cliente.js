@@ -47,7 +47,7 @@ let orderDatePolicy = null;
 
 async function loadClientDocuments() {
   try {
-    const response = await fetch("/api/public-client-documents", { cache: "no-store" });
+    const response = await (window.ClientRequest?.fetch || fetch)("/api/public-client-documents", { cache: "no-store" });
     if (!response.ok) return;
     const documents = await response.json();
     renderClientDocumentLinks(clientPriceLists, documents["price-list"], "primary");
@@ -214,7 +214,7 @@ function validatePrepDate() {
 async function refreshDatePolicy(forceValue = false) {
   let policy = localDatePolicy();
   try {
-    const response = await fetch(`/api/public-order-policy?deliveryType=${encodeURIComponent(deliveryType.value)}&deliveryZone=${isCabaDelivery() ? "CABA_VIERNES" : "REGULAR"}`, { cache: "no-store" });
+    const response = await (window.ClientRequest?.fetch || fetch)(`/api/public-order-policy?deliveryType=${encodeURIComponent(deliveryType.value)}&deliveryZone=${isCabaDelivery() ? "CABA_VIERNES" : "REGULAR"}`, { cache: "no-store" });
     if (response.ok) policy = await response.json();
   } catch {
     // El servidor vuelve a validar la fecha al enviar el pedido.
@@ -273,7 +273,7 @@ async function updateCabaStreetOptions() {
     return;
   }
   try {
-    const response = await fetch(`/api/caba-delivery-streets?neighborhood=${encodeURIComponent(cabaNeighborhood.value)}`, { cache: "no-store" });
+    const response = await (window.ClientRequest?.fetch || fetch)(`/api/caba-delivery-streets?neighborhood=${encodeURIComponent(cabaNeighborhood.value)}`, { cache: "no-store" });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "No se pudieron cargar las calles.");
     cabaStreet.innerHTML = '<option value="">Seleccionar calle</option>';
@@ -360,7 +360,7 @@ async function sendOrder(event) {
     if (sendingOrder) return;
     sendingOrder = true;
     document.querySelector("#clientSubmitButton").disabled = true;
-    const response = await fetch("/api/public-orders", {
+    const response = await (window.ClientRequest?.fetch || fetch)("/api/public-orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
