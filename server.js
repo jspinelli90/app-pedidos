@@ -1,4 +1,7 @@
 const http = require("http");
+const { captureBody, jsonBody } = require("./lib/request-body");
+const { AsyncLocalStorage } = require("node:async_hooks");
+const documentRequestContext = new AsyncLocalStorage();
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
@@ -395,58 +398,15 @@ function sendJson(res, status, payload) {
   res.end(body);
 }
 
-function readBody(req) {
-  return new Promise((resolve, reject) => {
-    let body = "";
-    req.on("data", chunk => {
-      body += chunk;
-      if (body.length > 1_000_000) {
-        reject(new Error("El pedido es demasiado grande."));
-        req.destroy();
-      }
-    });
-    req.on("end", () => {
-      if (!body) return resolve({});
-      try {
-        resolve(JSON.parse(body));
-      } catch {
-        reject(new Error("Datos invalidos."));
-      }
-    });
-    req.on("error", reject);
-  });
-}
+function readBody(req) { return jsonBody(req); }
+function readBodyWithLimit(req, maxBytes) { return jsonBody(req, maxBytes); }
 
-function readBodyWithLimit(req, maxBytes) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    let size = 0;
-    req.on("data", chunk => {
-      size += chunk.length;
-      if (size > maxBytes) {
-        reject(new Error("El archivo supera el limite de 10 MB."));
-        req.destroy();
-        return;
-      }
-      chunks.push(chunk);
-    });
-    req.on("end", () => {
-      try {
-        resolve(JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}"));
-      } catch {
-        reject(new Error("Datos invalidos."));
-      }
-    });
-    req.on("error", reject);
-  });
-}
-
-let documentStoreVersion = null;
+// Optimistic document revisions belong to each request, not other concurrent readers.
 async function readClientDocuments() {
   let records;
   if (USE_SUPABASE) {
     const rows = await supabaseRequest("/rest/v1/app_data?key=eq.client_documents&select=data,updated_at");
-    documentStoreVersion = rows?.[0] ? rows[0].updated_at : null;
+    documentRequestContext.getStore().version = rows?.[0] ? rows[0].updated_at : null;
     records = rows?.[0] && Array.isArray(rows[0].data) ? rows[0].data : readJsonArray(CLIENT_DOCUMENTS_FILE);
   } else records = readJsonArray(CLIENT_DOCUMENTS_FILE);
   let changed = false;
@@ -479,18 +439,18 @@ async function writeClientDocuments(records) {
     fs.renameSync(temporary, CLIENT_DOCUMENTS_FILE);
     return;
   }
-  const updatedAt = new Date(Math.max(Date.now(), (Date.parse(documentStoreVersion) || 0) + 1)).toISOString();
-  const result = documentStoreVersion === null
+  const updatedAt = new Date(Math.max(Date.now(), (Date.parse(documentRequestContext.getStore().version) || 0) + 1)).toISOString();
+  const result = documentRequestContext.getStore().version === null
     ? await supabaseRequest("/rest/v1/app_data?on_conflict=key", {
       method: "POST", headers: { Prefer: "resolution=ignore-duplicates,return=representation" },
       body: JSON.stringify({ key: "client_documents", data: records, updated_at: updatedAt })
     })
-    : await supabaseRequest(`/rest/v1/app_data?key=eq.client_documents&updated_at=eq.${encodeURIComponent(documentStoreVersion)}`, {
+    : await supabaseRequest(`/rest/v1/app_data?key=eq.client_documents&updated_at=eq.${encodeURIComponent(documentRequestContext.getStore().version)}`, {
       method: "PATCH", headers: { Prefer: "return=representation" },
       body: JSON.stringify({ data: records, updated_at: updatedAt })
     });
   if (!Array.isArray(result) || !result.length) throw Object.assign(new Error("Los documentos cambiaron en otra sesión. Actualizá la pantalla antes de guardar."), { statusCode: 409 });
-  documentStoreVersion = updatedAt;
+  documentRequestContext.getStore().version = updatedAt;
   storeCache.delete("client_documents");
 }
 
@@ -1107,11 +1067,15 @@ function serveStatic(req, res) {
 // Document writes share one record collection. Serialize uploads, reorders,
 // edits and deletes so concurrent requests in this server cannot lose updates.
 let documentQueue = Promise.resolve();
-async function handleApi(req, res) {
+function handleApi(req, res) {
+  return documentRequestContext.run({ version: null }, () => dispatchApi(req, res));
+}
+async function dispatchApi(req, res) {
   const pathname = new URL(req.url, `http://${req.headers.host || "localhost"}`).pathname;
-  // Listing orders must not wait behind a PDF upload or another write.
-  // Mutations still use the queue to protect read-modify-write operations.
-  if (pathname === "/api/orders" && req.method === "GET") return handleApiRequest(req, res);
+  // Buffer writes immediately, even while another mutation holds the lock.
+  if (!["GET", "HEAD"].includes(req.method)) captureBody(req);
+  // Reads and price quotes never wait for uploads or mutations.
+  if (["GET", "HEAD"].includes(req.method) || ["/api/public-retail-quote", "/api/pos/quote"].includes(pathname)) return handleApiRequest(req, res);
   if (!/^\/api\/(?:(?:public-)?client-documents|(?:public-)?retail-offers|public-retail-catalog|public-retail-quote|public-orders|orders|pos)(?:\/|$)/.test(pathname)) return handleApiRequest(req, res);
   const previous = documentQueue;
   let release;
