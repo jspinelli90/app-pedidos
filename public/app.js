@@ -1582,7 +1582,7 @@ function printDailySummary() {
       <td>${escapeHtml(order.status || "")}</td>
       <td>${escapeHtml(orderPriority(order))}${orderScheduledTime(order) ? `<br>${escapeHtml(orderScheduledTime(order))}` : ""}</td>
       <td>${escapeHtml(compactPrintText(order.address))}</td>
-      <td class="detail">${escapeHtml(compactPrintText(orderDetail(order)))}</td>
+      <td class="detail">${escapeHtml(compactPrintText(orderTicketDetail(order, orderDetail(order))))}</td>
       <td>${escapeHtml(compactPrintText(order.notes))}</td>
     </tr>
   `).join("");
