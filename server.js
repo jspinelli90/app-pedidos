@@ -584,7 +584,8 @@ async function handlePriceEditor(req, res, documentId, action, versionId) {
   }
   if (action === "prices" && req.method === "GET") {
     const result = document.priceData ? { data: document.priceData, warnings: [], unrecognized: [] } : await importPriceList(await readClientDocumentBuffer(document), document.name);
-    return sendJson(res, 200, { ...result, revision, imported: !document.priceData });
+    const { orderPriceList } = require("./public/price-list-order");
+    return sendJson(res, 200, { ...result, data: orderPriceList(result.data), revision, imported: !document.priceData });
   }
   if ((action === "prices" && req.method === "PUT") || (action === "preview" && req.method === "POST") || (action === "restore" && req.method === "POST")) {
     const payload = await readBody(req);

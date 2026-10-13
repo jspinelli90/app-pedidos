@@ -29,7 +29,7 @@ test("separa columnas incluso cuando el PDF une un precio con el siguiente produ
 });
 test("rechaza precios inválidos y conserva Consultar y cero", () => {
   const data = { title: "Lista", notes: "", rows: [{ name: "Corte", price: 0 }, { name: "Caja", price: null }] };
-  assert.deepEqual(validatePriceList(data), data);
+  assert.deepEqual(validatePriceList(data), { ...data, rows: [data.rows[1], data.rows[0]] });
   for (const price of [-1, NaN, Infinity, "1200", undefined, 1000000000]) assert.throws(() => validatePriceList({ ...data, rows: [{ name: "Corte", price }] }));
   assert.throws(() => validatePriceList({ ...data, rows: [] }));
 });

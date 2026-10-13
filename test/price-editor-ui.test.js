@@ -30,6 +30,7 @@ test("el editor permite seleccionar, ajustar, deshacer, editar, previsualizar y 
   };
   window.fetch = async (url, options) => { previewed = JSON.parse(options.body); return { ok: true, blob: async () => new window.Blob(["%PDF-"]) }; };
   const source = fs.readFileSync(path.join(__dirname, "../public/app.js"), "utf8");
+  window.eval(fs.readFileSync(path.join(__dirname, "../public/price-list-order.js"), "utf8"));
   window.eval(source.slice(source.indexOf("const priceEditor =")));
   await window.openPriceEditor({ id: "list-1" });
   assert.equal(el("priceEditorRows").children.length, 3);
