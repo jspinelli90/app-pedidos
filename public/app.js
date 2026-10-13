@@ -1895,6 +1895,14 @@ function addPriceRow(row = { name: "", price: null }) {
     <td><select class="price-row-unit" aria-label="Unidad de venta"><option value="">Sin definir</option><option value="kg">Kilo</option><option value="unit">Unidad</option><option value="box">Caja</option></select></td>
     <td><button class="danger" type="button">Quitar</button></td>`;
   tr.querySelector(".price-row-name").value = row.name;
+  const group = window.PriceListOrder?.productGroup(row, priceElement("priceEditorTitle").value);
+  if (group) {
+    const label = document.createElement("strong");
+    label.className = "price-group-label";
+    label.textContent = group;
+    label.style.display = "block";
+    tr.querySelector(".price-row-name").before(label);
+  }
   tr.querySelector(".price-row-value").value = row.price === null ? "" : row.price;
   tr.querySelector(".price-row-unit").value = row.unit || "";
   tr.querySelector("button").addEventListener("click", () => { tr.remove(); priceChanged(); priceRowCount(); });
@@ -1921,6 +1929,17 @@ function sortPriceEditorRows() {
     { name: a.querySelector(".price-row-name").value },
     { name: b.querySelector(".price-row-name").value }, title));
   rows.forEach(row => priceElement("priceEditorRows").append(row));
+  let previousGroup = "";
+  rows.forEach(row => {
+    row.querySelector(".price-group-label")?.remove();
+    const group = PriceListOrder.productGroup({ name: row.querySelector(".price-row-name").value }, title);
+    if (group && group !== previousGroup) {
+      const label = document.createElement("strong");
+      label.className = "price-group-label"; label.textContent = group; label.style.display = "block";
+      row.querySelector(".price-row-name").before(label);
+    }
+    previousGroup = group;
+  });
 }
 priceElement("priceEditorForm").addEventListener("focusout", event => {
   if (event.target.matches(".price-row-name, #priceEditorTitle")) sortPriceEditorRows();
@@ -1964,6 +1983,7 @@ async function loadPriceEditor() {
     priceElement("priceEditorNotes").value = result.data.notes;
     priceElement("priceEditorRows").replaceChildren();
     result.data.rows.forEach(addPriceRow);
+    if (window.PriceListOrder?.productGroup(result.data.rows[0] || {}, result.data.title)) sortPriceEditorRows();
     priceRowCount();
     priceElement("priceImportNotice").hidden = !result.imported;
     priceElement("priceImportWarnings").textContent = result.warnings.join(" ");
