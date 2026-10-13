@@ -4,6 +4,16 @@ const { orderPriceList } = require("../public/price-list-order");
 const { validatePriceList, generatePricePdf, importPriceList } = require("../lib/price-lists");
 
 const data = title => ({ title, notes: "", rows: ["PISTOLA", "vacío", "1/2 RES", "ASADO COMPLETO", "Ásado", "PECHO", "MOCHO", "PARRILLERO", "DELANTERO", "BIFE CON LOMO", "Bola de lomo"].map((name, i) => ({ id: `p${i}`, name, price: 100 + i })) });
+test("Otros productos ordena por nombre y conserva códigos, precios e identificadores", () => {
+  const input = { title: "OTROS PRODUCTOS", notes: "", rows: [
+    { id: "c", name: "418 - CORDERO", price: 18900 },
+    { id: "a", name: "7798398543096 - ACEITE DE OLIVA 500ML", price: 4700 },
+    { id: "l", name: "LECHON", price: 15000 },
+    { id: "b", name: "701 - CARBON CHICO 4K", price: 4500 }
+  ] };
+  assert.deepEqual(validatePriceList(input).rows, [input.rows[1], input.rows[3], input.rows[0], input.rows[2]]);
+  assert.deepEqual(validatePriceList({ ...input, title: "LISTA DE PRECIOS CAJAS" }).rows, input.rows);
+});
 test("mayorista: orden alfabético, troceo al final y media res Consultar", () => {
   const original = data("Carne mayorista");
   const sorted = validatePriceList(original);

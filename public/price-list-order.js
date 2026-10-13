@@ -1,5 +1,6 @@
 (function (root) {
   const normalize = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim().replace(/\s+/g, " ");
+  const productName = value => normalize(value).replace(/^\d+\s*[-–—]\s*/, "");
   const wholesaleCuts = ["MOCHO", "PECHO", "PARRILLERO", "BIFE CON LOMO", "ASADO COMPLETO", "DELANTERO", "PISTOLA", "1/2 RES"];
   const groups = ["Pollo", "Cerdo", "Embutidos", "Achuras", "Otros"];
   const namesByGroup = [
@@ -12,7 +13,7 @@
   const isGrouped = title => /\bPOLLO\b/.test(normalize(title)) && /\bCERDO\b/.test(normalize(title));
   function productGroup(row, title) {
     if (!isGrouped(title)) return "";
-    const name = normalize(row.name).replace(/^CONSULTAR\s+/, "");
+    const name = productName(row.name).replace(/^CONSULTAR\s+/, "");
     const index = namesByGroup.findIndex(names => names.includes(name));
     return groups[index < 0 ? 4 : index];
   }
@@ -27,15 +28,15 @@
       if (difference) return difference;
     }
     if (isWholesale(title)) {
-      const ai = wholesaleCuts.indexOf(normalize(a.name));
-      const bi = wholesaleCuts.indexOf(normalize(b.name));
+      const ai = wholesaleCuts.indexOf(productName(a.name));
+      const bi = wholesaleCuts.indexOf(productName(b.name));
       if (ai >= 0 || bi >= 0) return (ai < 0 ? -1 : ai) - (bi < 0 ? -1 : bi);
     }
-    const sortName = row => isGrouped(title) ? normalize(row.name).replace(/^CONSULTAR\s+/, "") : String(row.name || "").trim();
+    const sortName = row => isGrouped(title) ? productName(row.name).replace(/^CONSULTAR\s+/, "") : productName(row.name);
     return sortName(a).localeCompare(sortName(b), "es", { sensitivity: "base", numeric: true });
   }
   function orderPriceList(data) {
-    return { ...data, rows: data.rows.map(row => isWholesale(data.title) && normalize(row.name) === "1/2 RES" ? { ...row, price: null } : { ...row }).sort((a, b) => compareRows(a, b, data.title)) };
+    return { ...data, rows: data.rows.map(row => isWholesale(data.title) && productName(row.name) === "1/2 RES" ? { ...row, price: null } : { ...row }).sort((a, b) => compareRows(a, b, data.title)) };
   }
   const api = { compareRows, orderPriceList, productGroup };
   if (typeof module === "object" && module.exports) module.exports = api;
