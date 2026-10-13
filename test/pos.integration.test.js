@@ -5,7 +5,7 @@ test('caja prueba: ofertas, revisión, pagos, reintentos, códigos y pedidos int
  const base=`http://127.0.0.1:${server.address().port}`;
  const call=async(p,method='GET',body)=>{const r=await fetch(base+p,{method,headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});return {status:r.status,data:await r.json()};};
  const created=(await call('/api/client-documents/create-price-list','POST',{data:{title:'CARNE MINORISTA',notes:'',rows:[{name:'ASADO AMERICANO',price:17000,unit:'kg'},{name:'800 - MAPLE N1',price:7000,unit:'unit'}]},retailEnabled:true})).data;
- let catalog=(await call('/api/pos/catalog')).data;const [meat,egg]=catalog.products;
+ let catalog=(await call('/api/pos/catalog')).data;const meat=catalog.products.find(p=>p.name==='ASADO AMERICANO'),egg=catalog.products.find(p=>p.name==='800 - MAPLE N1');
  assert.equal(catalog.mode,'practice');assert.equal(catalog.mappings.find(m=>m.code==='00001').productId,meat.id);
  const mappings=[...catalog.mappings,{kind:'barcode',code:'123',productId:meat.id}];
  const saved=await call('/api/pos/mappings','PUT',{revision:catalog.revision,mappings});assert.equal(saved.status,200);
