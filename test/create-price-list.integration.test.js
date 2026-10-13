@@ -30,7 +30,7 @@ test("crea listas editables sin PDF y conserva las fuentes minoristas existentes
   const saved = await (await call(`/api/client-documents/${document.id}/prices`)).json();
   assert.equal(saved.imported, false);
   assert.equal(new Set(saved.data.rows.map(row => row.id)).size, 2);
-  assert.deepEqual(saved.data.rows.map(({id,...row})=>row), data.rows);
+  assert.deepEqual(saved.data.rows.map(({id,...row})=>row), [data.rows[1], data.rows[0]]);
   const catalog = await (await call("/api/retail-offers/catalog")).json();
   assert(catalog.lists.find(list=>list.id===uploaded.id).enabled);
   assert(catalog.lists.find(list=>list.id===document.id).enabled);

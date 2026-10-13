@@ -1914,6 +1914,17 @@ function priceEditorData() {
     }))
   };
 }
+function sortPriceEditorRows() {
+  const title = priceElement("priceEditorTitle").value;
+  const rows = [...priceElement("priceEditorRows").children];
+  rows.sort((a, b) => PriceListOrder.compareRows(
+    { name: a.querySelector(".price-row-name").value },
+    { name: b.querySelector(".price-row-name").value }, title));
+  rows.forEach(row => priceElement("priceEditorRows").append(row));
+}
+priceElement("priceEditorForm").addEventListener("focusout", event => {
+  if (event.target.matches(".price-row-name, #priceEditorTitle")) sortPriceEditorRows();
+});
 function priceApiPath(action) { return priceEditor.document ? `/api/client-documents/${encodeURIComponent(priceEditor.document.id)}/${action}` : `/api/client-documents/create-price-list${action === "preview" ? "/preview" : ""}`; }
 function priceEditorMode(isNew) {
   priceElement("priceEditorHeading").textContent = isNew ? "Crear lista de precios" : "Editar lista de precios";
