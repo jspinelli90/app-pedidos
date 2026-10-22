@@ -6,6 +6,10 @@ services:
     buildCommand: npm install
     startCommand: npm start
     envVars:
+      - key: RRHH_DATABASE_URL
+        sync: false
+      - key: ADMINISTRATION_DATABASE_URL
+        sync: false
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY

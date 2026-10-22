@@ -1,4 +1,5 @@
 const http = require("http");
+const { authorize } = require("./lib/admin-access");
 const { captureBody, jsonBody } = require("./lib/request-body");
 const { AsyncLocalStorage } = require("node:async_hooks");
 const documentRequestContext = new AsyncLocalStorage();
@@ -1559,7 +1560,8 @@ async function handleApiRequest(req, res) {
   }
 }
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
+  if (!await authorize(req, res)) return;
   if (req.url.startsWith("/api/")) return handleApi(req, res);
   return serveStatic(req, res);
 });
