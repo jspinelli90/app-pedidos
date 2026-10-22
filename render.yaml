@@ -5,6 +5,7 @@ services:
     plan: 0.5c-512mb
     buildCommand: npm install
     startCommand: npm start
+    healthCheckPath: /cliente.html
     envVars:
       - key: RRHH_DATABASE_URL
         sync: false
