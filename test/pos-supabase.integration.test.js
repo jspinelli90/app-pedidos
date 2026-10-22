@@ -1,3 +1,4 @@
+require('../test-support/authenticated-server.cjs');
 const test=require('node:test');const assert=require('node:assert/strict');const http=require('node:http');const fs=require('node:fs');const path=require('node:path');const os=require('node:os');
 test('persistencia caja: conflictos y fallas no pierden ventas o códigos; reintentos no duplican',async t=>{
  const stores=new Map([['client_documents',{updated_at:'2026-09-24T00:00:00Z',data:[{id:'retail',type:'price-list',name:'CARNE MINORISTA.pdf',retailEnabled:true,order:0,priceData:{rows:[{id:'a',name:'ASADO AMERICANO',price:17000,unit:'kg'}]}}]}],['migrations',{data:[{id:'2026-07-22-deactivate-wholesale-customers'}]}]]);

@@ -1,3 +1,4 @@
+require('../test-support/authenticated-server.cjs');
 const test=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const os=require('node:os');const path=require('node:path');
 test('caja prueba: ofertas, revisión, pagos, reintentos, códigos y pedidos intactos',async t=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'pos-test-'));process.env.DATA_DIR=dir;process.env.PORT='0';process.env.SUPABASE_URL='';process.env.SUPABASE_SERVICE_ROLE_KEY='';

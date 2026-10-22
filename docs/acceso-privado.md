@@ -13,4 +13,4 @@ Sin estas conexiones, el acceso privado responde 503 y los clientes siguen acced
 
 Validación focalizada: `node --test test/admin-access.test.js test/public-client-content.test.js test/client-request.test.js test/retail-cart.test.js`.
 
-Los tests de integración históricos acceden directamente a rutas internas sin credenciales: necesitan un entorno de autenticación de prueba antes de poder ejecutarse con el nuevo control. No habilitar una excepción de autenticación en producción para esos tests.
+Los tests de integración de negocio usan una fixture de acceso autenticado, aislada en test-support. El control real de acceso se verifica por separado en admin-access.test.js, incluyendo rechazo, aceptación y caída del servicio de identidad. No existe excepción de autenticación en el código productivo.

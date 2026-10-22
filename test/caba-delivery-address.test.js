@@ -1,3 +1,4 @@
+require('../test-support/authenticated-server.cjs');
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { cabaStreetsForNeighborhood, validateCabaDeliveryAddress } = require("../server");
