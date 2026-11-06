@@ -24,7 +24,7 @@ test("delivery combina búsqueda, selector, tipo de venta y filtros existentes",
     { ...base, id: "e", number: 5, deliveryType: "RETIRO" },
     { ...base, id: "f", number: 6, prepDate: "2026-11-07" }
   ];
-  const ids = ["deliveryOrderSearch", "deliveryOrderOptions", "deliverySaleTypeFilter", "deliveryMunicipalityFilter", "deliveryDateFilter", "deliveryVehicleFilter", "deliveryStatusFilter", "routeCount", "routeHigh", "routeNext", "routeList"];
+  const ids = ["dispatchVisibleBtn", "deliveryOrderSearch", "deliveryOrderOptions", "deliverySaleTypeFilter", "deliveryMunicipalityFilter", "deliveryDateFilter", "deliveryVehicleFilter", "deliveryStatusFilter", "routeCount", "routeHigh", "routeNext", "routeList"];
   w.eval(`const state = { orders: ${JSON.stringify(orders)} }; const els = Object.fromEntries(${JSON.stringify(ids)}.map(id => [id, document.getElementById(id)]));
     ${source.slice(source.indexOf("const DELIVERY_ZONES ="), source.indexOf("\n];", source.indexOf("const DELIVERY_ZONES =")) + 3)}
     ${functions}

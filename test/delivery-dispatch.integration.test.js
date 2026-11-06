@@ -1,0 +1,44 @@
+require('../test-support/authenticated-server.cjs');
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+
+test('despacho masivo conserva datos, limita selección, detecta cambios y no duplica trazabilidad', async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'delivery-dispatch-'));
+  Object.assign(process.env, { DATA_DIR: dir, PORT: '0', SUPABASE_URL: '', SUPABASE_SERVICE_ROLE_KEY: '' });
+  const { server, startServer } = require('../server'); await startServer();
+  t.after(() => { server.closeAllConnections(); server.close(); fs.rmSync(dir, { recursive: true, force: true }); });
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const call = async (url, method = 'GET', data) => {
+    const res = await fetch(base + url, { method, headers: { 'Content-Type': 'application/json' }, ...(data ? { body: JSON.stringify(data) } : {}) });
+    return { status: res.status, data: await res.json() };
+  };
+  const draft = { customer: 'Prueba', detail: 'Dos kilos con aclaraciones', deliveryType: 'DELIVERY', status: 'Nuevo', prepDate: '2026-11-06', routeVehicle: 'Camioneta 1', saleType: 'Mayorista' };
+  const a = (await call('/api/orders', 'POST', draft)).data;
+  const b = (await call('/api/orders', 'POST', { ...draft, customer: 'Otro', routeVehicle: 'Camioneta 2' })).data;
+  const c = (await call('/api/orders', 'POST', { ...draft, deliveryType: 'RETIRO' })).data;
+  const pick = order => ({ id: order.id, updatedAt: order.updatedAt });
+  const dispatch = orders => call('/api/orders/dispatch', 'POST', { orders, currentUser: 'PC JUAN' });
+  assert.equal((await dispatch([])).status, 400);
+  assert.equal((await dispatch([pick(a), pick(a)])).status, 400);
+  assert.equal((await dispatch([pick(a), pick(c)])).status, 409);
+  assert.equal((await dispatch([pick(a), { id: 'missing', updatedAt: '' }])).status, 409);
+  await call(`/api/orders/${b.id}`, 'PUT', { ...b, detail: 'Detalle actualizado', currentUser: 'PC CAJA' });
+  assert.equal((await dispatch([pick(a), { ...pick(b), updatedAt: 'stale' }])).status, 409);
+  assert.equal((await call('/api/orders')).data.find(order => order.id === a.id).status, 'Nuevo');
+  assert.deepEqual((await dispatch([pick(a)])).data, { dispatched: 1, alreadyDispatched: 0 });
+  const saved = (await call('/api/orders')).data;
+  const actual = saved.find(order => order.id === a.id);
+  assert.deepEqual({ ...actual, status: a.status, updatedAt: a.updatedAt }, a);
+  assert.equal(actual.status, 'Despachado');
+  assert.equal(saved.find(order => order.id === b.id).status, 'Nuevo');
+  assert.equal(saved.find(order => order.id === b.id).detail, 'Detalle actualizado');
+  assert.equal(saved.find(order => order.id === c.id).status, 'Nuevo');
+  assert.deepEqual((await dispatch([pick(a)])).data, { dispatched: 0, alreadyDispatched: 1 });
+  const movements = (await call('/api/movements')).data.filter(item => item.action === 'Despachado en conjunto desde delivery');
+  assert.equal(movements.length, 1);
+  assert.equal(movements[0].orderId, a.id);
+  assert.equal(movements[0].user, 'PC JUAN');
+});
