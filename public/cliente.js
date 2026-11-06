@@ -175,7 +175,7 @@ function localDatePolicy() {
   const selectedType = deliveryType.value === "RETIRO" ? "RETIRO" : "DELIVERY";
   const cabaDelivery = isCabaDelivery();
   const isSaturday = new Date(`${today}T12:00:00Z`).getUTCDay() === 6;
-  const cutoffHour = selectedType === "DELIVERY" ? 11 : isSaturday ? 8 : 13;
+  const cutoffHour = selectedType === "DELIVERY" ? (isFriday(today) || isSaturday ? 10 : 11) : isSaturday ? 8 : 13;
   const afterCutoff = Number(parts.hour) >= cutoffHour;
   const regularMinDate = nextWorkingDate(afterCutoff ? addDays(today, 1) : today);
   const minDate = cabaDelivery ? nextFriday(today, !(isFriday(today) && afterCutoff)) : regularMinDate;
@@ -233,7 +233,7 @@ function showSuccess(orderNumber, selectedDeliveryType, deliveryZone) {
   const schedule = deliveryZone === "CABA_VIERNES"
     ? "Entrega CABA el viernes. Envío gratis desde $50.000; pedidos menores abonan $15.000."
     : selectedDeliveryType === "DELIVERY"
-      ? "Horario de entrega para delivery: de 11:00 a 15:00 hs."
+      ? "Horario de entrega para delivery: de 11:00 a 15:00 hs. Pedidos para el mismo día hasta las 10:00 hs los viernes y sábados; los demás días hasta las 11:00 hs."
     : "Horario de retiro: de 6:00 a 13:00 hs. Los sábados, pedidos para retirar ese día hasta las 8:00 hs.";
   message.textContent = "";
   successBox.hidden = false;
@@ -250,9 +250,9 @@ function updateAddressRequirement() {
   const regularDelivery = deliveryType.value === "DELIVERY";
   const cabaDelivery = isCabaDelivery();
   fulfillmentNoticeText.textContent = cabaDelivery
-    ? "Delivery CABA los viernes. Pedidos hasta las 11:00 hs."
+    ? "Delivery CABA los viernes. Pedidos hasta las 10:00 hs."
     : regularDelivery
-      ? "Horario de entrega para delivery: de 11:00 a 15:00 hs."
+      ? "Horario de entrega para delivery: de 11:00 a 15:00 hs. Pedidos para el mismo día hasta las 10:00 hs los viernes y sábados; los demás días hasta las 11:00 hs."
     : "Horario de retiro: de 6:00 a 13:00 hs. Los sábados, pedidos para retirar ese día hasta las 8:00 hs.";
   addressSection.hidden = !regularDelivery;
   cabaAddressSection.hidden = !cabaDelivery;

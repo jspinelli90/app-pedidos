@@ -852,7 +852,7 @@ function publicOrderDatePolicy(deliveryType = "RETIRO", now = new Date(), delive
   const normalizedType = normalizeDeliveryType(deliveryType);
   const normalizedZone = deliveryZone === "CABA_VIERNES" ? "CABA_VIERNES" : "REGULAR";
   const isSaturday = new Date(`${today}T12:00:00Z`).getUTCDay() === 6;
-  const cutoffHour = normalizedType === "DELIVERY" ? 11 : isSaturday ? 8 : 13;
+  const cutoffHour = normalizedType === "DELIVERY" ? (isFridayDate(today) || isSaturday ? 10 : 11) : isSaturday ? 8 : 13;
   const afterCutoff = Number(parts.hour) >= cutoffHour;
   const regularMinDate = nextWorkingDate(afterCutoff ? addDaysToDate(today, 1) : today);
   return {
