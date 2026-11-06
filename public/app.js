@@ -187,7 +187,10 @@ function orderPrepDate(order) {
 }
 
 function orderRouteVehicle(order) {
-  if (order.routeVehicle === "Camion" || order.routeVehicle === "Camioneta") return order.routeVehicle;
+  const vehicle = String(order.routeVehicle || "").trim().toLowerCase();
+  if (vehicle === "camion" || vehicle === "camión") return "Camion";
+  if (vehicle === "camioneta" || vehicle === "camioneta 1") return "Camioneta 1";
+  if (vehicle === "camioneta 2") return "Camioneta 2";
   return "Sin asignar";
 }
 
@@ -1037,8 +1040,9 @@ function renderDelivery() {
         <div class="route-actions">
           <select class="route-vehicle" aria-label="Vehiculo">
             <option${orderRouteVehicle(order) === "Sin asignar" ? " selected" : ""}>Sin asignar</option>
-            <option${orderRouteVehicle(order) === "Camion" ? " selected" : ""}>Camion</option>
-            <option${orderRouteVehicle(order) === "Camioneta" ? " selected" : ""}>Camioneta</option>
+            <option value="Camion"${orderRouteVehicle(order) === "Camion" ? " selected" : ""}>CAMION</option>
+            <option value="Camioneta 1"${orderRouteVehicle(order) === "Camioneta 1" ? " selected" : ""}>CAMIONETA 1</option>
+            <option value="Camioneta 2"${orderRouteVehicle(order) === "Camioneta 2" ? " selected" : ""}>CAMIONETA 2</option>
           </select>
           <button class="ghost route-toggle" type="button">Ver detalle</button>
           <button class="primary route-dispatch" type="button">Despachado</button>

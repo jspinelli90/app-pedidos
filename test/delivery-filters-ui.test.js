@@ -19,7 +19,7 @@ test("delivery combina búsqueda, selector, tipo de venta y filtros existentes",
   const orders = [
     { ...base, id: "a", number: 1, saleType: "Mayorista" },
     { ...base, id: "b", number: 2, saleType: "Minorista" },
-    { ...base, id: "c", number: 3, customer: "Ana", status: "Preparado", address: "Mitre 100 - Munro - Vicente Lopez" },
+    { ...base, id: "c", number: 3, customer: "Ana", status: "Preparado", routeVehicle: "Camioneta", address: "Mitre 100 - Munro - Vicente Lopez" },
     { ...base, id: "d", number: 4, status: "Despachado" },
     { ...base, id: "e", number: 5, deliveryType: "RETIRO" },
     { ...base, id: "f", number: 6, prepDate: "2026-11-07" }
@@ -30,7 +30,8 @@ test("delivery combina búsqueda, selector, tipo de venta y filtros existentes",
     ${functions}
     ${source.split("\n").filter(line => /els\.delivery.*addEventListener\("(?:input|change)", renderDelivery\)/.test(line)).join("\n")}
     window.renderDelivery = renderDelivery;
-    window.deliveryLocation = deliveryLocation;`);
+    window.deliveryLocation = deliveryLocation;
+    window.orderRouteVehicle = orderRouteVehicle;`);
   const el = id => w.document.getElementById(id);
   const change = (id, value, event = "change") => { el(id).value = value; el(id).dispatchEvent(new w.Event(event)); };
   change("deliveryDateFilter", "2026-11-06");
@@ -49,10 +50,15 @@ test("delivery combina búsqueda, selector, tipo de venta y filtros existentes",
   assert.equal(el("routeCount").textContent, "2");
   change("deliveryStatusFilter", "Preparado");
   assert.equal(el("routeCount").textContent, "1");
-  change("deliveryVehicleFilter", "Camioneta");
+  change("deliveryVehicleFilter", "Camioneta 2");
   assert.equal(el("routeCount").textContent, "0");
   assert.match(el("routeList").textContent, /No hay entregas/);
   assert.equal(el("deliveryOrderOptions").children.length, 0);
+  change("deliveryVehicleFilter", "Camioneta 1");
+  assert.equal(el("routeCount").textContent, "1");
+  assert.equal(el("routeList").querySelector(".route-vehicle").value, "Camioneta 1");
+  assert.deepEqual(Array.from(el("routeList").querySelector(".route-vehicle").options, option => option.textContent), ["Sin asignar", "CAMION", "CAMIONETA 1", "CAMIONETA 2"]);
+  assert.equal(w.orderRouteVehicle({ routeVehicle: "CAMIONETA 2" }), "Camioneta 2");
   change("deliveryVehicleFilter", "");
   change("deliveryStatusFilter", "");
   change("deliveryMunicipalityFilter", "San Isidro");
