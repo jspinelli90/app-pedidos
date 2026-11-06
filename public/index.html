@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Pedidos | San Cayetano Carnes</title>
-    <link rel="stylesheet" href="/styles.css?v=20260924-ofertas-vinculadas">
+    <link rel="stylesheet" href="/styles.css?v=20261106-delivery-filtros">
   <link rel="stylesheet" href="/sc-loading.css">
   </head>
   <body>
@@ -192,7 +192,17 @@
           <h2>Delivery</h2>
         </div>
         <div class="delivery-actions">
+          <input id="deliveryOrderSearch" type="search" list="deliveryOrderOptions" placeholder="Buscar nombre o pedido" aria-label="Buscar pedido de delivery" autocomplete="off">
+          <datalist id="deliveryOrderOptions"></datalist>
+          <select id="deliverySaleTypeFilter" aria-label="Tipo de venta de delivery">
+            <option value="">Mayoristas y minoristas</option>
+            <option value="Mayorista">Mayoristas</option>
+            <option value="Minorista">Minoristas</option>
+          </select>
           <input id="deliveryDateFilter" type="date" title="Fecha de reparto">
+          <select id="deliveryMunicipalityFilter" aria-label="Municipio de delivery">
+            <option value="">Todos los municipios</option>
+          </select>
           <select id="deliveryVehicleFilter">
             <option value="">Todos los vehiculos</option>
             <option>Sin asignar</option>
@@ -499,7 +509,7 @@
     <script src="/retail-offers-model.js?v=20260924-ofertas"></script>
     <script src="/order-ticket.js?v=20260924-ticket-resumido"></script>
     <script src="/price-list-order.js?v=20261013-nombre-sin-codigo"></script>
-    <script src="/app.js?v=20261013-nombre-sin-codigo"></script>
+    <script src="/app.js?v=20261106-delivery-filtros"></script>
     <script src="/retail-offers-studio.js?v=20260924-ofertas"></script>
   </body>
 </html>

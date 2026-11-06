@@ -85,6 +85,10 @@ const els = {
   countWholesale: document.querySelector("#countWholesale"),
   countRetail: document.querySelector("#countRetail"),
   deliveryDateFilter: document.querySelector("#deliveryDateFilter"),
+  deliveryOrderSearch: document.querySelector("#deliveryOrderSearch"),
+  deliveryOrderOptions: document.querySelector("#deliveryOrderOptions"),
+  deliverySaleTypeFilter: document.querySelector("#deliverySaleTypeFilter"),
+  deliveryMunicipalityFilter: document.querySelector("#deliveryMunicipalityFilter"),
   deliveryVehicleFilter: document.querySelector("#deliveryVehicleFilter"),
   deliveryStatusFilter: document.querySelector("#deliveryStatusFilter"),
   availabilityForm: document.querySelector("#availabilityForm"),
@@ -852,7 +856,8 @@ const DELIVERY_ZONES = [
   { name: "San Isidro", localities: ["Beccar", "San Isidro", "Acassuso", "Martinez", "Boulogne Sur Mer", "Villa Adelina"] },
   { name: "Tigre", localities: ["Tigre", "Rincon de Milberg", "General Pacheco", "Troncos del Talar", "El Talar", "Ricardo Rojas", "Don Torcuato", "Nordelta", "Benavidez", "Dique Lujan"] },
   { name: "Vicente Lopez", localities: ["La Lucila", "Olivos", "Florida", "Vicente Lopez", "Florida Oeste", "Munro", "Carapachay", "Villa Adelina", "Villa Martelli"] },
-  { name: "San Martin", localities: ["Jose Leon Suarez", "Loma Hermosa", "Villa Ballester", "Ciudad Jardin El Libertador", "Billinghurst", "San Andres", "San Martin", "Barrio Parque General San Martin", "Villa Libertad", "Villa Maipu", "Villa Lynch"] }
+  { name: "San Martin", localities: ["Jose Leon Suarez", "Loma Hermosa", "Villa Ballester", "Ciudad Jardin El Libertador", "Billinghurst", "San Andres", "San Martin", "Barrio Parque General San Martin", "Villa Libertad", "Villa Maipu", "Villa Lynch"] },
+  { name: "CABA", localities: ["CABA", "Capital Federal", "Ciudad Autonoma de Buenos Aires"] }
 ];
 
 function normalizedPlaceText(value) {
@@ -865,6 +870,9 @@ function normalizedPlaceText(value) {
 }
 
 function deliveryLocation(order) {
+  if (order.deliveryZone === "CABA_VIERNES") {
+    return { zone: "CABA", locality: "CABA", zoneIndex: DELIVERY_ZONES.findIndex(zone => zone.name === "CABA"), localityIndex: 0, matchScore: 1000 };
+  }
   const addressText = String(order.address || "");
   const text = normalizedPlaceText(`${addressText} ${order.customer || ""}`);
   const addressParts = addressText.split("-").map(normalizedPlaceText).filter(Boolean);
@@ -897,15 +905,28 @@ function compareDeliveryRoute(a, b) {
     || Number(a.number || 0) - Number(b.number || 0);
 }
 
-function deliveryOrders() {
+function deliveryOrderSearchLabel(order) {
+  return `${order.customer || ""} (#${order.number})`;
+}
+
+function deliveryOrders(includeSearch = true) {
   const date = els.deliveryDateFilter.value;
   const vehicle = els.deliveryVehicleFilter.value;
   const status = els.deliveryStatusFilter.value;
+  const saleType = els.deliverySaleTypeFilter.value;
+  const municipality = els.deliveryMunicipalityFilter.value;
+  const search = normalizedPlaceText(els.deliveryOrderSearch.value);
+  const selected = state.orders.find(order => normalizedPlaceText(deliveryOrderSearchLabel(order)) === search);
   return state.orders
     .filter(order => order.deliveryType === "DELIVERY" && order.status !== "Despachado")
     .filter(order => !date || orderPrepDate(order) === date)
     .filter(order => !vehicle || orderRouteVehicle(order) === vehicle)
     .filter(order => !status || order.status === status)
+    .filter(order => !saleType || orderSaleType(order) === saleType)
+    .filter(order => !municipality || deliveryLocation(order).zone === municipality)
+    .filter(order => !includeSearch || !search || (selected
+      ? order.id === selected.id
+      : normalizedPlaceText(deliveryOrderSearchLabel(order)).includes(search)))
     .sort(compareDeliveryRoute);
 }
 
@@ -971,6 +992,20 @@ async function deleteAvailability(item) {
 }
 
 function renderDelivery() {
+  if (els.deliveryMunicipalityFilter.options.length === 1) {
+    [...DELIVERY_ZONES.map(zone => zone.name), "Zona sin identificar"].forEach(name => {
+      const option = document.createElement("option");
+      option.value = name;
+      option.textContent = name === "Zona sin identificar" ? "Municipio sin identificar" : name;
+      els.deliveryMunicipalityFilter.append(option);
+    });
+  }
+  els.deliveryOrderOptions.replaceChildren(...deliveryOrders(false).map(order => {
+    const option = document.createElement("option");
+    option.value = deliveryOrderSearchLabel(order);
+    option.label = `${orderSaleType(order)} | ${order.status}`;
+    return option;
+  }));
   const orders = deliveryOrders();
   els.routeCount.textContent = orders.length;
   els.routeHigh.textContent = orders.filter(order => orderPriority(order) === "Alta").length;
@@ -1816,6 +1851,9 @@ els.priceListUpload.addEventListener("click", () => uploadClientDocument("price-
 els.offersUpload.addEventListener("click", () => uploadClientDocument("offers"));
 els.viewOnlineOrdersBtn.addEventListener("click", showPendingOnlineOrders);
 els.deliveryStatusFilter.addEventListener("change", renderDelivery);
+els.deliveryOrderSearch.addEventListener("input", renderDelivery);
+els.deliverySaleTypeFilter.addEventListener("change", renderDelivery);
+els.deliveryMunicipalityFilter.addEventListener("change", renderDelivery);
 els.deliveryDateFilter.addEventListener("change", renderDelivery);
 els.availabilityForm.addEventListener("submit", saveAvailability);
 els.deliveryVehicleFilter.addEventListener("change", renderDelivery);
