@@ -1524,6 +1524,37 @@ async function handleApiRequest(req, res) {
       return sendJson(res, 201, order);
     }
 
+    if (url.pathname === "/api/orders/dispatch" && req.method === "POST") {
+      const payload = await readBody(req);
+      if (!Array.isArray(payload.orders) || !payload.orders.length || payload.orders.length > 5000
+        || payload.orders.some(item => !item || typeof item.id !== "string" || !item.id || typeof item.updatedAt !== "string")
+        || new Set(payload.orders.map(item => item.id)).size !== payload.orders.length) {
+        return sendJson(res, 400, { error: "Seleccioná pedidos válidos para despachar." });
+      }
+      const orders = await readOrders();
+      const selected = payload.orders.map(item => ({ expected: item, order: orders.find(order => order.id === item.id) }));
+      if (selected.some(({ order, expected }) => !order || order.deliveryType !== "DELIVERY"
+        || (order.status !== "Despachado" && (order.updatedAt || "") !== expected.updatedAt))) {
+        return sendJson(res, 409, { error: "Algún pedido cambió o ya no está disponible. Actualizá y revisá la selección; no se despachó ningún pedido." });
+      }
+      const pending = selected.filter(({ order }) => order.status !== "Despachado");
+      if (pending.length) {
+        const movements = await readMovements();
+        const now = new Date().toISOString();
+        for (const { order } of pending) {
+          const previousStatus = order.status;
+          order.status = "Despachado";
+          order.updatedAt = now;
+          movements.push({ id: cryptoId(), orderId: order.id, orderNumber: order.number, customer: order.customer,
+            action: "Despachado en conjunto desde delivery", user: actorName(payload),
+            details: `Estado: ${previousStatus} → Despachado`, createdAt: now });
+        }
+        await writeOrders(orders);
+        await writeMovements(movements);
+      }
+      return sendJson(res, 200, { dispatched: pending.length, alreadyDispatched: selected.length - pending.length });
+    }
+
     const match = url.pathname.match(/^\/api\/orders\/([^/]+)$/);
     if (match && req.method === "PUT") {
       const id = match[1];

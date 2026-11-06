@@ -3,6 +3,7 @@ const state = {
   customers: [],
   users: [],
   movements: [],
+  dispatching: false,
   availability: [],
   clientDocuments: { "price-list": [], offers: [] },
   editingId: null,
@@ -103,6 +104,8 @@ const els = {
   routeHigh: document.querySelector("#routeHigh"),
   routeNext: document.querySelector("#routeNext"),
   routeList: document.querySelector("#routeList"),
+  dispatchVisibleBtn: document.querySelector("#dispatchVisibleBtn"),
+  dispatchVisibleMessage: document.querySelector("#dispatchVisibleMessage"),
   addCustomerBtn: document.querySelector("#addCustomerBtn"),
   customerCount: document.querySelector("#customerCount"),
   customerWholesaleCount: document.querySelector("#customerWholesaleCount"),
@@ -1010,6 +1013,8 @@ function renderDelivery() {
     return option;
   }));
   const orders = deliveryOrders();
+  els.dispatchVisibleBtn.disabled = state.dispatching || !orders.length;
+  els.dispatchVisibleBtn.textContent = state.dispatching ? "Despachando..." : `Despachar todos los visibles (${orders.length})`;
   els.routeCount.textContent = orders.length;
   els.routeHigh.textContent = orders.filter(order => orderPriority(order) === "Alta").length;
   els.routeNext.textContent = orders.find(order => orderScheduledTime(order))?.scheduledTime || "-";
@@ -1060,6 +1065,8 @@ function renderDelivery() {
       event.currentTarget.textContent = expanded.hidden ? "Ver detalle" : "Ocultar";
     });
     item.querySelector(".route-dispatch").addEventListener("click", () => markDispatched(order));
+    item.querySelector(".route-dispatch").disabled = state.dispatching;
+    item.querySelector(".route-vehicle").disabled = state.dispatching;
     item.querySelector(".route-ticket").addEventListener("click", () => printTicket(order));
     els.routeList.append(item);
   });
@@ -1336,6 +1343,28 @@ function showModule(name) {
   });
   if (isOffersStudio) updateOfferPoster();
   window.scrollTo(0, 0);
+}
+
+async function dispatchVisibleOrders() {
+  if (state.dispatching) return;
+  const orders = deliveryOrders().map(order => ({ id: order.id, updatedAt: order.updatedAt || "" }));
+  if (!orders.length || !confirm(`¿Marcar como Despachados los ${orders.length} pedidos visibles de Delivery? Se aplican los filtros actuales. Esta acción los quitará del recorrido pendiente.`)) return;
+  state.dispatching = true;
+  els.dispatchVisibleMessage.textContent = "Guardando despachos...";
+  renderDelivery();
+  try {
+    const result = await api("/api/orders/dispatch", {
+      method: "POST", body: JSON.stringify(withAudit({ orders }))
+    });
+    els.dispatchVisibleMessage.textContent = `${result.dispatched} pedidos marcados como Despachados.${result.alreadyDispatched ? ` ${result.alreadyDispatched} ya estaban despachados.` : ""}`;
+  } catch (error) {
+    els.dispatchVisibleMessage.textContent = `${error.message} Revisá el listado actualizado antes de reintentar.`;
+  } finally {
+    try { await loadOrders(); await loadMovements(); }
+    catch (error) { els.dispatchVisibleMessage.textContent += ` No se pudo actualizar el listado: ${error.message}`; }
+    state.dispatching = false;
+    renderDelivery();
+  }
 }
 
 async function markDispatched(order) {
@@ -1855,6 +1884,7 @@ els.priceListUpload.addEventListener("click", () => uploadClientDocument("price-
 els.offersUpload.addEventListener("click", () => uploadClientDocument("offers"));
 els.viewOnlineOrdersBtn.addEventListener("click", showPendingOnlineOrders);
 els.deliveryStatusFilter.addEventListener("change", renderDelivery);
+els.dispatchVisibleBtn.addEventListener("click", dispatchVisibleOrders);
 els.deliveryOrderSearch.addEventListener("input", renderDelivery);
 els.deliverySaleTypeFilter.addEventListener("change", renderDelivery);
 els.deliveryMunicipalityFilter.addEventListener("change", renderDelivery);
