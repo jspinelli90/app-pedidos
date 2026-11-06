@@ -868,7 +868,8 @@ function publicOrderDatePolicy(deliveryType = "RETIRO", now = new Date(), delive
 function normalizeRouteVehicle(value) {
   const text = cleanText(value).toLowerCase();
   if (text === "camion" || text === "camión") return "Camion";
-  if (text === "camioneta") return "Camioneta";
+  if (text === "camioneta" || text === "camioneta 1") return "Camioneta 1";
+  if (text === "camioneta 2") return "Camioneta 2";
   return "Sin asignar";
 }
 
