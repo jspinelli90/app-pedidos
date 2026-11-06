@@ -22,11 +22,28 @@ test("despues de las 13 bloquea delivery y retiro para hoy", () => {
   assert.equal(publicOrderDatePolicy("RETIRO", twoPmInBuenosAires).afterCutoff, true);
 });
 
-test("delivery CABA ofrece solo viernes y cierra el viernes a las 11", () => {
+test("delivery CABA ofrece solo viernes y cierra el viernes a las 10", () => {
   const thursday = new Date("2026-08-13T13:00:00Z");
-  const fridayAfterCutoff = new Date("2026-08-14T15:00:00Z");
+  const fridayAfterCutoff = new Date("2026-11-06T13:00:00Z");
   assert.equal(publicOrderDatePolicy("DELIVERY", thursday, "CABA_VIERNES").minDate, "2026-08-14");
-  assert.equal(publicOrderDatePolicy("DELIVERY", fridayAfterCutoff, "CABA_VIERNES").minDate, "2026-08-21");
+  assert.equal(publicOrderDatePolicy("DELIVERY", fridayAfterCutoff, "CABA_VIERNES").minDate, "2026-11-13");
+});
+
+test("viernes y sábado delivery cierra exactamente a las 10 de Buenos Aires", () => {
+  for (const [day, next] of [["2026-11-06", "2026-11-07"], ["2026-11-07", "2026-11-09"]]) {
+    const before = publicOrderDatePolicy("DELIVERY", new Date(`${day}T12:59:59Z`));
+    assert.equal(before.cutoffHour, 10);
+    assert.equal(before.afterCutoff, false);
+    assert.equal(before.minDate, day);
+    for (const time of ["13:00:00", "13:00:01", "14:00:00"]) {
+      const after = publicOrderDatePolicy("DELIVERY", new Date(`${day}T${time}Z`));
+      assert.equal(after.afterCutoff, true);
+      assert.equal(after.minDate, next);
+    }
+  }
+  const cabaBefore = publicOrderDatePolicy("DELIVERY", new Date("2026-11-06T12:59:59Z"), "CABA_VIERNES");
+  assert.equal(cabaBefore.minDate, "2026-11-06");
+  assert.equal(cabaBefore.afterCutoff, false);
 });
 
 test("distingue cierre total de fecha sin delivery", () => {
@@ -52,7 +69,7 @@ test("retiro del sábado cierra a las 8 de Buenos Aires y ofrece el lunes", () =
     assert.equal(after.minDate, "2026-09-28");
   }
   const delivery = publicOrderDatePolicy("DELIVERY", new Date("2026-09-26T11:00:00Z"));
-  assert.equal(delivery.cutoffHour, 11);
+  assert.equal(delivery.cutoffHour, 10);
   assert.equal(delivery.minDate, "2026-09-26");
   const friday = publicOrderDatePolicy("RETIRO", new Date("2026-09-26T02:00:00Z"));
   assert.equal(friday.today, "2026-09-25");
@@ -64,12 +81,13 @@ test("la alternativa del navegador coincide con el servidor en el límite del s�
   const vm = require("node:vm"), fs = require("node:fs");
   const source = fs.readFileSync(require.resolve("../public/cliente.js"), "utf8");
   const policyCode = source.slice(source.indexOf("function localDatePolicy()"), source.indexOf("function applyDatePolicy("));
-  for (const timestamp of ["2026-09-26T02:00:00Z", "2026-09-26T10:59:59Z", "2026-09-26T11:00:00Z", "2026-09-26T16:00:00Z"]) {
+  for (const timestamp of ["2026-09-26T02:00:00Z", "2026-09-26T10:59:59Z", "2026-09-26T11:00:00Z", "2026-09-26T16:00:00Z", "2026-11-06T12:59:59Z", "2026-11-06T13:00:00Z", "2026-11-07T12:59:59Z", "2026-11-07T13:00:00Z"]) {
     for (const type of ["RETIRO", "DELIVERY"]) {
       const date = new Date(timestamp);
       class FixedDate extends Date { constructor(...args) { super(...(args.length ? args : [date.valueOf()])); } }
       const local = vm.runInNewContext(policyCode + ";localDatePolicy()", {
         Date: FixedDate, Intl, deliveryType: { value: type }, isCabaDelivery: () => false,
+        isFriday: value => new Date(value + "T12:00:00Z").getUTCDay() === 5,
         addDays: (value, days) => { const d = new Date(value + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + days); return d.toISOString().slice(0, 10); },
         nextWorkingDate: value => { const d = new Date(value + "T12:00:00Z"); if (d.getUTCDay() === 0) d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); }
       });
