@@ -10,11 +10,13 @@ test("el resumen de vendedor combina código exacto, fechas inclusivas y estado"
   t.after(() => dom.window.close());
   const { window } = dom;
   const source = fs.readFileSync(path.join(root, "app.js"), "utf8");
-  const functions = ["renderSellerSummary", "orderPrepDate", "orderSaleType", "formatDate", "escapeHtml"].map(name => {
+  window.eval(fs.readFileSync(path.join(root, "seller-report.js"), "utf8"));
+  const functions = ["sellerSummaryFilters", "renderSellerSummary", "orderSaleType", "formatDate", "escapeHtml"].map(name => {
     const start = source.indexOf(`function ${name}(`);
     return source.slice(start, source.indexOf("\n}", start) + 2);
   }).join("\n");
   const ids = [...window.document.querySelectorAll('[id^="sellerSummary"]')].map(element => element.id);
+  ids.push("sellerExcelBtn", "sellerPdfBtn");
   const order = { sellerCode: "CATA", status: "Despachado", customer: "Cliente de prueba" };
   const orders = [
     { ...order, number: 1, prepDate: "2026-11-01" },
@@ -24,13 +26,14 @@ test("el resumen de vendedor combina código exacto, fechas inclusivas y estado"
   ];
   const render = window.eval(`
     const state = { orders: ${JSON.stringify(orders)} };
+    const sellerExportPending = false;
     const els = Object.fromEntries(${JSON.stringify(ids)}.map(id => [id, document.getElementById(id)]));
     ${functions}
     renderSellerSummary;
   `);
   const el = id => window.document.getElementById(id);
   const numbers = () => Array.from(el("sellerSummaryRows").rows, row => row.cells[0].textContent);
-  el("sellerSummary").open = true;
+  el("sellerSummary").hidden = false;
   el("sellerSummaryFrom").value = "2026-11-01";
   el("sellerSummaryTo").value = "2026-11-12";
   render();

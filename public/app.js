@@ -78,6 +78,10 @@ const els = {
   sellerSummaryCount: document.querySelector("#sellerSummaryCount"),
   sellerSummaryTable: document.querySelector("#sellerSummaryTable"),
   sellerSummaryRows: document.querySelector("#sellerSummaryRows"),
+  sellerViewBtn: document.querySelector("#sellerViewBtn"),
+  sellerExcelBtn: document.querySelector("#sellerExcelBtn"),
+  sellerPdfBtn: document.querySelector("#sellerPdfBtn"),
+  sellerExportMessage: document.querySelector("#sellerExportMessage"),
   prepDateFilter: document.querySelector("#prepDateFilter"),
   search: document.querySelector("#search"),
   saleTypeFilter: document.querySelector("#saleTypeFilter"),
@@ -786,23 +790,28 @@ function filteredOrders() {
   });
 }
 
+function sellerSummaryFilters() {
+  return {
+    code: els.sellerSummaryCode.value,
+    from: els.sellerSummaryFrom.value,
+    to: els.sellerSummaryTo.value,
+    status: els.sellerSummaryStatus.value
+  };
+}
+
+let sellerExportPending = false;
 function renderSellerSummary() {
-  if (!els.sellerSummary.open) return;
-  const sellerCode = els.sellerSummaryCode.value;
-  const from = els.sellerSummaryFrom.value;
-  const to = els.sellerSummaryTo.value;
-  const status = els.sellerSummaryStatus.value;
+  if (els.sellerSummary.hidden) return;
+  const filters = sellerSummaryFilters();
+  const { from, to } = filters;
   els.sellerSummaryRows.replaceChildren();
   els.sellerSummaryTable.hidden = true;
+  els.sellerExcelBtn.disabled = els.sellerPdfBtn.disabled = true;
   if (from && to && from > to) {
     els.sellerSummaryCount.textContent = "La fecha desde debe ser anterior o igual a la fecha hasta.";
     return;
   }
-  const orders = state.orders.filter(order => {
-    const date = orderPrepDate(order);
-    return order.sellerCode === sellerCode && (!from || date >= from) &&
-      (!to || date <= to) && (!status || order.status === status);
-  }).sort((a, b) => orderPrepDate(b).localeCompare(orderPrepDate(a)) || b.number - a.number);
+  const orders = SellerReport.selectOrders(state.orders, filters);
   const wholesale = orders.filter(order => orderSaleType(order) === "Mayorista").length;
   els.sellerSummaryCount.textContent = orders.length
     ? `Pedidos: ${orders.length} · Minoristas: ${orders.length - wholesale} · Mayoristas: ${wholesale}`
@@ -810,12 +819,40 @@ function renderSellerSummary() {
   els.sellerSummaryRows.innerHTML = orders.map(order => `
     <tr>
       <td>#${escapeHtml(order.number)}</td>
-      <td>${escapeHtml(formatDate(orderPrepDate(order)))}</td>
+      <td>${escapeHtml(formatDate(SellerReport.preparationDate(order)))}</td>
       <td>${escapeHtml(order.customer)}</td>
       <td>${escapeHtml(orderSaleType(order))}</td>
       <td>${escapeHtml(order.status)}</td>
     </tr>`).join("");
   els.sellerSummaryTable.hidden = orders.length === 0;
+  els.sellerExcelBtn.disabled = els.sellerPdfBtn.disabled = sellerExportPending || orders.length === 0;
+}
+
+async function downloadSellerReport(format) {
+  sellerExportPending = true;
+  els.sellerExportMessage.textContent = "Preparando descarga…";
+  renderSellerSummary();
+  try {
+    const filters = sellerSummaryFilters();
+    const params = new URLSearchParams({ ...filters, format });
+    const response = await fetch(`/api/orders/seller-report?${params}`);
+    const contentType = format === "pdf" ? "application/pdf" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    if (!response.ok || !response.headers.get("content-type")?.startsWith(contentType)) {
+      throw new Error("No se pudo descargar el informe. Actualizá el panel y volvé a intentar.");
+    }
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `comisiones-${filters.code}-${filters.from || "inicio"}-${filters.to || "fin"}.${format}`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    els.sellerExportMessage.textContent = "";
+  } catch (error) {
+    els.sellerExportMessage.textContent = error.message;
+  } finally {
+    sellerExportPending = false;
+    renderSellerSummary();
+  }
 }
 
 function render() {
@@ -1349,12 +1386,14 @@ async function downloadOfferPoster() {
 }
 
 function showModule(name) {
+  const isSeller = name === "seller";
   const isDelivery = name === "delivery";
   const isCustomers = name === "customers";
   const isDocuments = name === "documents";
   const isOffersStudio = name === "offersStudio";
   const modules = [
     ["orders", els.ordersModule],
+    ["seller", els.sellerSummary],
     ["delivery", els.deliveryModule],
     ["customers", els.customersModule],
     ["documents", els.documentsModule],
@@ -1366,13 +1405,15 @@ function showModule(name) {
     element.classList.toggle("active-module", isActive);
     element.style.display = isActive ? "" : "none";
   });
-  els.ordersViewBtn.className = !isDelivery && !isCustomers && !isDocuments && !isOffersStudio ? "primary" : "ghost";
+  els.ordersViewBtn.className = name === "orders" ? "primary" : "ghost";
+  els.sellerViewBtn.className = isSeller ? "primary" : "ghost";
   els.deliveryViewBtn.className = isDelivery ? "primary" : "ghost";
   els.customersViewBtn.className = isCustomers ? "primary" : "ghost";
   els.documentsViewBtn.className = isDocuments ? "primary" : "ghost";
   els.offersStudioViewBtn.className = isOffersStudio ? "primary" : "ghost";
-  els.newBtn.hidden = isDelivery || isCustomers || isDocuments || isOffersStudio;
-  els.moduleTitle.textContent = isDelivery ? "Delivery" : isCustomers ? "Clientes" : isDocuments ? "Documentos clientes" : isOffersStudio ? "Placas de ofertas" : "Pedidos";
+  els.newBtn.hidden = name !== "orders";
+  els.moduleTitle.textContent = isSeller ? "Comisiones" : isDelivery ? "Delivery" : isCustomers ? "Clientes" : isDocuments ? "Documentos clientes" : isOffersStudio ? "Placas de ofertas" : "Pedidos";
+  if (isSeller) renderSellerSummary();
   if (isDelivery) {
     renderDelivery();
     loadAvailability().catch(error => {
@@ -1920,6 +1961,7 @@ els.refreshBtn.addEventListener("click", refreshAll);
 els.currentUserSelect.addEventListener("change", rememberCurrentUser);
 els.addUserBtn.addEventListener("click", addUser);
 els.ordersViewBtn.addEventListener("click", () => showModule("orders"));
+els.sellerViewBtn.addEventListener("click", () => showModule("seller"));
 els.deliveryViewBtn.addEventListener("click", () => showModule("delivery"));
 els.customersViewBtn.addEventListener("click", () => showModule("customers"));
 els.documentsViewBtn.addEventListener("click", () => showModule("documents"));
@@ -1945,7 +1987,8 @@ els.prepDateFilter.addEventListener("change", render);
 els.saleTypeFilter.addEventListener("change", render);
 els.statusFilter.addEventListener("change", render);
 els.printSummaryBtn.addEventListener("click", printDailySummary);
-els.sellerSummary.addEventListener("toggle", renderSellerSummary);
+els.sellerExcelBtn.addEventListener("click", () => downloadSellerReport("xlsx"));
+els.sellerPdfBtn.addEventListener("click", () => downloadSellerReport("pdf"));
 [els.sellerSummaryCode, els.sellerSummaryFrom, els.sellerSummaryTo, els.sellerSummaryStatus]
   .forEach(element => element.addEventListener("change", renderSellerSummary));
 els.customerSearch.addEventListener("input", renderCustomerAgenda);

@@ -286,7 +286,8 @@ h3 {
   display: grid !important;
 }
 
-.module-view.active-module.delivery-module {
+.module-view.active-module.delivery-module,
+.module-view.active-module.seller-summary {
   display: block !important;
 }
 
@@ -510,15 +511,17 @@ textarea:focus {
 }
 
 .seller-summary {
-  margin: 12px 0;
+  margin: 18px clamp(16px, 4vw, 38px) 32px;
   padding: 12px;
   border: 1px solid #d8e3df;
   border-radius: 8px;
 }
 
-.seller-summary > summary {
-  cursor: pointer;
-  font-weight: 700;
+.seller-summary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 .seller-summary .filters {

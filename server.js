@@ -726,7 +726,7 @@ function cleanText(value) {
   return String(value || "").trim();
 }
 
-const SELLER_NAMES = new Map([["CATA", "Víctor Ayala"]]);
+const { sellers: SELLER_NAMES } = require("./public/seller-report");
 
 function normalizedAddressKey(value) {
   return cleanText(value)
@@ -1318,6 +1318,23 @@ async function handleApiRequest(req, res) {
       // published record pointing at an object that has already been deleted.
       for (const storageName of storageNames) await deleteClientDocumentFile({ ...document, storageName }).catch(error => console.error("Document cleanup:", error.message));
       return sendJson(res, 200, { ok: true });
+    }
+
+    if (url.pathname === "/api/orders/seller-report" && req.method === "GET") {
+      const { code = "", from = "", to = "", status = "", format = "" } = Object.fromEntries(url.searchParams);
+      const validDate = value => !value || /^\d{4}-\d{2}-\d{2}$/.test(value);
+      if (!SELLER_NAMES.has(code) || !validDate(from) || !validDate(to) ||
+          (from && to && from > to) || !["pdf", "xlsx"].includes(format)) {
+        return sendJson(res, 400, { error: "Revisá el vendedor, las fechas y el formato." });
+      }
+      const { sellerReportExport } = require("./lib/seller-report-export");
+      const file = await sellerReportExport(await readOrders(), { code, from, to, status }, format);
+      res.writeHead(200, {
+        "Content-Type": format === "pdf" ? "application/pdf" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Disposition": `attachment; filename="comisiones-${code}-${from || "inicio"}-${to || "fin"}.${format}"`,
+        "Cache-Control": "private, no-store"
+      });
+      return res.end(file);
     }
 
     if (url.pathname === "/api/orders" && req.method === "GET") {

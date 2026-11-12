@@ -63,4 +63,21 @@ test("guarda el código opcional en pedidos minoristas y mayoristas y lo conserv
   });
   assert.equal(update.status, 200);
   assert.equal((await getOrders()).find(item => item.id === orderToEdit.id).sellerCode, sellerCode);
+
+  const reportUrl = baseUrl + "/api/orders/seller-report?" + new URLSearchParams({
+    code: "CATA", from: minDate, to: minDate, status: "Preparado"
+  });
+  const excel = await fetch(reportUrl + "&format=xlsx");
+  assert.equal(excel.status, 200);
+  const workbook = new (require("exceljs").Workbook)();
+  await workbook.xlsx.load(Buffer.from(await excel.arrayBuffer()));
+  const sheet = workbook.getWorksheet("Pedidos");
+  assert.equal(sheet.rowCount, 6);
+  assert.equal(sheet.getCell("A6").value, orderToEdit.number);
+  assert.equal(sheet.getCell("E6").value, "Preparado");
+
+  const pdf = await fetch(reportUrl + "&format=pdf");
+  assert.equal(pdf.status, 200);
+  assert.equal(pdf.headers.get("content-type"), "application/pdf");
+  assert.equal(Buffer.from(await pdf.arrayBuffer()).subarray(0, 5).toString(), "%PDF-");
 });
