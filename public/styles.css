@@ -509,6 +509,37 @@ textarea:focus {
   align-content: start;
 }
 
+.seller-summary {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid #d8e3df;
+  border-radius: 8px;
+}
+
+.seller-summary > summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.seller-summary .filters {
+  margin-top: 12px;
+}
+
+.seller-summary-table {
+  overflow-x: auto;
+}
+
+.seller-summary-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.seller-summary-table :is(th, td) {
+  padding: 8px;
+  border-bottom: 1px solid #d8e3df;
+  text-align: left;
+}
+
 .summary-strip {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Pedidos | San Cayetano Carnes</title>
-    <link rel="stylesheet" href="/styles.css?v=20261106-delivery-filtros">
+    <link rel="stylesheet" href="/styles.css?v=20261112-resumen-vendedor">
   <link rel="stylesheet" href="/sc-loading.css">
   </head>
   <body>
@@ -182,6 +182,29 @@
           <button id="printSummaryBtn" class="primary" type="button">Resumen día</button>
         </div>
 
+        <details id="sellerSummary" class="seller-summary">
+          <summary>Resumen por vendedor</summary>
+          <div class="filters">
+            <label>Vendedor<select id="sellerSummaryCode"><option value="CATA">Víctor Ayala (CATA)</option></select></label>
+            <label>Preparación desde<input id="sellerSummaryFrom" type="date"></label>
+            <label>Preparación hasta<input id="sellerSummaryTo" type="date"></label>
+            <label>Estado<select id="sellerSummaryStatus">
+              <option value="">Todos los estados</option>
+              <option>Provisorio</option>
+              <option>Nuevo</option>
+              <option>Preparado</option>
+              <option>Despachado</option>
+              <option>Cancelado</option>
+            </select></label>
+          </div>
+          <p id="sellerSummaryCount" role="status"></p>
+          <div id="sellerSummaryTable" class="seller-summary-table" hidden>
+            <table aria-label="Pedidos del vendedor en el período">
+              <thead><tr><th scope="col">Pedido</th><th scope="col">Fecha de preparación</th><th scope="col">Cliente</th><th scope="col">Tipo</th><th scope="col">Estado</th></tr></thead>
+              <tbody id="sellerSummaryRows"></tbody>
+            </table>
+          </div>
+        </details>
         <div id="ordersList" class="orders-list"></div>
       </section>
     </main>
@@ -513,7 +536,7 @@
     <script src="/retail-offers-model.js?v=20260924-ofertas"></script>
     <script src="/order-ticket.js?v=20260924-ticket-resumido"></script>
     <script src="/price-list-order.js?v=20261013-nombre-sin-codigo"></script>
-    <script src="/app.js?v=20261112-vendedor"></script>
+    <script src="/app.js?v=20261112-resumen-vendedor"></script>
     <script src="/retail-offers-studio.js?v=20260924-ofertas"></script>
   </body>
 </html>

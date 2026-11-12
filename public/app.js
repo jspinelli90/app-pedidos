@@ -70,6 +70,14 @@ const els = {
   detail: document.querySelector("#detail"),
   notes: document.querySelector("#notes"),
   ordersList: document.querySelector("#ordersList"),
+  sellerSummary: document.querySelector("#sellerSummary"),
+  sellerSummaryCode: document.querySelector("#sellerSummaryCode"),
+  sellerSummaryFrom: document.querySelector("#sellerSummaryFrom"),
+  sellerSummaryTo: document.querySelector("#sellerSummaryTo"),
+  sellerSummaryStatus: document.querySelector("#sellerSummaryStatus"),
+  sellerSummaryCount: document.querySelector("#sellerSummaryCount"),
+  sellerSummaryTable: document.querySelector("#sellerSummaryTable"),
+  sellerSummaryRows: document.querySelector("#sellerSummaryRows"),
   prepDateFilter: document.querySelector("#prepDateFilter"),
   search: document.querySelector("#search"),
   saleTypeFilter: document.querySelector("#saleTypeFilter"),
@@ -778,8 +786,41 @@ function filteredOrders() {
   });
 }
 
+function renderSellerSummary() {
+  if (!els.sellerSummary.open) return;
+  const sellerCode = els.sellerSummaryCode.value;
+  const from = els.sellerSummaryFrom.value;
+  const to = els.sellerSummaryTo.value;
+  const status = els.sellerSummaryStatus.value;
+  els.sellerSummaryRows.replaceChildren();
+  els.sellerSummaryTable.hidden = true;
+  if (from && to && from > to) {
+    els.sellerSummaryCount.textContent = "La fecha desde debe ser anterior o igual a la fecha hasta.";
+    return;
+  }
+  const orders = state.orders.filter(order => {
+    const date = orderPrepDate(order);
+    return order.sellerCode === sellerCode && (!from || date >= from) &&
+      (!to || date <= to) && (!status || order.status === status);
+  }).sort((a, b) => orderPrepDate(b).localeCompare(orderPrepDate(a)) || b.number - a.number);
+  const wholesale = orders.filter(order => orderSaleType(order) === "Mayorista").length;
+  els.sellerSummaryCount.textContent = orders.length
+    ? `Pedidos: ${orders.length} · Minoristas: ${orders.length - wholesale} · Mayoristas: ${wholesale}`
+    : "No hay pedidos para los filtros elegidos.";
+  els.sellerSummaryRows.innerHTML = orders.map(order => `
+    <tr>
+      <td>#${escapeHtml(order.number)}</td>
+      <td>${escapeHtml(formatDate(orderPrepDate(order)))}</td>
+      <td>${escapeHtml(order.customer)}</td>
+      <td>${escapeHtml(orderSaleType(order))}</td>
+      <td>${escapeHtml(order.status)}</td>
+    </tr>`).join("");
+  els.sellerSummaryTable.hidden = orders.length === 0;
+}
+
 function render() {
   renderSummary(state.orders);
+  renderSellerSummary();
   const orders = filteredOrders();
   els.ordersList.innerHTML = "";
 
@@ -1904,6 +1945,9 @@ els.prepDateFilter.addEventListener("change", render);
 els.saleTypeFilter.addEventListener("change", render);
 els.statusFilter.addEventListener("change", render);
 els.printSummaryBtn.addEventListener("click", printDailySummary);
+els.sellerSummary.addEventListener("toggle", renderSellerSummary);
+[els.sellerSummaryCode, els.sellerSummaryFrom, els.sellerSummaryTo, els.sellerSummaryStatus]
+  .forEach(element => element.addEventListener("change", renderSellerSummary));
 els.customerSearch.addEventListener("input", renderCustomerAgenda);
 els.customerTypeFilter.addEventListener("change", renderCustomerAgenda);
 els.customerSaleType.addEventListener("change", updateCustomerNumberVisibility);
