@@ -726,6 +726,8 @@ function cleanText(value) {
   return String(value || "").trim();
 }
 
+const SELLER_NAMES = new Map([["CATA", "Víctor Ayala"]]);
+
 function normalizedAddressKey(value) {
   return cleanText(value)
     .normalize("NFD")
@@ -917,6 +919,8 @@ function normalizeOrder(input, existing = {}) {
     saleType: normalizeSaleType(input.saleType),
     payment: cleanText(input.payment),
     status: normalizeStatus(input.status),
+    sellerCode: existing.sellerCode ?? "",
+    sellerName: existing.sellerName ?? "",
     priority: normalizeOrderPriority(input.priority, deliveryType),
     prepDate: normalizeDate(input.prepDate, existing.prepDate || existing.createdAt || now),
     scheduledTime: normalizeTime(input.scheduledTime),
@@ -1437,6 +1441,11 @@ async function handleApiRequest(req, res) {
 
     if (url.pathname === "/api/public-orders" && req.method === "POST") {
       const payload = await readBody(req);
+      const sellerCode = typeof payload.sellerCode === "string" ? payload.sellerCode.trim().toUpperCase() : "";
+      if ((payload.sellerCode !== undefined && typeof payload.sellerCode !== "string") ||
+          (sellerCode && !SELLER_NAMES.has(sellerCode))) {
+        return sendJson(res, 400, { error: "El código de vendedor no es válido. Revisalo o dejá el campo vacío." });
+      }
       let cartQuote = null;
       if (payload.cart !== undefined) {
         if (normalizeSaleType(payload.saleType) !== "Minorista") return sendJson(res, 400, { error: "El carrito está disponible para pedidos minoristas." });
@@ -1494,6 +1503,8 @@ async function handleApiRequest(req, res) {
         return sendJson(res, 400, { error: "Completa el domicilio para el delivery." });
       }
       order.number = nextNumber(orders);
+      order.sellerCode = sellerCode;
+      order.sellerName = SELLER_NAMES.get(sellerCode) || "";
       order.createdBy = "Cliente";
       if (cartQuote) {
         order.retailCart = { ...cartQuote, estimatedAccepted: true, acceptedAt: new Date().toISOString() };

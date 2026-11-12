@@ -748,6 +748,8 @@ function matchesOrder(order, text) {
     order.number,
     order.customer,
     order.phone,
+    order.sellerCode,
+    order.sellerName,
     order.address,
     orderSaleType(order),
     order.deliveryType,
@@ -813,6 +815,7 @@ function render() {
             <span class="status-pill">${escapeHtml(order.status)}</span>
             <span class="priority-pill">${escapeHtml(orderPriority(order))}</span>
           </div>
+          ${order.sellerCode ? `<div class="order-meta">Vendedor: ${escapeHtml(order.sellerName ? `${order.sellerName} (${order.sellerCode})` : order.sellerCode)}</div>` : ""}
           <div class="order-meta">${escapeHtml(orderDeliveryLabel(order))} | ${escapeHtml(formatDate(orderPrepDate(order)))}${timeText}${vehicleText}${escapeHtml(orderCabaCostDetail(order))}${order.phone ? ` | Tel: ${escapeHtml(order.phone)}` : ""}${order.address ? ` | ${escapeHtml(order.address)}` : ""}</div>
         </div>
         <div class="card-actions">

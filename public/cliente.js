@@ -340,6 +340,7 @@ async function sendOrder(event) {
   const payload = {
     customer: document.querySelector("#clientCustomer").value,
     phone: document.querySelector("#clientPhone").value,
+    sellerCode: document.querySelector("#clientSellerCode").value.trim(),
     address: addressText,
     saleType: publicSaleType,
     deliveryType: deliveryType.value === "RETIRO" ? "RETIRO" : "DELIVERY",
