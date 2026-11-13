@@ -62,8 +62,14 @@ async function loadClientDocuments() {
 
 function renderClientDocumentLinks(container, documents, className) {
   container.innerHTML = "";
+  const isPublishedPoster = document => /^Ofertas San Cayetano \d{4}-\d{2}-\d{2}\.pdf$/i.test(document.name);
+  const multiplePosters = documents.filter(isPublishedPoster).length > 1;
+  let posterNumber = 0;
   documents.forEach(document => {
-    const link = documentNode("a", `${className} button-link`, document.name);
+    const label = isPublishedPoster(document)
+      ? "Ver ofertas" + (multiplePosters ? " " + ++posterNumber : "")
+      : document.name;
+    const link = documentNode("a", `${className} button-link`, label);
     link.href = `/api/public-client-documents/${document.id || document.type}`;
     link.target = "_blank";
     link.rel = "noopener";
