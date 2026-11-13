@@ -2,7 +2,7 @@
   if(location.pathname.endsWith('/pedido-mayorista.html'))return;
   const M=window.RetailCartModel;
   const el=id=>document.getElementById(id);
-  const state={catalog:null,lines:[],quote:null,requestId:null,busy:false,version:0,mode:'cart'};
+  const state={catalog:null,lines:[],quote:null,requestId:null,busy:false,version:0,mode:'text'};
   function setMode(mode){
     state.mode=mode;
     const cart=mode==='cart';
@@ -90,7 +90,7 @@
     reset(){state.lines=[];invalidate();renderLines();setMode(state.mode);},
     receipt(quote,notes){const box=node('div',undefined,'estimate-notice');box.append(node('strong',`TOTAL ESTIMADO: ${M.money(quote.total)}${quote.shippingPending?' + envío a confirmar':''}`),node('p',M.NOTICE));const lines=node('pre',M.detail(quote),'cart-receipt');box.append(lines);if(notes)box.append(node('p',`Observaciones generales: ${notes}`));el('clientSuccess').append(box);}
   };
-  el('orderModeChoice').hidden=false;setMode('cart');
+  el('orderModeChoice').hidden=false;setMode(state.mode);
   document.querySelectorAll('input[name="orderMode"]').forEach(input=>input.addEventListener('change',()=>setMode(input.value)));
   el('clientBrandIntro').textContent='Armá tu carrito o escribí tu pedido. Elegí la forma que te resulte más cómoda.';
   el('cartSearch').addEventListener('input',renderCatalog);el('cartCategory').addEventListener('change',renderCatalog);

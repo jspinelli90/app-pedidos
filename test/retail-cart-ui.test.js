@@ -5,6 +5,8 @@ test('carrito exige revisión y aceptación, conserva notas y vuelve a pedir ace
  const catalog={products:[{id:'p',documentId:'list',listName:'Carne.pdf',name:'Asado',unit:'kg',price:10000},{id:'u',documentId:'list',listName:'Carne.pdf',name:'Pendiente',unit:'',price:500}],offers:[]};
  w.fetch=async(url,options)=>({ok:true,json:async()=>url.endsWith('catalog')?catalog:{...M.quote(catalog,JSON.parse(options.body).cart,JSON.parse(options.body)),quoteId:'quote'}});
  w.eval(fs.readFileSync(path.join(__dirname,'../public/retail-cart.js'),'utf8'));await tick();
+ assert.equal(el('retailCart').hidden,true);assert.equal(el('clientDetail').required,true);
+ const initialCartMode=w.document.querySelector('input[value="cart"]');initialCartMode.click();
  assert.equal(el('retailCart').hidden,false);assert.equal(el('clientDetail').required,false);
  assert.equal(el('cartCatalog').querySelectorAll('button')[1].disabled,true);
  el('cartCatalog').querySelector('button').click();
