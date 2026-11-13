@@ -1361,6 +1361,31 @@ function resetOfferPoster() {
   els.offerPosterMessage.textContent = "Nueva placa preparada. Reemplaza los ejemplos por tus ofertas.";
 }
 
+async function publishOfferPoster(event) {
+  const button = event.currentTarget;
+  button.disabled = true;
+  try {
+    await window.RetailOffersStudio?.prepareDownload();
+    updateOfferPoster();
+    if (!offerPosterData().offers.length) throw new Error("Agregá al menos una oferta a la placa.");
+    els.offerPosterMessage.textContent = "Publicando placa…";
+    await api("/api/client-documents/offers", {
+      method: "POST",
+      body: JSON.stringify({
+        name: `Ofertas San Cayetano ${todayDate()}.pdf`,
+        poster: els.offerPosterCanvas.toDataURL("image/jpeg", 0.95)
+      })
+    });
+    els.offerPosterMessage.textContent = "Placa publicada en Documentos para clientes → Ofertas.";
+    els.offerPosterMessage.style.color = "#0f6b5f";
+  } catch (error) {
+    els.offerPosterMessage.textContent = error.message;
+    els.offerPosterMessage.style.color = "#b83232";
+  } finally {
+    button.disabled = false;
+  }
+}
+
 async function downloadOfferPoster() {
   try { await window.RetailOffersStudio?.prepareDownload(); }
   catch (error) { els.offerPosterMessage.textContent = error.message; els.offerPosterMessage.style.color = "#b83232"; return; }
@@ -2002,6 +2027,7 @@ els.offerPosterForm.addEventListener("submit", event => event.preventDefault());
 els.offerPosterForm.addEventListener("input", updateOfferPoster);
 els.offerPosterForm.addEventListener("change", updateOfferPoster);
 els.resetOfferPosterBtn.addEventListener("click", resetOfferPoster);
+document.querySelector("#publishOfferPosterBtn").addEventListener("click", publishOfferPoster);
 els.downloadOfferPosterBtn.addEventListener("click", downloadOfferPoster);
 offerPosterLogo.addEventListener("load", updateOfferPoster);
 offerPosterQr.addEventListener("load", updateOfferPoster);

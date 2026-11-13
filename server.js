@@ -1270,7 +1270,28 @@ async function handleApiRequest(req, res) {
     if (documentUploadMatch && req.method === "POST") {
       const payload = await readBodyWithLimit(req, 14_000_000);
       const encoded = cleanText(payload.data).replace(/^data:application\/pdf;base64,/, "");
-      const buffer = Buffer.from(encoded, "base64");
+      let buffer = Buffer.from(encoded, "base64");
+      if (documentUploadMatch[1] === "offers" && typeof payload.poster === "string") {
+        const image = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(payload.poster);
+        if (!image) return sendJson(res, 400, { error: "No se pudo leer la imagen de la placa." });
+        try {
+          const PDFDocument = require("pdfkit");
+          const pdf = new PDFDocument({ autoFirstPage: false, margin: 0 });
+          const picture = pdf.openImage(Buffer.from(image[1], "base64"));
+          if (!picture.width || !picture.height || picture.width > 4000 || picture.height > 4000) throw Error("Dimensiones inválidas");
+          const size = [picture.width * 72 / 300, picture.height * 72 / 300];
+          buffer = await new Promise((resolve, reject) => {
+            const chunks = [];
+            pdf.on("data", chunk => chunks.push(chunk));
+            pdf.on("end", () => resolve(Buffer.concat(chunks)));
+            pdf.on("error", reject);
+            pdf.addPage({ size }).image(picture, 0, 0, { width: size[0], height: size[1] });
+            pdf.end();
+          });
+        } catch {
+          return sendJson(res, 400, { error: "No se pudo convertir la placa a PDF." });
+        }
+      }
       if (!cleanText(payload.name).toLowerCase().endsWith(".pdf") || buffer.length < 5 || buffer.subarray(0, 5).toString() !== "%PDF-") {
         return sendJson(res, 400, { error: "Selecciona un archivo PDF valido." });
       }
