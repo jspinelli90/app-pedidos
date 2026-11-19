@@ -12,6 +12,7 @@ const RetailOffers = require("./public/retail-offers-model");
 const RetailCart = require("./public/retail-cart-model");
 const POS = require("./public/pos-model");
 const SalesCatalog = require("./lib/sales-catalog");
+const ProduceCustomerPrices = require("./lib/produce-customer-prices");
 const { createHash } = require("node:crypto");
 
 const PORT = Number(process.env.PORT || 3000);
@@ -1098,6 +1099,20 @@ async function handleApiRequest(req, res) {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
 
   try {
+    if (url.pathname === "/api/public-produce-prices" && req.method === "GET") {
+      res.setHeader("Cache-Control", "no-store, max-age=0");
+      try {
+        const rows = await ProduceCustomerPrices.read();
+        if (url.searchParams.get("formato") === "pdf") {
+          const body = await ProduceCustomerPrices.pdf(rows);
+          res.writeHead(200, { "Content-Type": "application/pdf", "Content-Disposition": 'inline; filename="esenciales-verduleria-mayorista-y-minorista.pdf"', "X-Content-Type-Options": "nosniff" });
+          return res.end(body);
+        }
+        return sendJson(res, 200, { available: rows.length > 0, title: ProduceCustomerPrices.TITLE });
+      } catch {
+        return sendJson(res, 503, { error: "La lista de Verdulería no está disponible en este momento. Intentá nuevamente en unos minutos." });
+      }
+    }
     if (url.pathname === "/api/retail-offers/catalog" && req.method === "GET") {
       return sendJson(res, 200, retailCatalog(await readClientDocuments()));
     }

@@ -23,6 +23,7 @@ const clientPriceListsGroup = document.querySelector("#clientPriceListsGroup");
 const clientOffersGroup = document.querySelector("#clientOffersGroup");
 const clientPriceLists = document.querySelector("#clientPriceLists");
 const clientOffers = document.querySelector("#clientOffers");
+const clientProducePricesGroup = document.querySelector("#clientProducePricesGroup");
 const isWholesaleOrder = window.location.pathname.endsWith("/pedido-mayorista.html");
 const publicSaleType = isWholesaleOrder ? "Mayorista" : "Minorista";
 
@@ -46,17 +47,30 @@ function applyOrderAudience() {
 let orderDatePolicy = null;
 
 async function loadClientDocuments() {
-  try {
-    const response = await (window.ClientRequest?.fetch || fetch)("/api/public-client-documents", { cache: "no-store" });
-    if (!response.ok) return;
-    const documents = await response.json();
-    renderClientDocumentLinks(clientPriceLists, documents["price-list"], "primary");
-    renderClientDocumentLinks(clientOffers, documents.offers, "offers-button");
-    clientPriceListsGroup.hidden = documents["price-list"].length === 0;
-    clientOffersGroup.hidden = documents.offers.length === 0;
-    clientDocuments.hidden = clientPriceListsGroup.hidden && clientOffersGroup.hidden;
-  } catch {
-    clientDocuments.hidden = true;
+  const request = window.ClientRequest?.fetch || fetch;
+  await Promise.allSettled([loadSavedDocuments(), loadProducePrices()]);
+  clientDocuments.hidden = clientPriceListsGroup.hidden && clientOffersGroup.hidden && (!clientProducePricesGroup || clientProducePricesGroup.hidden);
+  async function loadSavedDocuments() {
+    try {
+      const response = await request("/api/public-client-documents", { cache: "no-store" });
+      if (!response.ok) return;
+      const documents = await response.json();
+      renderClientDocumentLinks(clientPriceLists, documents["price-list"], "primary");
+      renderClientDocumentLinks(clientOffers, documents.offers, "offers-button");
+      clientPriceListsGroup.hidden = documents["price-list"].length === 0;
+      clientOffersGroup.hidden = documents.offers.length === 0;
+    } catch {
+      clientPriceListsGroup.hidden = true;
+      clientOffersGroup.hidden = true;
+    }
+  }
+  async function loadProducePrices() {
+    if (!clientProducePricesGroup) return;
+    try {
+      const response = await request("/api/public-produce-prices", { cache: "no-store" });
+      const data = response.ok ? await response.json() : null;
+      clientProducePricesGroup.hidden = data?.available !== true;
+    } catch { clientProducePricesGroup.hidden = true; }
   }
 }
 
