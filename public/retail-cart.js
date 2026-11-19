@@ -73,7 +73,7 @@
     try{const r=await (window.ClientRequest?.fetch || fetch)('/api/public-retail-catalog',{cache:'no-store'});if(!r.ok)throw new Error('No se pudo cargar el catálogo. Tocá Actualizar catálogo para reintentar.');state.catalog=await r.json();
       const category=el('cartCategory');const chosen=category.value;category.replaceChildren(new Option('Todas las listas',''));
       const lists=new Map(state.catalog.products.map(p=>[p.documentId,p.listName]));for(const [id,name]of lists)category.add(new Option(name.replace(/\.pdf$/i,''),id));category.value=chosen;
-      invalidate();renderCatalog();renderLines();status('Para pedir un corte con dos preparaciones, escribí su aclaración y volvé a agregarlo.');
+      invalidate();renderCatalog();renderLines();status(state.catalog.produceUnavailable?'Los precios de Verdulería no están disponibles en este momento. Podés usar Actualizar catálogo para reintentar; los demás artículos siguen disponibles.':'Para pedir un corte con dos preparaciones, escribí su aclaración y volvé a agregarlo.',state.catalog.produceUnavailable===true);
     }catch(e){state.quote=null;el('cartAccepted').disabled=true;el('cartAccepted').checked=false;status(e.message,true);}
   }
   async function review(){

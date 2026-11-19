@@ -479,10 +479,17 @@ async function publicRetailCatalog() {
     const offerUnits = [...new Set(offers.filter(o => o.productId === product.id).map(o => o.unit))];
     return { ...product, unit: product.unit || (offerUnits.length === 1 ? offerUnits[0] : "") };
   });
-  return { products, offers, notice: RetailCart.NOTICE };
+  let produce = { products: [], offers: [] }, produceUnavailable = false;
+  try { produce = await ProduceCustomerPrices.cart(); }
+  catch { produceUnavailable = true; }
+  return { products: [...products, ...produce.products], offers: [...offers, ...produce.offers], produceUnavailable, notice: RetailCart.NOTICE };
 }
 async function quoteRetailCart(payload) {
-  const quote = RetailCart.quote(await publicRetailCatalog(), payload.cart, payload);
+  const catalog = await publicRetailCatalog();
+  if (catalog.produceUnavailable && Array.isArray(payload.cart) && payload.cart.some(line => typeof line?.productId === 'string' && line.productId.startsWith('produce:'))) {
+    throw Object.assign(new Error('No pudimos consultar los precios de Verdulería. Conservá tu carrito e intentá revisar el total nuevamente en unos minutos.'), { statusCode: 503 });
+  }
+  const quote = RetailCart.quote(catalog, payload.cart, payload);
   return { ...quote, quoteId: createHash("sha256").update(JSON.stringify(quote)).digest("hex") };
 }
 
@@ -1159,7 +1166,7 @@ async function handleApiRequest(req, res) {
       await writePOS({ ...stored.state, revision: cryptoId(), sales: [...stored.state.sales, sale] }, stored.updatedAt);
       return sendJson(res, 201, sale);
     }
-    if (url.pathname === "/api/public-retail-catalog" && req.method === "GET") return sendJson(res, 200, await publicRetailCatalog());
+    if (url.pathname === "/api/public-retail-catalog" && req.method === "GET") { res.setHeader("Cache-Control", "no-store"); return sendJson(res, 200, await publicRetailCatalog()); }
     if (url.pathname === "/api/public-retail-quote" && req.method === "POST") return sendJson(res, 200, await quoteRetailCart(await readBody(req)));
     if (url.pathname === "/api/retail-offers/catalog" && req.method === "PUT") {
       const payload = await readBody(req);

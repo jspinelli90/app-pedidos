@@ -1,5 +1,9 @@
 # Carrito minorista
 
+Verdulería se incorpora automáticamente desde los precios guardados en Administración, bajo la lista **Esenciales - Verdulería**. Ofrece la venta por kilo o unidad, aplica las promociones por cantidad y agrega por separado las bolsas y cajones completos que tengan precio. Los bultos se piden por cantidades enteras y llevan la presentación en el nombre del artículo y en el pedido. No se aplican promociones por kilo a un bulto completo ni se publican costos internos.
+
+La revisión del total y el envío vuelven a consultar Administración. Un cambio de precios u ofertas requiere nueva aceptación. Si esa conexión falla, se puede seguir consultando y cotizando el resto del catálogo; los pedidos que incluyen Verdulería deben reintentarse cuando se restablezca la consulta de precios. El botón **Actualizar catálogo** conserva los renglones del carrito.
+
 El cliente minorista puede elegir **Comprar con carrito** o **Escribir mi pedido**. Cambiar de modo conserva ambos borradores mientras la página permanece abierta, pero envía solo el modo seleccionado. El campo de texto exige contenido en modo escrito; los controles del carrito quedan deshabilitados para no bloquear el envío. En modo carrito se mantienen la revisión y aceptación del estimado. El pedido escrito no muestra una cotización automática y el local confirma su importe. Tras un envío exitoso se limpian los borradores.
 
 El catálogo usa filas con nombre, lista, precio/oferta y botón Agregar. Los renglones seleccionados muestran cantidad y subtotal, con un desplegable para aclarar el corte o la preparación. El aviso de importe estimado permanece destacado.
