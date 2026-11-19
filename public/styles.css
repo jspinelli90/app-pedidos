@@ -1935,3 +1935,5 @@ textarea:focus {
 .order-category[data-category="mixed"] { background:#eeeaff; color:#50348a; border-color:#c4b5e6; }
 .order-category[data-category="review"] { background:#fff4d7; color:#775414; border-color:#e7cb83; }
 #categoryPreview { font-weight:700; }
+
+#categoryFilter { min-width: 170px; }

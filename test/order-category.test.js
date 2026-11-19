@@ -51,3 +51,17 @@ test('el listado muestra etiquetas de ambos tipos y el editor conserva el detall
  select.value='';select.dispatchEvent(new w.Event('change'));assert.match(w.document.getElementById('categoryPreview').textContent,/Por revisar/);
  w.eval('resetForm()');assert.equal(select.value,'');
 });
+
+test('filtra las cuatro etiquetas junto con tipo, fecha, estado y búsqueda; respeta correcciones manuales',t=>{
+ const {JSDOM}=require('jsdom');const dom=new JSDOM(fs.readFileSync(require.resolve('../public/index.html'),'utf8'),{runScripts:'outside-only',url:'https://example.test/'});t.after(()=>dom.window.close());const w=dom.window;
+ for(const file of ['order-category.js','retail-cart-model.js']) w.eval(fs.readFileSync(require.resolve('../public/'+file),'utf8'));
+ const source=fs.readFileSync(require.resolve('../public/app.js'),'utf8');w.eval(source.slice(0,source.indexOf('els.form.addEventListener("submit"'))+';window.catState=state;');
+ const orders=[];for(const saleType of ['Minorista','Mayorista']) for(const [categoryOverride,detail] of [['','asado'],['','papas'],['','asado y papas'],['','lo de siempre'],['essentials','asado']]) orders.push({id:String(orders.length),number:orders.length+1,customer:'Cliente prueba',detail,saleType,categoryOverride,status:'Nuevo',prepDate:'2026-11-20'});
+ w.catState.orders=orders;const el=id=>w.document.getElementById(id);const count=()=>{w.render();return el('ordersList').querySelectorAll('.order-card').length;};
+ assert.equal(count(),10);
+ for(const [value,total] of [['meat',2],['essentials',4],['mixed',2],['review',2]]) {el('categoryFilter').value=value;assert.equal(count(),total);el('saleTypeFilter').value='Mayorista';assert.equal(count(),total/2);el('saleTypeFilter').value='Minorista';assert.equal(count(),total/2);el('saleTypeFilter').value='';}
+ el('categoryFilter').value='essentials';el('saleTypeFilter').value='Mayorista';el('prepDateFilter').value='2026-11-21';assert.equal(count(),0);el('prepDateFilter').value='2026-11-20';assert.equal(count(),2);
+ el('statusFilter').value='Preparado';assert.equal(count(),0);el('statusFilter').value='Nuevo';el('search').value='inexistente';assert.equal(count(),0);el('search').value='prueba';assert.equal(count(),2);
+ el('categoryFilter').value='';assert.equal(count(),5);
+ el('categoryFilter').value='meat';w.scrollTo=()=>{};w.HTMLElement.prototype.scrollIntoView=function(){};w.showPendingOnlineOrders();assert.equal(el('categoryFilter').value,'');
+});

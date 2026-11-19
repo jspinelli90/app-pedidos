@@ -87,6 +87,7 @@ const els = {
   prepDateFilter: document.querySelector("#prepDateFilter"),
   search: document.querySelector("#search"),
   saleTypeFilter: document.querySelector("#saleTypeFilter"),
+  categoryFilter: document.querySelector("#categoryFilter"),
   statusFilter: document.querySelector("#statusFilter"),
   printSummaryBtn: document.querySelector("#printSummaryBtn"),
   clearBtn: document.querySelector("#clearBtn"),
@@ -344,6 +345,7 @@ function showPendingOnlineOrders() {
   els.prepDateFilter.value = "";
   els.search.value = "";
   els.saleTypeFilter.value = "";
+  els.categoryFilter.value = "";
   els.statusFilter.value = "Provisorio";
   showModule("orders");
   render();
@@ -787,12 +789,14 @@ function filteredOrders() {
   const prepDate = els.prepDateFilter.value;
   const status = els.statusFilter.value;
   const saleType = els.saleTypeFilter.value;
+  const category = els.categoryFilter.value;
   return state.orders.filter(order => {
     const dateOk = !prepDate || orderPrepDate(order) === prepDate;
     const statusOk = !status || order.status === status;
     const saleTypeOk = !saleType || orderSaleType(order) === saleType;
     const textOk = !text || matchesOrder(order, text);
-    return dateOk && statusOk && saleTypeOk && textOk;
+    const categoryOk = !category || categoryForOrder(order).value === category;
+    return dateOk && statusOk && saleTypeOk && categoryOk && textOk;
   });
 }
 
@@ -2032,6 +2036,7 @@ els.phone.addEventListener("blur", fillCustomerData);
 els.search.addEventListener("input", render);
 els.prepDateFilter.addEventListener("change", render);
 els.saleTypeFilter.addEventListener("change", render);
+els.categoryFilter.addEventListener("change", render);
 els.statusFilter.addEventListener("change", render);
 els.printSummaryBtn.addEventListener("click", printDailySummary);
 els.sellerExcelBtn.addEventListener("click", () => downloadSellerReport("xlsx"));
