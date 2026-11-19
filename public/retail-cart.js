@@ -92,6 +92,13 @@
     finally{state.busy=false;el('cartReview').disabled=false;}
   }
   window.RetailCartUI={
+    async openProduce(){
+      setMode('cart');
+      if(!state.catalog||state.catalog.produceUnavailable)await load();
+      const available=state.catalog?.products.some(product=>product.documentId==='essentials-produce');
+      if(available){el('cartCategory').value='essentials-produce';el('cartSearch').value='';renderCatalog();el('retailCart').scrollIntoView({behavior:'smooth',block:'start'});el('cartSearch').focus({preventScroll:true});}
+      else{status('No pudimos cargar los artículos de Verdulería. Tu carrito se conserva; usá Actualizar catálogo para reintentar.',true);el('cartReload').focus();}
+    },
     payload(){if(state.mode==='text'){if(!el('clientDetail').value.trim())throw new Error('Escribí los productos y cantidades de tu pedido.');return {};}if(!state.quote||!el('cartAccepted').checked)throw new Error('Revisá el total estimado y marcá que entendés que puede variar según el peso real.');return {cart:state.lines,quoteId:state.quote.quoteId,estimatedAccepted:true,requestId:state.requestId};},
     changed(){invalidate();},
     reset(){state.lines=[];invalidate();renderLines();setMode(state.mode);},

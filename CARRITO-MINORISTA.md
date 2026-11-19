@@ -1,5 +1,9 @@
 # Carrito minorista
 
+Antes de enviar un carrito sin artículos de Verdulería, los dos formularios ofrecen **Agregar Verdulería**, **Ver precios y ofertas** o **Continuar sin agregar**. El aviso aparece una sola vez por pedido y se reinicia tras un envío exitoso; no se repite ante un error de envío. Un carrito que ya incluye Verdulería continúa directamente. Ver la lista abre el PDF vigente sin enviar el pedido. Agregar Verdulería filtra el catálogo y conserva artículos, notas y datos del cliente; cualquier artículo añadido exige revisar nuevamente el total.
+
+Los pedidos escritos reciben la pregunta «¿Ya agregaste lo de verdulería?» sin intentar interpretar su texto. Conservan las tres opciones: Agregar Verdulería vuelve al detalle escrito y muestra un enlace a precios, sin cambiar al modo carrito ni perder el borrador. Continuar conserva y envía el modo elegido. Cerrar el aviso o usar Escape vuelve al pedido sin enviarlo. El aviso es una mejora opcional y no impide enviar pedidos si el navegador no admite el diálogo.
+
 Verdulería se incorpora automáticamente desde los precios guardados en Administración, bajo la lista **Esenciales - Verdulería**. Ofrece la venta por kilo o unidad, aplica las promociones por cantidad y agrega por separado las bolsas y cajones completos que tengan precio. Los bultos se piden por cantidades enteras y llevan la presentación en el nombre del artículo y en el pedido. No se aplican promociones por kilo a un bulto completo ni se publican costos internos.
 
 La revisión del total y el envío vuelven a consultar Administración. Un cambio de precios u ofertas requiere nueva aceptación. Si esa conexión falla, se puede seguir consultando y cotizando el resto del catálogo; los pedidos que incluyen Verdulería deben reintentarse cuando se restablezca la consulta de precios. El botón **Actualizar catálogo** conserva los renglones del carrito.

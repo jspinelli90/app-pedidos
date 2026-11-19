@@ -1917,3 +1917,13 @@ textarea:focus {
 .cart-accept input { width: 22px; height: 22px; flex: 0 0 22px; }
 .cart-receipt { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: .9rem; }
 @media(max-width:480px) { .cart-catalog { max-height: 440px; }.cart-product { grid-template-columns: minmax(0,1fr) auto; gap: 4px 8px; }.cart-product-name { grid-column: 1; }.cart-product-price { grid-column: 1; text-align: left; }.cart-product button { grid-column: 2; grid-row: 1 / 3; }.cart-product small { font-size: .7rem; }.cart-line { grid-template-columns: minmax(0,1fr) 90px auto; gap: 8px; }.cart-line-name { grid-column: 1 / -1; }.cart-line > label { grid-column: 1 / 3; max-width: 180px; }.estimate-notice { padding: 14px; }.estimate-notice > strong { font-size: 1.15rem; } }
+.produce-reminder { box-sizing: border-box; width: min(540px, calc(100% - 32px)); max-height: calc(100dvh - 40px); overflow-y: auto; border: 0; border-top: 7px solid #b21f24; border-radius: 14px; padding: 32px; color: #172b25; background: #fff; box-shadow: 0 20px 70px #0005; }
+.produce-reminder::backdrop { background: #0009; }
+.produce-reminder .eyebrow { margin-top: 0; color: #a71920; }
+.produce-reminder h2 { margin: 10px 24px 16px 0; font-size: 1.65rem; line-height: 1.2; }
+.produce-reminder p { font-size: 1rem; line-height: 1.5; }
+.produce-reminder-question { font-weight: 700; }
+.produce-reminder-close { position: absolute; top: 12px; right: 12px; width: 40px; height: 40px; padding: 0; font-size: 1.7rem; background: transparent; color: #172b25; border: 0; }
+.produce-reminder-actions { display: grid; gap: 10px; margin-top: 22px; }
+.produce-reminder-actions button, .produce-reminder-actions a { box-sizing: border-box; width: 100%; min-height: 46px; white-space: normal; text-align: center; padding: 12px 16px; font-size: 1rem; }
+@media (max-width: 480px) { .produce-reminder { padding: 25px 20px; }.produce-reminder h2 { font-size: 1.4rem; } }

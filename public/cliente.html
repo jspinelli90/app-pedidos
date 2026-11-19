@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Hacé tu pedido | San Cayetano Carnes</title>
-    <link rel="stylesheet" href="/styles.css?v=20261006-conexion">
+    <link rel="stylesheet" href="/styles.css?v=20261119-verduleria-aviso">
   <link rel="stylesheet" href="/sc-loading.css">
   </head>
   <body class="client-page">
@@ -214,6 +214,7 @@
             <button id="cartReview" type="button" class="primary">Revisar total estimado</button>
             <label class="cart-accept"><input id="cartAccepted" type="checkbox" disabled><span id="cartAcceptedText">Entiendo que el importe es estimado y que el total final puede ser mayor o menor según el peso real.</span></label>
           </fieldset>
+          <p id="textProduceSuggestion" class="client-notice" hidden>Sumá las frutas y verduras que quieras al detalle de tu pedido. Lo que ya escribiste se conserva. <a href="/api/public-produce-prices?formato=pdf" target="_blank" rel="noopener">Ver precios y ofertas de Verdulería</a></p>
           <label id="clientDetailLabel">Detalle del pedido
             <textarea id="clientDetail" class="order-detail-input" required rows="8" placeholder="Escribi aca tu pedido completo"></textarea>
           </label>
@@ -238,8 +239,22 @@
       </section>
     </main>
 
+    <dialog id="produceReminder" class="produce-reminder" aria-labelledby="produceReminderTitle" aria-describedby="produceReminderDescription">
+      <button id="produceReminderClose" class="produce-reminder-close" type="button" aria-label="Volver al pedido">×</button>
+      <p class="eyebrow">SAN CAYETANO</p>
+      <h2 id="produceReminderTitle">¡Ahora también te resolvemos la verdulería!</h2>
+      <p id="produceReminderDescription">Sumá frutas y verduras a tu pedido de San Cayetano. Consultá nuestros precios y ofertas y aprovechá para hacer tus compras en un mismo lugar.</p>
+      <p class="produce-reminder-question">¿Querés agregar algo antes de terminar?</p>
+      <div class="produce-reminder-actions">
+        <button id="produceReminderAdd" class="primary" type="button" autofocus>Agregar Verdulería</button>
+        <a id="produceReminderPrices" class="button-link ghost" href="/api/public-produce-prices?formato=pdf" target="_blank" rel="noopener">Ver precios y ofertas</a>
+        <button id="produceReminderContinue" class="ghost" type="button">Continuar sin agregar</button>
+      </div>
+    </dialog>
+
     <script src="/retail-cart-model.js?v=20261119-lista-cajas"></script>
-    <script src="/retail-cart.js?v=20261119-lista-cajas"></script>
-    <script src="/cliente.js?v=20261119-lista-cajas"></script>
+    <script src="/retail-cart.js?v=20261119-verduleria-aviso"></script>
+    <script src="/produce-reminder.js?v=20261119"></script>
+    <script src="/cliente.js?v=20261119-verduleria-aviso"></script>
   </body>
 </html>

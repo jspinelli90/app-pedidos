@@ -349,6 +349,13 @@ async function sendOrder(event) {
     prepDate.reportValidity();
     return;
   }
+  if (window.ProduceReminder) {
+    const hasProduce = Array.isArray(cartPayload.cart) && cartPayload.cart.some(line => typeof line.productId === 'string' && line.productId.startsWith('produce:'));
+    let proceed = true;
+    try { proceed = await window.ProduceReminder.beforeSend({ hasProduce, isWritten: !Array.isArray(cartPayload.cart) }); }
+    catch { /* A promotional notice must not prevent a valid order. */ }
+    if (!proceed) return;
+  }
   setMessage("Enviando pedido...");
   successBox.hidden = true;
 
@@ -391,6 +398,7 @@ async function sendOrder(event) {
     if (!response.ok) { if (response.status === 409) window.RetailCartUI?.changed(); throw new Error(data.error || "No se pudo enviar el pedido."); }
     form.reset();
     window.RetailCartUI?.reset();
+    window.ProduceReminder?.reset();
     await refreshDatePolicy(true);
     updateLocalityOptions();
     updateDeliveryTypeVisibility();
