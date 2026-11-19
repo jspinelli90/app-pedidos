@@ -13,7 +13,7 @@ const RetailCart = require("./public/retail-cart-model");
 const POS = require("./public/pos-model");
 const SalesCatalog = require("./lib/sales-catalog");
 const ProduceCustomerPrices = require("./lib/produce-customer-prices");
-const { wholesaleMeatCatalog, wholesalePoultryPorkCatalog } = require("./lib/wholesale-meat-catalog");
+const { wholesaleMeatCatalog, wholesalePoultryPorkCatalog, wholesaleBoxesCatalog } = require("./lib/wholesale-meat-catalog");
 const { createHash } = require("node:crypto");
 
 const PORT = Number(process.env.PORT || 3000);
@@ -475,11 +475,11 @@ function retailCatalog(documents) {
 async function publicRetailCatalog(audience = "retail") {
   if (audience === "wholesale") {
     const documents = await readClientDocuments();
-    const meat = [...wholesaleMeatCatalog(documents), ...wholesalePoultryPorkCatalog(documents)];
+    const listedProducts = [...wholesaleMeatCatalog(documents), ...wholesalePoultryPorkCatalog(documents), ...wholesaleBoxesCatalog(documents)];
     try {
       const produce = await ProduceCustomerPrices.cart();
-      return { products: [...meat, ...produce.products], offers: produce.offers, produceUnavailable: false, notice: RetailCart.NOTICE };
-    } catch { return { products: meat, offers: [], produceUnavailable: true, notice: RetailCart.NOTICE }; }
+      return { products: [...listedProducts, ...produce.products], offers: produce.offers, produceUnavailable: false, notice: RetailCart.NOTICE };
+    } catch { return { products: listedProducts, offers: [], produceUnavailable: true, notice: RetailCart.NOTICE }; }
   }
   const catalog = retailCatalog(await readClientDocuments());
   const stored = await readRetailOffers();

@@ -33,7 +33,7 @@ function applyOrderAudience() {
   document.querySelector("#clientBrandEyebrow").textContent = "Pedidos mayoristas";
   document.querySelector("#clientBrandTitle").textContent = "Hacé tu pedido mayorista";
   document.querySelector("#clientBrandIntro").textContent =
-    "Elegí carne, pollo, cerdo, embutidos, achuras y Verdulería con el carrito o escribí tu pedido mayorista.";
+    "Elegí productos de las listas mayoristas y Verdulería con el carrito o escribí tu pedido mayorista.";
   document.querySelector("#clientAudienceNotice").setAttribute(
     "aria-label",
     "Formulario exclusivo para pedidos mayoristas"

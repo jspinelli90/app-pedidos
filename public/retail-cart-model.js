@@ -1,6 +1,7 @@
 (function(root,factory){const model=factory();if(typeof module==='object'&&module.exports)module.exports=model;if(root)root.RetailCartModel=model;})(typeof window==='undefined'?null:window,function(){
   const NOTICE='El importe final se calcula según el peso real de los productos al preparar tu pedido y puede ser mayor o menor al estimado.';
   const WHOLE_PIECE_NOTICE='La carne vacuna mayorista se compra por pieza entera, aunque se pida cortada o preparada. Los precios son por kilo y las cantidades en kilos son aproximadas. Podés aclarar la preparación de cada pieza.';
+  const FULL_BOX_NOTICE='Los artículos de la lista de cajas se compran por caja completa. Los precios son por kilo; los kilos solicitados y el importe son estimados y se ajustan al peso real de las cajas.';
   const UNITS={kg:'kg',unit:'unidad/paquete',box:'caja'};
   const money=n=>new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',maximumFractionDigits:2}).format(n);
   const round=n=>Math.round((n+Number.EPSILON)*100)/100;
@@ -29,12 +30,13 @@
         const candidate=round(packs*offer.price+remainder*rate);
         if(packs&&candidate<subtotal){subtotal=candidate;applied=`${packs} promoción(es) de ${offer.quantity} ${UNITS[offer.unit]} por ${money(offer.price)}${remainder?` + ${remainder} ${UNITS[product.unit]} a ${money(rate)}`:''}`;}
       }
-      return {productId:product.id,name:product.name,listName:product.listName,quantity,unit:product.unit,unitPrice:rate,subtotal,offer:applied,note:value.note.trim(),...(product.requiresWholePieces?{requiresWholePieces:true}:{})};
+      return {productId:product.id,name:product.name,listName:product.listName,quantity,unit:product.unit,unitPrice:rate,subtotal,offer:applied,note:value.note.trim(),...(product.requiresWholePieces?{requiresWholePieces:true}:{}),...(product.requiresFullBox?{requiresFullBox:true,...(product.fulfillmentNotice?{fulfillmentNotice:product.fulfillmentNotice}:{})}:{})};
     });
     const subtotal=round(lines.reduce((sum,line)=>sum+line.subtotal,0));
     const shipping=delivery.deliveryType==='RETIRO'?0:delivery.deliveryZone==='CABA_VIERNES'?(subtotal>=50000?0:15000):null;
-    return {lines,subtotal,shipping,total:round(subtotal+(shipping||0)),shippingPending:shipping===null,notice:lines.some(line=>line.requiresWholePieces)?WHOLE_PIECE_NOTICE+' '+NOTICE:NOTICE};
+    const notices=[...(lines.some(line=>line.requiresWholePieces)?[WHOLE_PIECE_NOTICE]:[]),...(lines.some(line=>line.requiresFullBox)?[FULL_BOX_NOTICE]:[]),...new Set(lines.flatMap(line=>line.fulfillmentNotice?[line.fulfillmentNotice]:[])),NOTICE];
+    return {lines,subtotal,shipping,total:round(subtotal+(shipping||0)),shippingPending:shipping===null,notice:notices.join(' ')};
   }
-  function detail(quote){return quote.lines.map(line=>`${line.quantity} ${UNITS[line.unit]}${line.requiresWholePieces?' aproximados - Compra de pieza entera':''} - ${line.name} [${line.listName.replace(/\.pdf$/i,'')}] - Estimado: ${money(line.subtotal)}${line.offer?`\n  Oferta: ${line.offer}`:''}${line.note?`\n  Aclaración: ${line.note}`:''}`).join('\n\n')+`\n\nTOTAL ESTIMADO: ${money(quote.total)}${quote.shippingPending?' + envío a confirmar':` (envío estimado: ${money(quote.shipping)})`}\n${quote.notice||NOTICE}`;}
-  return {NOTICE,WHOLE_PIECE_NOTICE,UNITS,money,quote,detail};
+  function detail(quote){return quote.lines.map(line=>`${line.quantity} ${UNITS[line.unit]}${line.requiresFullBox?' aproximados - Compra de caja completa':line.requiresWholePieces?' aproximados - Compra de pieza entera':''} - ${line.name} [${line.listName.replace(/\.pdf$/i,'')}] - Estimado: ${money(line.subtotal)}${line.offer?`\n  Oferta: ${line.offer}`:''}${line.note?`\n  Aclaración: ${line.note}`:''}`).join('\n\n')+`\n\nTOTAL ESTIMADO: ${money(quote.total)}${quote.shippingPending?' + envío a confirmar':` (envío estimado: ${money(quote.shipping)})`}\n${quote.notice||NOTICE}`;}
+  return {NOTICE,WHOLE_PIECE_NOTICE,FULL_BOX_NOTICE,UNITS,money,quote,detail};
 });

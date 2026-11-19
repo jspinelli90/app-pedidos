@@ -21,7 +21,8 @@
   function renderEstimate(){
     const box=el('cartEstimate');box.replaceChildren();
     const wholePieces=state.lines.some(line=>state.catalog?.products.find(p=>p.id===line.productId)?.requiresWholePieces);
-    el('cartAcceptedText').textContent=wholePieces?'Entiendo que la carne vacuna se compra por pieza entera, aunque la pida cortada o preparada, y que el total estimado se ajusta al peso real.':'Entiendo que el importe es estimado y que el total final puede ser mayor o menor según el peso real.';
+    const fullBoxes=state.lines.some(line=>state.catalog?.products.find(p=>p.id===line.productId)?.requiresFullBox);
+    el('cartAcceptedText').textContent=fullBoxes?(wholePieces?'Entiendo que la carne vacuna se compra por pieza entera y los artículos de la lista de cajas por caja completa, con precios por kilo y total ajustado al peso real.':'Entiendo que los artículos de la lista de cajas se compran por caja completa, con precios por kilo y total estimado ajustado al peso real.'):(wholePieces?'Entiendo que la carne vacuna se compra por pieza entera, aunque la pida cortada o preparada, y que el total estimado se ajusta al peso real.':'Entiendo que el importe es estimado y que el total final puede ser mayor o menor según el peso real.');
     try{
       if(!state.lines.length){box.append(node('strong','Tu carrito está vacío.'));return;}
       const quote=state.quote||M.quote(state.catalog,state.lines,context());
@@ -38,11 +39,11 @@
     state.lines.forEach((line,index)=>{
       const p=state.catalog.products.find(p=>p.id===line.productId);
       const card=node('article',undefined,'cart-line');const identity=node('div',undefined,'cart-line-name');identity.append(node('h4',p?.name||'Artículo no disponible'),node('small',p?.listName?.replace(/\.pdf$/i,'')||''));card.append(identity);
-      const label=node('label',p?.requiresWholePieces?'Kilos aproximados de piezas enteras':`Cantidad (${M.UNITS[p?.unit]||'revisar unidad'})`);
+      const label=node('label',p?.requiresFullBox?'Kilos aproximados de cajas completas':p?.requiresWholePieces?'Kilos aproximados de piezas enteras':`Cantidad (${M.UNITS[p?.unit]||'revisar unidad'})`);
       const qty=node('input');qty.type='number';qty.min=p?.unit==='kg'?'0.001':'1';qty.step=p?.unit==='kg'?'0.001':'1';qty.max='1000';qty.value=line.quantity;qty.required=true;
       qty.addEventListener('input',()=>{line.quantity=qty.value===''?null:Number(qty.value);invalidate();updateSubtotal();});label.append(qty);
-      const notes=node('details',undefined,'cart-line-notes');notes.open=Boolean(line.note)||Boolean(p?.requiresWholePieces);notes.append(node('summary','Aclarar corte o preparación'));
-      const noteLabel=node('label',p?.requiresWholePieces?'Piezas y preparación que querés':'Aclaración para este artículo');const note=node('textarea');note.rows=2;note.maxLength=500;note.placeholder=p?.requiresWholePieces?'Ej.: una nalga entera, toda cortada para milanesas':'Ej.: bifes finitos, sin grasa, separar en dos bolsas';note.value=line.note;
+      const notes=node('details',undefined,'cart-line-notes');notes.open=Boolean(line.note)||Boolean(p?.requiresWholePieces)||Boolean(p?.requiresFullBox);notes.append(node('summary','Aclarar corte o preparación'));
+      const noteLabel=node('label',p?.requiresFullBox?'Cajas y aclaraciones':p?.requiresWholePieces?'Piezas y preparación que querés':'Aclaración para este artículo');const note=node('textarea');note.rows=2;note.maxLength=500;note.placeholder=p?.requiresFullBox?'Ej.: una caja completa':p?.requiresWholePieces?'Ej.: una nalga entera, toda cortada para milanesas':'Ej.: bifes finitos, sin grasa, separar en dos bolsas';note.value=line.note;
       note.addEventListener('input',()=>{line.note=note.value;invalidate();});noteLabel.append(note);
       notes.append(noteLabel);const subtotal=node('p',undefined,'cart-line-subtotal');
       function updateSubtotal(){try{const q=state.quote?.lines[index]||M.quote(state.catalog,[line],context()).lines[0];subtotal.textContent=`Subtotal estimado: ${M.money(q.subtotal)}${q.offer?` · ${q.offer}`:''}`;}catch(e){subtotal.textContent=e.message;}}
@@ -55,11 +56,14 @@
     const box=el('cartCatalog');box.replaceChildren();if(!state.catalog)return;
     const search=el('cartSearch').value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
     const products=state.catalog.products.filter(p=>(!el('cartCategory').value||p.documentId===el('cartCategory').value)&&p.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().includes(search));
+    const boxes=products.filter(p=>p.requiresFullBox);el('cartBoxNotice').hidden=boxes.length===0;
+    el('cartBoxNotice').textContent=boxes.length?[M.FULL_BOX_NOTICE,...new Set(boxes.flatMap(p=>p.fulfillmentNotice?[p.fulfillmentNotice]:[]))].join(' '):'';
     products.forEach(p=>{
       const card=node('article',undefined,'cart-product');const identity=node('div',undefined,'cart-product-name');identity.append(node('strong',p.name),node('small',p.listName.replace(/\.pdf$/i,'')));card.append(identity);
       const ready=Boolean(M.UNITS[p.unit])&&p.price!==null;
       card.append(node('p',ready?`${M.money(p.price)} / ${M.UNITS[p.unit]}`:'Consultar al local','cart-product-price'));
       if(p.requiresWholePieces)identity.append(node('p','Compra de pieza entera. Podés pedirla cortada o preparada.','cart-offer'));
+      if(p.requiresFullBox)identity.append(node('p','Compra de caja completa. Precio por kilo.','cart-offer'));
       for(const offer of state.catalog.offers.filter(o=>o.productId===p.id))identity.append(node('p',offer.kind==='bundle'?`Oferta: ${offer.quantity} ${M.UNITS[offer.unit]} por ${M.money(offer.price)}`:`Oferta: ${M.money(offer.price)} por ${M.UNITS[offer.unit]}`,'cart-offer'));
       const add=node('button','Agregar','ghost');add.type='button';add.disabled=!ready;
       add.addEventListener('click',()=>{
@@ -98,7 +102,7 @@
   el('clientBrandIntro').textContent='Armá tu carrito o escribí tu pedido. Elegí la forma que te resulte más cómoda.';
   if(isWholesale) {
     el('retailCartHeading').textContent='Carrito mayorista';
-    el('cartHelp').textContent='Carne vacuna: precios por kilo, compra de piezas enteras. Podés pedirlas cortadas o preparadas, por ejemplo una nalga entera para milanesas. En pollo, cerdo, embutidos, achuras y Verdulería, respetá la medida indicada en cada artículo. Las unidades, paquetes, cajas y bultos requieren cantidades enteras.';
+    el('cartHelp').textContent='Carne vacuna: compra de piezas enteras, con la preparación que aclares. Lista de cajas: precio por kilo y compra de caja completa. En los demás artículos, respetá la medida indicada. Las unidades, paquetes y bultos requieren cantidades enteras.';
   }
   el('cartSearch').addEventListener('input',renderCatalog);el('cartCategory').addEventListener('change',renderCatalog);
   el('cartReload').addEventListener('click',load);el('cartReview').addEventListener('click',review);el('clientDeliveryType').addEventListener('change',invalidate);
