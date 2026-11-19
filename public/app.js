@@ -1755,15 +1755,18 @@ function compactPrintText(value) {
 function summaryOrdersForPrint() {
   const date = els.prepDateFilter.value || todayDate();
   const saleType = els.saleTypeFilter.value;
+  const category = els.categoryFilter.value;
   return state.orders
     .filter(order => orderPrepDate(order) === date)
     .filter(order => !saleType || orderSaleType(order) === saleType)
+    .filter(order => !category || categoryForOrder(order).value === category)
     .sort(compareOrders);
 }
 
 function printDailySummary() {
   const date = els.prepDateFilter.value || todayDate();
   const saleType = els.saleTypeFilter.value || "Mayorista y minorista";
+  const categoryLabel = OrderCategory.labels[els.categoryFilter.value] || "Todas las etiquetas";
   const orders = summaryOrdersForPrint();
   if (!orders.length) {
     alert("No hay pedidos para imprimir con esa fecha y filtro.");
@@ -1801,7 +1804,7 @@ function printDailySummary() {
     <html lang="es">
       <head>
         <meta charset="utf-8">
-        <title>Resumen pedidos ${escapeHtml(formatDate(date))}</title>
+        <title>Resumen pedidos ${escapeHtml(formatDate(date))} - ${escapeHtml(categoryLabel)}</title>
         <style>
           * { box-sizing: border-box; }
           html, body { margin: 0; color: #111; font-family: Arial, Helvetica, sans-serif; }
@@ -1853,7 +1856,7 @@ function printDailySummary() {
           <header>
             <div>
               <h1>Resumen de pedidos</h1>
-              <p class="meta">Fecha: ${escapeHtml(formatDate(date))} | Filtro: ${escapeHtml(saleType)} | Impreso: ${escapeHtml(dateTime(new Date().toISOString()))}</p>
+              <p class="meta">Fecha: ${escapeHtml(formatDate(date))} | Filtro: ${escapeHtml(saleType)} | Etiqueta: ${escapeHtml(categoryLabel)} | Impreso: ${escapeHtml(dateTime(new Date().toISOString()))}</p>
             </div>
             <div class="totals">
               <span>Total: ${totals.all}</span>

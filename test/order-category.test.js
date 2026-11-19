@@ -65,3 +65,16 @@ test('filtra las cuatro etiquetas junto con tipo, fecha, estado y búsqueda; res
  el('categoryFilter').value='';assert.equal(count(),5);
  el('categoryFilter').value='meat';w.scrollTo=()=>{};w.HTMLElement.prototype.scrollIntoView=function(){};w.showPendingOnlineOrders();assert.equal(el('categoryFilter').value,'');
 });
+
+test('resumen diario imprime la etiqueta seleccionada, totales filtrados y correcciones manuales para ambos tipos',t=>{
+ const {JSDOM}=require('jsdom');const dom=new JSDOM(fs.readFileSync(require.resolve('../public/index.html'),'utf8'),{runScripts:'outside-only',url:'https://example.test/'});t.after(()=>dom.window.close());const w=dom.window;
+ for(const file of ['order-category.js','retail-cart-model.js','order-ticket.js']) w.eval(fs.readFileSync(require.resolve('../public/'+file),'utf8'));
+ const source=fs.readFileSync(require.resolve('../public/app.js'),'utf8');w.eval(source.slice(0,source.indexOf('els.form.addEventListener("submit"'))+';window.catState=state;');
+ const orders=[];for(const saleType of ['Minorista','Mayorista']) for(const [categoryOverride,detail] of [['','asado'],['','papas'],['','asado y papas'],['','lo de siempre'],['essentials','asado']]) orders.push({id:String(orders.length),number:orders.length+1,customer:saleType+' '+orders.length,detail,saleType,categoryOverride,status:'Nuevo',deliveryType:'RETIRO',prepDate:'2026-11-20'});
+ orders.push({...orders[0],id:'otro-dia',customer:'Otro día',prepDate:'2026-11-21'});w.catState.orders=orders;const el=id=>w.document.getElementById(id);el('prepDateFilter').value='2026-11-20';let html='',opened=0,alert='';w.open=()=>{opened++;return {document:{write:value=>{html=value;},close(){}}};};w.alert=value=>{alert=value;};
+ for(const [category,total] of [['meat',2],['essentials',4],['mixed',2],['review',2],['',10]]) {
+  el('categoryFilter').value=category;w.printDailySummary();let printed=new JSDOM(html);assert.equal(printed.window.document.querySelectorAll('tbody tr').length,total);assert.match(html,new RegExp('Total: '+total+'<'));assert.ok(html.includes('Etiqueta: '+(C.labels[category]||'Todas las etiquetas')));assert.ok(!html.includes('Otro día'));printed.window.close();
+  for(const saleType of ['Minorista','Mayorista']) {el('saleTypeFilter').value=saleType;w.printDailySummary();printed=new JSDOM(html);const rows=[...printed.window.document.querySelectorAll('tbody tr')];assert.equal(rows.length,total/2);assert.ok(rows.every(row=>row.children[2].textContent===saleType));printed.window.close();}el('saleTypeFilter').value='';
+ }
+ el('prepDateFilter').value='2026-11-22';const before=opened;w.printDailySummary();assert.equal(opened,before);assert.match(alert,/No hay pedidos/);
+});
