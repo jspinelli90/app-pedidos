@@ -11,7 +11,7 @@
     el('textOrderNotice').hidden=cart;
     document.querySelectorAll('input[name="orderMode"]').forEach(input=>{input.checked=input.value===mode;});
     el('clientSubmitButton').textContent=cart?(isWholesale?'Enviar pedido mayorista con total estimado':'Enviar pedido con total estimado'):(isWholesale?'Enviar pedido mayorista escrito':'Enviar pedido escrito');
-    el('orderModeHelp').textContent=cart?(isWholesale?'Elegí carne mayorista y Verdulería. En carne comprás la pieza entera y podés aclarar cómo prepararla.':'Elegí productos y cantidades para ver un total estimado.'):'Escribí tu pedido como prefieras. Se enviará solo el texto; lo que agregaste al carrito queda guardado mientras estés en esta página.';
+    el('orderModeHelp').textContent=cart?(isWholesale?'Elegí artículos de las listas mayoristas y Verdulería, indicá cantidades y revisá el total estimado.':'Elegí productos y cantidades para ver un total estimado.'):'Escribí tu pedido como prefieras. Se enviará solo el texto; lo que agregaste al carrito queda guardado mientras estés en esta página.';
     el('clientMessage').textContent='';
   }
   const node=(tag,text,className)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(className)n.className=className;return n;};
@@ -21,7 +21,7 @@
   function renderEstimate(){
     const box=el('cartEstimate');box.replaceChildren();
     const wholePieces=state.lines.some(line=>state.catalog?.products.find(p=>p.id===line.productId)?.requiresWholePieces);
-    el('cartAcceptedText').textContent=wholePieces?'Entiendo que la carne se compra por pieza entera, aunque la pida cortada o preparada, y que el total estimado se ajusta al peso real.':'Entiendo que el importe es estimado y que el total final puede ser mayor o menor según el peso real.';
+    el('cartAcceptedText').textContent=wholePieces?'Entiendo que la carne vacuna se compra por pieza entera, aunque la pida cortada o preparada, y que el total estimado se ajusta al peso real.':'Entiendo que el importe es estimado y que el total final puede ser mayor o menor según el peso real.';
     try{
       if(!state.lines.length){box.append(node('strong','Tu carrito está vacío.'));return;}
       const quote=state.quote||M.quote(state.catalog,state.lines,context());
@@ -76,7 +76,7 @@
     try{const r=await (window.ClientRequest?.fetch || fetch)('/api/public-retail-catalog'+(isWholesale?'?audience=wholesale':''),{cache:'no-store'});if(!r.ok)throw new Error('No se pudo cargar el catálogo. Tocá Actualizar catálogo para reintentar.');state.catalog=await r.json();
       const category=el('cartCategory');const chosen=category.value;category.replaceChildren(new Option('Todas las listas',''));
       const lists=new Map(state.catalog.products.map(p=>[p.documentId,p.listName]));for(const [id,name]of lists)category.add(new Option(name.replace(/\.pdf$/i,''),id));category.value=chosen;
-      invalidate();renderCatalog();renderLines();status(state.catalog.produceUnavailable?'Los precios de Verdulería no están disponibles en este momento. Podés usar Actualizar catálogo para reintentar; los demás artículos siguen disponibles.':(isWholesale?'Carne: compra de piezas enteras, con la preparación que aclares. Verdulería: kilos, unidades, ofertas y bultos.':'Para pedir un corte con dos preparaciones, escribí su aclaración y volvé a agregarlo.'),state.catalog.produceUnavailable===true);
+      invalidate();renderCatalog();renderLines();status(state.catalog.produceUnavailable?'Los precios de Verdulería no están disponibles en este momento. Podés usar Actualizar catálogo para reintentar; los demás artículos siguen disponibles.':(isWholesale?'Elegí la lista o buscá el artículo. Cada precio indica si es por kilo, unidad/paquete o caja.':'Para pedir un corte con dos preparaciones, escribí su aclaración y volvé a agregarlo.'),state.catalog.produceUnavailable===true);
     }catch(e){state.quote=null;el('cartAccepted').disabled=true;el('cartAccepted').checked=false;status(e.message,true);}
   }
   async function review(){
@@ -98,7 +98,7 @@
   el('clientBrandIntro').textContent='Armá tu carrito o escribí tu pedido. Elegí la forma que te resulte más cómoda.';
   if(isWholesale) {
     el('retailCartHeading').textContent='Carrito mayorista';
-    el('cartHelp').textContent='Carne: precios por kilo, compra de piezas enteras. Podés pedirlas cortadas o preparadas, por ejemplo una nalga entera para milanesas. Verdulería: kilos, unidades, ofertas, bolsas y cajones completos. Las unidades y los bultos requieren cantidades enteras.';
+    el('cartHelp').textContent='Carne vacuna: precios por kilo, compra de piezas enteras. Podés pedirlas cortadas o preparadas, por ejemplo una nalga entera para milanesas. En pollo, cerdo, embutidos, achuras y Verdulería, respetá la medida indicada en cada artículo. Las unidades, paquetes, cajas y bultos requieren cantidades enteras.';
   }
   el('cartSearch').addEventListener('input',renderCatalog);el('cartCategory').addEventListener('change',renderCatalog);
   el('cartReload').addEventListener('click',load);el('cartReview').addEventListener('click',review);el('clientDeliveryType').addEventListener('change',invalidate);

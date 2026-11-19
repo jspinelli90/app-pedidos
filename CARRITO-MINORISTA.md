@@ -14,6 +14,8 @@ El catálogo usa filas con nombre, lista, precio/oferta y botón Agregar. Los re
 
 Verdulería utiliza los precios guardados en Administración. Las unidades y los bultos admiten cantidades enteras; precios, promociones, presentación y aceptación se vuelven a validar al enviar. Los pedidos conservan su tipo **Mayorista**, el vendedor y la instantánea del carrito. Las cotizaciones y los reintentos quedan vinculados al tipo de pedido.
 
+El carrito mayorista también incluye la lista combinada de **pollo, cerdo, embutidos, achuras y otros**. Conserva el precio y la unidad configurados en cada renglón: kilo, unidad/paquete o caja. Un paquete de 3 kg se pide como paquete entero si así está configurado. La condición de compra de pieza entera corresponde a la lista de carne vacuna; no se agrega automáticamente a los demás rubros. Las listas se pueden combinar en un solo pedido mayorista, con revisión de precios y aclaraciones por artículo.
+
 Los kilos admiten tres decimales; unidades/paquetes y cajas requieren enteros. Un artículo sin precio o unidad queda visible como consulta y no se puede calcular. Una oferta activa puede aportar la unidad cuando el producto aún no la tiene y todas sus ofertas vigentes coinciden. Definir las demás unidades en Documentos clientes → Editar precios → Venta por. No se deducen unidades por nombre en el código del carrito.
 
 Las ofertas por medida se aplican si mejoran el precio base. Para paquetes, se comparan promociones completas y sobrante al precio por medida; se elige una clase de promoción por renglón. No se combinan paquetes distintos ni cantidades de renglones separados. Vigencia, fuente y unidad se verifican en el servidor.

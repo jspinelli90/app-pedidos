@@ -1,0 +1,33 @@
+require('../test-support/authenticated-server.cjs');
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+const {wholesaleMeatCatalog,wholesalePoultryPorkCatalog}=require('../lib/wholesale-meat-catalog'),M=require('../public/retail-cart-model'),produce=require('../lib/produce-customer-prices');
+const title='POLLO CERDO EMBUTIDOS ACHURA Y OTROS';
+const rows=[{id:'suprema',name:'SUPREMA',price:8900,unit:'kg'},{id:'pack',name:'3KG PATA Y MUSLO',price:9900,unit:'unit'},{id:'chorizo',name:'CHORIZO',price:8000,unit:'kg'},{id:'molleja',name:'MOLLEJA',price:28500,unit:'kg'},{id:'caja',name:'CAJA',price:18000,unit:'box'},{id:'consultar',name:'CAJON DE POLLO',price:null,unit:'box'},{id:'missing-unit',name:'SIN MEDIDA',price:100,unit:''}];
+test('la lista combinada conserva precios y medidas sin condiciones de carne vacuna',()=>{
+  const document={id:'combined',type:'price-list',name:title+'.pdf',retailEnabled:false,priceData:{rows:rows.map(row=>({...row,privateCost:'PRIVATE'}))}};
+  const products=wholesalePoultryPorkCatalog([document,{id:'other',type:'price-list',name:'OTROS PRODUCTOS.pdf',priceData:{rows:[rows[0]]}}]);assert.equal(products.length,7);assert.equal(products[1].unit,'unit');assert.equal(products[4].unit,'box');assert.equal(products[6].unit,'');assert.ok(products.every(p=>p.requiresWholePieces===undefined));assert.doesNotMatch(JSON.stringify(products),/privateCost|PRIVATE/);
+  assert.equal(wholesaleMeatCatalog([{...document,name:'CARNE MAYORISTA POLLO CERDO.pdf'}]).length,0);
+  const quote=cart=>M.quote({products,offers:[]},cart.map(([id,quantity])=>({productId:'combined:'+id,quantity,note:''})),{deliveryType:'RETIRO'});
+  assert.equal(quote([['suprema',1.5],['pack',2],['chorizo',1],['molleja',.5]]).total,55400);
+  for(const id of ['pack','caja'])assert.throws(()=>quote([[id,.5]]),/cantidad/);
+  assert.throws(()=>quote([['consultar',1]]),/consultá/);assert.throws(()=>quote([['missing-unit',1]]),/consultá/);
+  assert.doesNotMatch(quote([['suprema',1]]).notice,/pieza entera/);
+});
+test('pedido mayorista mezcla las tres listas, actualiza precios y conserva cantidades y preparación',async t=>{
+  process.env.DATA_DIR=fs.mkdtempSync(path.join(os.tmpdir(),'wholesale-poultry-'));process.env.PORT='0';process.env.SUPABASE_URL='';process.env.SUPABASE_SERVICE_ROLE_KEY='';
+  t.mock.method(produce,'cart',async()=>produce.cartCatalog([{id:'banana',name:'Banana',unit:'KG',salePrice:'3500'}]));
+  const {server,startServer}=require('../server');await startServer();t.after(()=>new Promise(resolve=>server.close(resolve)));
+  const base=`http://127.0.0.1:${server.address().port}`,call=async(route,method='GET',body)=>{const r=await fetch(base+route,{method,headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});return{status:r.status,data:await r.json()}};
+  const create=async(title,rows,retailEnabled)=>call('/api/client-documents/create-price-list','POST',{data:{title,notes:'',rows},retailEnabled});
+  const saved=await create(title,rows,false);assert.equal(saved.status,201);await create('CARNE MAYORISTA',[{name:'NALGA',price:10000}],false);await create('CARNE MINORISTA',[{name:'OTRO CORTE',price:50000,unit:'kg'}],true);
+  const catalog=(await call('/api/public-retail-catalog?audience=wholesale')).data;assert.equal(catalog.products.length,9);assert.equal(catalog.products.some(p=>p.name==='OTRO CORTE'),false);
+  const product=name=>catalog.products.find(p=>p.name===name),policy=(await call('/api/public-order-policy?deliveryType=RETIRO')).data;
+  const cart=[['SUPREMA',1.5],['3KG PATA Y MUSLO',2],['CHORIZO',1],['MOLLEJA',.5],['NALGA',2],['Banana',1]].map(([name,quantity])=>({productId:product(name).id,unit:product(name).unit,quantity,note:name==='MOLLEJA'?'Limpia':''}));
+  const payload={customer:'Cliente ficticio',phone:'1155551234',saleType:'Mayorista',deliveryType:'RETIRO',deliveryZone:'REGULAR',prepDate:policy.minDate,cart,estimatedAccepted:true,requestId:'wholesale-poultry-test-0001'};
+  let quote=(await call('/api/public-retail-quote','POST',payload)).data;assert.equal(quote.total,78900);assert.equal(quote.lines.find(l=>l.name==='SUPREMA').requiresWholePieces,undefined);assert.equal(quote.lines.find(l=>l.name==='NALGA').requiresWholePieces,true);
+  const before=(await call(`/api/client-documents/${saved.data.document.id}/prices`)).data;
+  assert.equal((await call(`/api/client-documents/${saved.data.document.id}/prices`,'PUT',{data:{...before.data,rows:before.data.rows.map(r=>r.name==='SUPREMA'?{...r,price:9000}:r)},revision:before.revision})).status,200);
+  assert.equal((await call('/api/public-orders','POST',{...payload,quoteId:quote.quoteId})).status,409);assert.equal((await call('/api/orders')).data.length,0);
+  quote=(await call('/api/public-retail-quote','POST',payload)).data;assert.equal(quote.total,79050);assert.equal((await call('/api/public-orders','POST',{...payload,quoteId:quote.quoteId})).status,201);
+  const order=(await call('/api/orders')).data[0];assert.equal(order.saleType,'Mayorista');assert.equal(order.retailCart.lines.length,6);assert.equal(order.retailCart.lines.find(l=>l.name==='3KG PATA Y MUSLO').quantity,2);assert.match(order.detail,/Limpia/);assert.equal(order.retailCart.total,79050);
+});

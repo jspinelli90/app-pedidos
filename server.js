@@ -13,7 +13,7 @@ const RetailCart = require("./public/retail-cart-model");
 const POS = require("./public/pos-model");
 const SalesCatalog = require("./lib/sales-catalog");
 const ProduceCustomerPrices = require("./lib/produce-customer-prices");
-const { wholesaleMeatCatalog } = require("./lib/wholesale-meat-catalog");
+const { wholesaleMeatCatalog, wholesalePoultryPorkCatalog } = require("./lib/wholesale-meat-catalog");
 const { createHash } = require("node:crypto");
 
 const PORT = Number(process.env.PORT || 3000);
@@ -474,7 +474,8 @@ function retailCatalog(documents) {
 
 async function publicRetailCatalog(audience = "retail") {
   if (audience === "wholesale") {
-    const meat = wholesaleMeatCatalog(await readClientDocuments());
+    const documents = await readClientDocuments();
+    const meat = [...wholesaleMeatCatalog(documents), ...wholesalePoultryPorkCatalog(documents)];
     try {
       const produce = await ProduceCustomerPrices.cart();
       return { products: [...meat, ...produce.products], offers: produce.offers, produceUnavailable: false, notice: RetailCart.NOTICE };

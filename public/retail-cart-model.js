@@ -1,6 +1,6 @@
 (function(root,factory){const model=factory();if(typeof module==='object'&&module.exports)module.exports=model;if(root)root.RetailCartModel=model;})(typeof window==='undefined'?null:window,function(){
   const NOTICE='El importe final se calcula según el peso real de los productos al preparar tu pedido y puede ser mayor o menor al estimado.';
-  const WHOLE_PIECE_NOTICE='La carne mayorista se compra por pieza entera, aunque se pida cortada o preparada. Los precios son por kilo y las cantidades en kilos son aproximadas. Podés aclarar la preparación de cada pieza.';
+  const WHOLE_PIECE_NOTICE='La carne vacuna mayorista se compra por pieza entera, aunque se pida cortada o preparada. Los precios son por kilo y las cantidades en kilos son aproximadas. Podés aclarar la preparación de cada pieza.';
   const UNITS={kg:'kg',unit:'unidad/paquete',box:'caja'};
   const money=n=>new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',maximumFractionDigits:2}).format(n);
   const round=n=>Math.round((n+Number.EPSILON)*100)/100;
