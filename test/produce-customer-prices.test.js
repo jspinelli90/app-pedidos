@@ -19,6 +19,8 @@ test('lectura pública consulta únicamente campos de venta y recalcula ofertas 
   assert.equal(first.length, 3);assert.match(first[0].article, /Acelga/);
   assert.match(first.find(r=>r.article.includes('Banana')).offer, /2 kg por \$\s*1\.600,00/);
   assert.match(first[0].offer, /3 unidades por \$\s*1\.200,00/);
+  const pgNumeric=prices.customerRows([{...source[0],offerPrice:'800.000000000000000000000000000000',offerQuantity:'2.000000000000000000000000000000'}]);
+  assert.match(pgNumeric[0].offer,/2 kg por \$\s*1\.600,00/);
   assert.match(first.find(r=>r.article.includes('Solo mayorista')).wholesale, /Bolsa/);
   assert.doesNotMatch(JSON.stringify(first), /PRIVATE|referenc|Solo costo privado/);
   records = [{...source[0],salePrice:'1200',offerPrice:null,packagePrice:null}];
