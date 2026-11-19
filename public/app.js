@@ -69,6 +69,8 @@ const els = {
   routeVehicle: document.querySelector("#routeVehicle"),
   detail: document.querySelector("#detail"),
   notes: document.querySelector("#notes"),
+  categoryOverride: document.querySelector("#categoryOverride"),
+  categoryPreview: document.querySelector("#categoryPreview"),
   ordersList: document.querySelector("#ordersList"),
   sellerSummary: document.querySelector("#sellerSummary"),
   sellerSummaryCode: document.querySelector("#sellerSummaryCode"),
@@ -255,6 +257,7 @@ function collectForm() {
     routeVehicle: els.routeVehicle.value,
     detail: els.detail.value,
     notes: els.notes.value,
+    categoryOverride: els.categoryOverride.value,
     items: [],
     currentUser: currentUser()
   };
@@ -277,6 +280,8 @@ function fillForm(order) {
   els.routeVehicle.value = orderRouteVehicle(order);
   els.detail.value = orderDetail(order);
   els.notes.value = order.notes || "";
+  els.categoryOverride.value = order.categoryOverride || "";
+  updateCategoryPreview();
   els.deleteBtn.hidden = false;
   setMessage("");
   els.customer.focus();
@@ -285,6 +290,7 @@ function fillForm(order) {
 function resetForm() {
   state.editingId = null;
   els.form.reset();
+  updateCategoryPreview();
   els.prepDate.value = todayDate();
   els.routeVehicle.value = "Sin asignar";
   applyPriorityRule(true);
@@ -855,6 +861,20 @@ async function downloadSellerReport(format) {
   }
 }
 
+function categoryForOrder(order) {
+  const cartDetailChanged = order.retailCart && order.detail !== RetailCartModel.detail(order.retailCart);
+  return OrderCategory.classify({ ...order, cartDetailChanged });
+}
+
+function updateCategoryPreview() {
+  const existing = state.orders.find(order => order.id === state.editingId) || {};
+  const category = categoryForOrder({ ...existing, detail: els.detail.value, categoryOverride: els.categoryOverride.value });
+  els.categoryPreview.textContent = category.label + ' · ' + (category.source === "manual" ? "Corrección manual" : "Detección automática; revisá el detalle si hay dudas");
+}
+
+els.detail.addEventListener("input", updateCategoryPreview);
+els.categoryOverride.addEventListener("change", updateCategoryPreview);
+
 function render() {
   renderSummary(state.orders);
   renderSellerSummary();
@@ -873,6 +893,7 @@ function render() {
     card.dataset.priority = orderPriority(order);
     card.dataset.saleType = orderSaleType(order);
     card.dataset.origin = orderOrigin(order);
+    const category = categoryForOrder(order);
     const timeText = orderScheduledTime(order) ? ` | Horario: ${escapeHtml(orderScheduledTime(order))}` : "";
     const vehicleText = order.deliveryType === "DELIVERY" ? ` | ${escapeHtml(orderRouteVehicle(order))}` : "";
     const trace = orderMovements(order).map(movement => `
@@ -890,6 +911,7 @@ function render() {
             <h3 class="order-title">#${order.number} - ${escapeHtml(order.customer)}</h3>
             <span class="origin-badge">${orderOrigin(order) === "cliente" ? "CLIENTE ONLINE" : "CARGA INTERNA"}</span>
             <span class="sale-type-banner">${escapeHtml(orderSaleType(order))}</span>
+            <span class="order-category" data-category="${category.value}" title="${category.source === "manual" ? "Corrección manual" : "Detección automática"}">${escapeHtml(category.label)}${category.source === "manual" ? " · Manual" : ""}</span>
             <span class="status-pill">${escapeHtml(order.status)}</span>
             <span class="priority-pill">${escapeHtml(orderPriority(order))}</span>
           </div>

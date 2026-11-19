@@ -35,3 +35,9 @@ El servidor genera el detalle del pedido y guarda una instantánea `retailCart` 
 API: GET `/api/public-retail-catalog`, POST `/api/public-retail-quote`, POST `/api/public-orders` con `cart`, `quoteId`, `estimatedAccepted` y `requestId`. El cliente nunca determina los importes guardados. Las operaciones de pedidos y documentos se serializan en la instancia actual; no se agrega una garantía transaccional entre varias instancias de servidor.
 
 Validación: pruebas de cantidades, paquetes, envíos, cambios de precios, vencimientos, aceptación obligatoria, reintentos concurrentes, conservación al preparar, interfaz y separación mayorista. Prueba completa de envío local y revisión visual en escritorio y celular.
+
+## Etiquetas de sectores en Administración
+
+El listado compartido de minoristas y mayoristas muestra Carnicería, Esenciales, Mixto o Por revisar. En carritos usa la identidad de los artículos (Esenciales/Verdulería frente a las listas de carnicería); no analiza aclaraciones de preparación. En escritos reconoce nombres habituales y algunas abreviaturas, sin enviar el texto a servicios externos. La detección por palabras es orientativa: no interpreta cualquier frase ni reemplaza la revisión del detalle. Si no reconoce artículos, muestra Por revisar.
+
+Editar > Etiqueta del pedido permite corregir el resultado y guardar. La corrección aparece como Manual, se conserva al cambiar el estado y queda registrada en la trazabilidad; Automática elimina la corrección. Los pedidos existentes también muestran la detección al cargar el listado, sin una migración masiva. Al editar el detalle de un carrito, la detección automática vuelve a analizar el texto actual. Los formularios públicos no pueden fijar la corrección administrativa.

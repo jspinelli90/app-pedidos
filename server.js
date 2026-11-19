@@ -10,6 +10,7 @@ const QRCode = require("qrcode");
 const { validatePriceList, importPriceList, generatePricePdf } = require("./lib/price-lists");
 const RetailOffers = require("./public/retail-offers-model");
 const RetailCart = require("./public/retail-cart-model");
+const OrderCategory = require("./public/order-category");
 const POS = require("./public/pos-model");
 const SalesCatalog = require("./lib/sales-catalog");
 const ProduceCustomerPrices = require("./lib/produce-customer-prices");
@@ -945,6 +946,10 @@ function normalizeOrder(input, existing = {}) {
     routeVehicle: normalizeRouteVehicle(input.routeVehicle || existing.routeVehicle),
     detail,
     notes: cleanText(input.notes),
+    categoryOverride: Object.hasOwn(input, "categoryOverride")
+      ? (Object.hasOwn(OrderCategory.labels, input.categoryOverride) ? input.categoryOverride : "")
+      : (existing.categoryOverride || ""),
+    cartDetailChanged: !!existing.retailCart && detail !== RetailCart.detail(existing.retailCart),
     items: legacyItems,
     ...(existing.retailCart ? { retailCart: existing.retailCart, retailRequestId: existing.retailRequestId } : {}),
     createdBy: existing.createdBy || actor,
@@ -1048,6 +1053,7 @@ function movementDetails(before, after) {
     ["priority", "Prioridad"],
     ["deliveryType", "Tipo"],
     ["saleType", "Tipo cliente"],
+    ["categoryOverride", "Etiqueta (vacío = automática)"],
     ["address", "Direccion"],
     ["detail", "Detalle"]
   ].forEach(([key, label]) => {
@@ -1566,6 +1572,7 @@ async function handleApiRequest(req, res) {
       const order = normalizeOrder({
         ...payload,
         status: "Provisorio",
+        categoryOverride: "",
         currentUser: "Cliente"
       });
       if (!order.customer || !order.phone || !order.detail) {

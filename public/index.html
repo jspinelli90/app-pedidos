@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Pedidos | San Cayetano Carnes</title>
-    <link rel="stylesheet" href="/styles.css?v=20261113-publicar-ofertas">
+    <link rel="stylesheet" href="/styles.css?v=20261119-etiquetas-pedidos">
   <link rel="stylesheet" href="/sc-loading.css">
   </head>
   <body>
@@ -140,6 +140,18 @@
 
           <label>Detalle del pedido
             <textarea id="detail" class="order-detail-input" required rows="8" placeholder="Pega aca el pedido de WhatsApp o escribilo completo"></textarea>
+          </label>
+
+          <label>Etiqueta del pedido
+            <select id="categoryOverride">
+              <option value="">Automática</option>
+              <option value="meat">Carnicería</option>
+              <option value="essentials">Esenciales</option>
+              <option value="mixed">Mixto</option>
+              <option value="review">Por revisar</option>
+            </select>
+            <small id="categoryPreview" role="status"></small>
+            <small>Podés corregir la etiqueta o elegir Automática para volver a detectar los artículos.</small>
           </label>
 
           <label>Notas
@@ -544,7 +556,9 @@
     <script src="/order-ticket.js?v=20260924-ticket-resumido"></script>
     <script src="/price-list-order.js?v=20261013-nombre-sin-codigo"></script>
     <script src="/seller-report.js"></script>
-    <script src="/app.js?v=20261113-publicar-ofertas"></script>
+    <script src="/retail-cart-model.js?v=20261119-etiquetas"></script>
+    <script src="/order-category.js?v=20261119"></script>
+    <script src="/app.js?v=20261119-etiquetas-pedidos"></script>
     <script src="/retail-offers-studio.js?v=20260924-ofertas"></script>
   </body>
 </html>
