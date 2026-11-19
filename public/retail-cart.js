@@ -1,5 +1,5 @@
 (() => {
-  if(location.pathname.endsWith('/pedido-mayorista.html'))return;
+  const isWholesale = location.pathname.endsWith('/pedido-mayorista.html');
   const M=window.RetailCartModel;
   const el=id=>document.getElementById(id);
   const state={catalog:null,lines:[],quote:null,requestId:null,busy:false,version:0,mode:'text'};
@@ -10,12 +10,12 @@
     el('clientDetailLabel').hidden=cart;el('clientDetail').required=!cart;el('clientDetail').disabled=cart;
     el('textOrderNotice').hidden=cart;
     document.querySelectorAll('input[name="orderMode"]').forEach(input=>{input.checked=input.value===mode;});
-    el('clientSubmitButton').textContent=cart?'Enviar pedido con total estimado':'Enviar pedido escrito';
-    el('orderModeHelp').textContent=cart?'Elegí productos y cantidades para ver un total estimado.':'Escribí tu pedido como prefieras. Se enviará solo el texto; lo que agregaste al carrito queda guardado mientras estés en esta página.';
+    el('clientSubmitButton').textContent=cart?(isWholesale?'Enviar pedido mayorista con total estimado':'Enviar pedido con total estimado'):(isWholesale?'Enviar pedido mayorista escrito':'Enviar pedido escrito');
+    el('orderModeHelp').textContent=cart?(isWholesale?'Elegí Verdulería por kilo o unidad, sus ofertas, bolsas o cajones completos y revisá el total estimado.':'Elegí productos y cantidades para ver un total estimado.'):'Escribí tu pedido como prefieras. Se enviará solo el texto; lo que agregaste al carrito queda guardado mientras estés en esta página.';
     el('clientMessage').textContent='';
   }
   const node=(tag,text,className)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(className)n.className=className;return n;};
-  const context=()=>({deliveryType:el('clientDeliveryType').value==='RETIRO'?'RETIRO':'DELIVERY',deliveryZone:el('clientDeliveryType').value==='DELIVERY_CABA'?'CABA_VIERNES':'REGULAR'});
+  const context=()=>({saleType:isWholesale?'Mayorista':'Minorista',deliveryType:el('clientDeliveryType').value==='RETIRO'?'RETIRO':'DELIVERY',deliveryZone:el('clientDeliveryType').value==='DELIVERY_CABA'?'CABA_VIERNES':'REGULAR'});
   const status=(text,error=false)=>{el('cartStatus').textContent=text;el('cartStatus').className=error?'cart-error':'';};
   function invalidate(){state.version++;state.quote=null;state.requestId=null;el('cartAccepted').checked=false;el('cartAccepted').disabled=true;renderEstimate();}
   function renderEstimate(){
@@ -70,10 +70,10 @@
   }
   async function load(){
     status('Cargando productos y ofertas...');
-    try{const r=await (window.ClientRequest?.fetch || fetch)('/api/public-retail-catalog',{cache:'no-store'});if(!r.ok)throw new Error('No se pudo cargar el catálogo. Tocá Actualizar catálogo para reintentar.');state.catalog=await r.json();
+    try{const r=await (window.ClientRequest?.fetch || fetch)('/api/public-retail-catalog'+(isWholesale?'?audience=wholesale':''),{cache:'no-store'});if(!r.ok)throw new Error('No se pudo cargar el catálogo. Tocá Actualizar catálogo para reintentar.');state.catalog=await r.json();
       const category=el('cartCategory');const chosen=category.value;category.replaceChildren(new Option('Todas las listas',''));
       const lists=new Map(state.catalog.products.map(p=>[p.documentId,p.listName]));for(const [id,name]of lists)category.add(new Option(name.replace(/\.pdf$/i,''),id));category.value=chosen;
-      invalidate();renderCatalog();renderLines();status(state.catalog.produceUnavailable?'Los precios de Verdulería no están disponibles en este momento. Podés usar Actualizar catálogo para reintentar; los demás artículos siguen disponibles.':'Para pedir un corte con dos preparaciones, escribí su aclaración y volvé a agregarlo.',state.catalog.produceUnavailable===true);
+      invalidate();renderCatalog();renderLines();status(state.catalog.produceUnavailable?(isWholesale?'Los precios de Verdulería no están disponibles en este momento. Usá Actualizar catálogo para reintentar.':'Los precios de Verdulería no están disponibles en este momento. Podés usar Actualizar catálogo para reintentar; los demás artículos siguen disponibles.'):(isWholesale?'Elegí kilos, unidades, bolsas o cajones. Las ofertas se aplican al completar la cantidad indicada.':'Para pedir un corte con dos preparaciones, escribí su aclaración y volvé a agregarlo.'),state.catalog.produceUnavailable===true);
     }catch(e){state.quote=null;el('cartAccepted').disabled=true;el('cartAccepted').checked=false;status(e.message,true);}
   }
   async function review(){
@@ -93,6 +93,10 @@
   el('orderModeChoice').hidden=false;setMode(state.mode);
   document.querySelectorAll('input[name="orderMode"]').forEach(input=>input.addEventListener('change',()=>setMode(input.value)));
   el('clientBrandIntro').textContent='Armá tu carrito o escribí tu pedido. Elegí la forma que te resulte más cómoda.';
+  if(isWholesale) {
+    el('retailCartHeading').textContent='Carrito mayorista de Verdulería';
+    el('cartHelp').textContent='Elegí kilos, unidades, bolsas o cajones completos. Las ofertas se aplican al completar la cantidad indicada. Las unidades y los bultos requieren cantidades enteras.';
+  }
   el('cartSearch').addEventListener('input',renderCatalog);el('cartCategory').addEventListener('change',renderCatalog);
   el('cartReload').addEventListener('click',load);el('cartReview').addEventListener('click',review);el('clientDeliveryType').addEventListener('change',invalidate);
   load();

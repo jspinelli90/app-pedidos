@@ -46,4 +46,18 @@ test('carrito mixto revalida Administración, guarda cantidades y bultos, rechaz
   const meatOnly=await call('/api/public-retail-quote','POST',{...payload,cart:[payload.cart[0]]});assert.equal(meatOnly.status,200);assert.equal(meatOnly.data.total,10000);
   unavailable=false;records=structuredClone(fixtures);records[0].offerPrice=null;
   assert.equal((await call('/api/public-retail-quote','POST',{...payload,cart:[payload.cart[1]]})).data.total,10500);
+  records[0].offerPrice='3200';const wholesale=await call('/api/public-retail-catalog?audience=wholesale');assert.equal(wholesale.status,200);assert.equal(wholesale.data.products.length,6);assert.equal(wholesale.data.offers.length,2);assert.ok(wholesale.data.products.every(p=>p.documentId==='essentials-produce'));
+  const wholesalePayload={...payload,saleType:'Mayorista',sellerCode:'CATA',requestId:'produce-wholesale-test-0001',cart:[{productId:'produce:banana:crate',quantity:1,unit:'unit',note:'Cajón completo'},{productId:'produce:papa:bag',quantity:2,unit:'unit',note:''},payload.cart[1]]};
+  const wholesaleQuote=(await call('/api/public-retail-quote','POST',wholesalePayload)).data;assert.equal(wholesaleQuote.total,104900);
+  const retailSame=(await call('/api/public-retail-quote','POST',{...wholesalePayload,saleType:'Minorista'})).data;assert.notEqual(retailSame.quoteId,wholesaleQuote.quoteId);
+  assert.equal((await call('/api/public-retail-quote','POST',{...wholesalePayload,cart:[payload.cart[1]]})).data.total,9900);assert.equal((await call('/api/public-retail-quote','POST',{...wholesalePayload,cart:[payload.cart[0]]})).status,400);
+  assert.equal((await call('/api/public-retail-quote','POST',{...wholesalePayload,cart:[{...wholesalePayload.cart[0],quantity:.5}]})).status,400);
+  records[0].packagePrice='48000';assert.equal((await call('/api/public-orders','POST',{...wholesalePayload,quoteId:wholesaleQuote.quoteId})).status,409);
+  const updatedWholesale=(await call('/api/public-retail-quote','POST',wholesalePayload)).data;assert.equal(updatedWholesale.total,105900);
+  assert.equal((await call('/api/public-orders','POST',{...wholesalePayload,quoteId:updatedWholesale.quoteId})).status,201);
+  const storedWholesale=(await call('/api/orders')).data.find(order=>order.saleType==='Mayorista');assert.equal(storedWholesale.retailCart.total,105900);assert.equal(storedWholesale.sellerCode,'CATA');assert.match(storedWholesale.detail,/Bolsa completa/);assert.match(storedWholesale.detail,/Oferta/);assert.equal(storedWholesale.retailCart.lines.length,3);
+  assert.equal((await call('/api/public-orders','POST',{...wholesalePayload,quoteId:updatedWholesale.quoteId})).status,200);
+  assert.equal((await call('/api/public-orders','POST',{...wholesalePayload,saleType:'Minorista',quoteId:retailSame.quoteId})).status,409);
+  unavailable=true;const unavailableWholesale=await call('/api/public-retail-catalog?audience=wholesale');assert.equal(unavailableWholesale.data.produceUnavailable,true);assert.equal(unavailableWholesale.data.products.length,0);unavailable=false;
+  const textPayload={...wholesalePayload,cart:undefined,detail:'Pedido mayorista escrito de prueba',requestId:undefined};assert.equal((await call('/api/public-orders','POST',textPayload)).status,201);assert.equal((await call('/api/orders')).data.length,3);
 });

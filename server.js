@@ -471,7 +471,13 @@ function retailCatalog(documents) {
   return { revision, lists, products };
 }
 
-async function publicRetailCatalog() {
+async function publicRetailCatalog(audience = "retail") {
+  if (audience === "wholesale") {
+    try {
+      const produce = await ProduceCustomerPrices.cart();
+      return { products: produce.products, offers: produce.offers, produceUnavailable: false, notice: RetailCart.NOTICE };
+    } catch { return { products: [], offers: [], produceUnavailable: true, notice: RetailCart.NOTICE }; }
+  }
   const catalog = retailCatalog(await readClientDocuments());
   const stored = await readRetailOffers();
   const offers = stored.state.offers.filter(offer => RetailOffers.status(offer, catalog.products).code === "active");
@@ -485,12 +491,13 @@ async function publicRetailCatalog() {
   return { products: [...products, ...produce.products], offers: [...offers, ...produce.offers], produceUnavailable, notice: RetailCart.NOTICE };
 }
 async function quoteRetailCart(payload) {
-  const catalog = await publicRetailCatalog();
+  const saleType = normalizeSaleType(payload.saleType);
+  const catalog = await publicRetailCatalog(saleType === "Mayorista" ? "wholesale" : "retail");
   if (catalog.produceUnavailable && Array.isArray(payload.cart) && payload.cart.some(line => typeof line?.productId === 'string' && line.productId.startsWith('produce:'))) {
     throw Object.assign(new Error('No pudimos consultar los precios de Verdulería. Conservá tu carrito e intentá revisar el total nuevamente en unos minutos.'), { statusCode: 503 });
   }
   const quote = RetailCart.quote(catalog, payload.cart, payload);
-  return { ...quote, quoteId: createHash("sha256").update(JSON.stringify(quote)).digest("hex") };
+  return { ...quote, quoteId: createHash("sha256").update(JSON.stringify({ quote, saleType })).digest("hex") };
 }
 
 async function readPOS() {
@@ -1166,7 +1173,7 @@ async function handleApiRequest(req, res) {
       await writePOS({ ...stored.state, revision: cryptoId(), sales: [...stored.state.sales, sale] }, stored.updatedAt);
       return sendJson(res, 201, sale);
     }
-    if (url.pathname === "/api/public-retail-catalog" && req.method === "GET") { res.setHeader("Cache-Control", "no-store"); return sendJson(res, 200, await publicRetailCatalog()); }
+    if (url.pathname === "/api/public-retail-catalog" && req.method === "GET") { res.setHeader("Cache-Control", "no-store"); return sendJson(res, 200, await publicRetailCatalog(url.searchParams.get("audience"))); }
     if (url.pathname === "/api/public-retail-quote" && req.method === "POST") return sendJson(res, 200, await quoteRetailCart(await readBody(req)));
     if (url.pathname === "/api/retail-offers/catalog" && req.method === "PUT") {
       const payload = await readBody(req);
@@ -1508,11 +1515,13 @@ async function handleApiRequest(req, res) {
       }
       let cartQuote = null;
       if (payload.cart !== undefined) {
-        if (normalizeSaleType(payload.saleType) !== "Minorista") return sendJson(res, 400, { error: "El carrito está disponible para pedidos minoristas." });
         if (payload.estimatedAccepted !== true) return sendJson(res, 400, { error: "Confirmá que entendés que el total es estimado y varía según el peso real." });
         if (typeof payload.requestId !== "string" || !/^[a-zA-Z0-9_-]{16,80}$/.test(payload.requestId)) return sendJson(res, 400, { error: "Volvé a revisar el carrito antes de enviarlo." });
         const duplicate = (await readOrders()).find(order => order.retailRequestId === payload.requestId);
-        if (duplicate) return sendJson(res, 200, { ok: true, number: duplicate.number, retailCart: duplicate.retailCart });
+        if (duplicate) {
+          if (duplicate.saleType !== normalizeSaleType(payload.saleType)) return sendJson(res, 409, { error: "Esta solicitud ya se usó para otro tipo de pedido. Volvé a revisar el carrito." });
+          return sendJson(res, 200, { ok: true, number: duplicate.number, retailCart: duplicate.retailCart });
+        }
         cartQuote = await quoteRetailCart(payload);
         if (payload.quoteId !== cartQuote.quoteId) return sendJson(res, 409, { error: "Cambió un precio, una oferta o el envío. Revisá el nuevo total estimado antes de enviar.", quote: cartQuote });
         payload.detail = RetailCart.detail(cartQuote);

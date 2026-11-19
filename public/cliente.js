@@ -33,7 +33,7 @@ function applyOrderAudience() {
   document.querySelector("#clientBrandEyebrow").textContent = "Pedidos mayoristas";
   document.querySelector("#clientBrandTitle").textContent = "Hacé tu pedido mayorista";
   document.querySelector("#clientBrandIntro").textContent =
-    "Este formulario carga exclusivamente pedidos de clientes mayoristas.";
+    "Elegí Verdulería por kilo o unidad, ofertas, bolsas y cajones con el carrito o escribí tu pedido mayorista.";
   document.querySelector("#clientAudienceNotice").setAttribute(
     "aria-label",
     "Formulario exclusivo para pedidos mayoristas"
@@ -336,7 +336,7 @@ async function sendOrder(event) {
   event.preventDefault();
   if (sendingOrder) return;
   let cartPayload = {};
-  try { if (!isWholesaleOrder && window.RetailCartUI) cartPayload = window.RetailCartUI.payload(); }
+  try { if (window.RetailCartUI) cartPayload = window.RetailCartUI.payload(); }
   catch (error) { setMessage(error.message, true); return; }
   const policy = await refreshDatePolicy();
   if (prepDate.value < policy.minDate) {

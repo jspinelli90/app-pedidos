@@ -8,7 +8,9 @@ El cliente minorista puede elegir **Comprar con carrito** o **Escribir mi pedido
 
 El catálogo usa filas con nombre, lista, precio/oferta y botón Agregar. Los renglones seleccionados muestran cantidad y subtotal, con un desplegable para aclarar el corte o la preparación. El aviso de importe estimado permanece destacado.
 
-`/cliente.html` permite buscar artículos de las listas habilitadas para minoristas, elegir cantidades y escribir una aclaración por renglón. El mismo producto puede agregarse varias veces para preparaciones distintas. El formulario mayorista mantiene su detalle por texto.
+`/cliente.html` permite buscar artículos de las listas habilitadas para minoristas, elegir cantidades y escribir una aclaración por renglón. El mismo producto puede agregarse varias veces para preparaciones distintas.
+
+`/pedido-mayorista.html` ofrece el mismo carrito de Verdulería por kilo o unidad, con ofertas y bolsas y cajones completos, además del pedido por texto. Utiliza los precios guardados en Administración y excluye las otras listas del catálogo minorista. Las unidades y los bultos admiten cantidades enteras; precios, promociones, presentación y aceptación se vuelven a validar al enviar. Los pedidos conservan su tipo **Mayorista**, el vendedor y la instantánea del carrito. Las cotizaciones y los reintentos quedan vinculados al tipo de pedido.
 
 Los kilos admiten tres decimales; unidades/paquetes y cajas requieren enteros. Un artículo sin precio o unidad queda visible como consulta y no se puede calcular. Una oferta activa puede aportar la unidad cuando el producto aún no la tiene y todas sus ofertas vigentes coinciden. Definir las demás unidades en Documentos clientes → Editar precios → Venta por. No se deducen unidades por nombre en el código del carrito.
 
