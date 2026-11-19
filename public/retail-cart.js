@@ -11,7 +11,7 @@
     el('textOrderNotice').hidden=cart;
     document.querySelectorAll('input[name="orderMode"]').forEach(input=>{input.checked=input.value===mode;});
     el('clientSubmitButton').textContent=cart?(isWholesale?'Enviar pedido mayorista con total estimado':'Enviar pedido con total estimado'):(isWholesale?'Enviar pedido mayorista escrito':'Enviar pedido escrito');
-    el('orderModeHelp').textContent=cart?(isWholesale?'Elegí Verdulería por kilo o unidad, sus ofertas, bolsas o cajones completos y revisá el total estimado.':'Elegí productos y cantidades para ver un total estimado.'):'Escribí tu pedido como prefieras. Se enviará solo el texto; lo que agregaste al carrito queda guardado mientras estés en esta página.';
+    el('orderModeHelp').textContent=cart?(isWholesale?'Elegí carne mayorista y Verdulería. En carne comprás la pieza entera y podés aclarar cómo prepararla.':'Elegí productos y cantidades para ver un total estimado.'):'Escribí tu pedido como prefieras. Se enviará solo el texto; lo que agregaste al carrito queda guardado mientras estés en esta página.';
     el('clientMessage').textContent='';
   }
   const node=(tag,text,className)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(className)n.className=className;return n;};
@@ -20,12 +20,14 @@
   function invalidate(){state.version++;state.quote=null;state.requestId=null;el('cartAccepted').checked=false;el('cartAccepted').disabled=true;renderEstimate();}
   function renderEstimate(){
     const box=el('cartEstimate');box.replaceChildren();
+    const wholePieces=state.lines.some(line=>state.catalog?.products.find(p=>p.id===line.productId)?.requiresWholePieces);
+    el('cartAcceptedText').textContent=wholePieces?'Entiendo que la carne se compra por pieza entera, aunque la pida cortada o preparada, y que el total estimado se ajusta al peso real.':'Entiendo que el importe es estimado y que el total final puede ser mayor o menor según el peso real.';
     try{
       if(!state.lines.length){box.append(node('strong','Tu carrito está vacío.'));return;}
       const quote=state.quote||M.quote(state.catalog,state.lines,context());
       box.append(node('strong',`TOTAL ESTIMADO: ${M.money(quote.total)}${quote.shippingPending?' + envío a confirmar':''}`));
       box.append(node('p',quote.shippingPending?'El costo de envío no está incluido; lo confirma el local.':`Productos: ${M.money(quote.subtotal)} · Envío estimado: ${M.money(quote.shipping)}`));
-      box.append(node('p',M.NOTICE));
+      box.append(node('p',quote.notice||M.NOTICE));
       if(context().deliveryZone==='CABA_VIERNES')box.append(node('p','En CABA, el envío se recalcula con el importe final: gratis desde $50.000; por debajo, $15.000.'));
       if(!state.quote)box.append(node('p','Revisá el total antes de enviar para confirmar precios y ofertas vigentes.'));
     }catch(error){box.append(node('strong','TOTAL ESTIMADO NO DISPONIBLE'),node('p',error.message));}
@@ -36,11 +38,11 @@
     state.lines.forEach((line,index)=>{
       const p=state.catalog.products.find(p=>p.id===line.productId);
       const card=node('article',undefined,'cart-line');const identity=node('div',undefined,'cart-line-name');identity.append(node('h4',p?.name||'Artículo no disponible'),node('small',p?.listName?.replace(/\.pdf$/i,'')||''));card.append(identity);
-      const label=node('label',`Cantidad (${M.UNITS[p?.unit]||'revisar unidad'})`);
+      const label=node('label',p?.requiresWholePieces?'Kilos aproximados de piezas enteras':`Cantidad (${M.UNITS[p?.unit]||'revisar unidad'})`);
       const qty=node('input');qty.type='number';qty.min=p?.unit==='kg'?'0.001':'1';qty.step=p?.unit==='kg'?'0.001':'1';qty.max='1000';qty.value=line.quantity;qty.required=true;
       qty.addEventListener('input',()=>{line.quantity=qty.value===''?null:Number(qty.value);invalidate();updateSubtotal();});label.append(qty);
-      const notes=node('details',undefined,'cart-line-notes');notes.open=Boolean(line.note);notes.append(node('summary','Aclarar corte o preparación'));
-      const noteLabel=node('label','Aclaración para este artículo');const note=node('textarea');note.rows=2;note.maxLength=500;note.placeholder='Ej.: bifes finitos, sin grasa, separar en dos bolsas';note.value=line.note;
+      const notes=node('details',undefined,'cart-line-notes');notes.open=Boolean(line.note)||Boolean(p?.requiresWholePieces);notes.append(node('summary','Aclarar corte o preparación'));
+      const noteLabel=node('label',p?.requiresWholePieces?'Piezas y preparación que querés':'Aclaración para este artículo');const note=node('textarea');note.rows=2;note.maxLength=500;note.placeholder=p?.requiresWholePieces?'Ej.: una nalga entera, toda cortada para milanesas':'Ej.: bifes finitos, sin grasa, separar en dos bolsas';note.value=line.note;
       note.addEventListener('input',()=>{line.note=note.value;invalidate();});noteLabel.append(note);
       notes.append(noteLabel);const subtotal=node('p',undefined,'cart-line-subtotal');
       function updateSubtotal(){try{const q=state.quote?.lines[index]||M.quote(state.catalog,[line],context()).lines[0];subtotal.textContent=`Subtotal estimado: ${M.money(q.subtotal)}${q.offer?` · ${q.offer}`:''}`;}catch(e){subtotal.textContent=e.message;}}
@@ -57,6 +59,7 @@
       const card=node('article',undefined,'cart-product');const identity=node('div',undefined,'cart-product-name');identity.append(node('strong',p.name),node('small',p.listName.replace(/\.pdf$/i,'')));card.append(identity);
       const ready=Boolean(M.UNITS[p.unit])&&p.price!==null;
       card.append(node('p',ready?`${M.money(p.price)} / ${M.UNITS[p.unit]}`:'Consultar al local','cart-product-price'));
+      if(p.requiresWholePieces)identity.append(node('p','Compra de pieza entera. Podés pedirla cortada o preparada.','cart-offer'));
       for(const offer of state.catalog.offers.filter(o=>o.productId===p.id))identity.append(node('p',offer.kind==='bundle'?`Oferta: ${offer.quantity} ${M.UNITS[offer.unit]} por ${M.money(offer.price)}`:`Oferta: ${M.money(offer.price)} por ${M.UNITS[offer.unit]}`,'cart-offer'));
       const add=node('button','Agregar','ghost');add.type='button';add.disabled=!ready;
       add.addEventListener('click',()=>{
@@ -73,7 +76,7 @@
     try{const r=await (window.ClientRequest?.fetch || fetch)('/api/public-retail-catalog'+(isWholesale?'?audience=wholesale':''),{cache:'no-store'});if(!r.ok)throw new Error('No se pudo cargar el catálogo. Tocá Actualizar catálogo para reintentar.');state.catalog=await r.json();
       const category=el('cartCategory');const chosen=category.value;category.replaceChildren(new Option('Todas las listas',''));
       const lists=new Map(state.catalog.products.map(p=>[p.documentId,p.listName]));for(const [id,name]of lists)category.add(new Option(name.replace(/\.pdf$/i,''),id));category.value=chosen;
-      invalidate();renderCatalog();renderLines();status(state.catalog.produceUnavailable?(isWholesale?'Los precios de Verdulería no están disponibles en este momento. Usá Actualizar catálogo para reintentar.':'Los precios de Verdulería no están disponibles en este momento. Podés usar Actualizar catálogo para reintentar; los demás artículos siguen disponibles.'):(isWholesale?'Elegí kilos, unidades, bolsas o cajones. Las ofertas se aplican al completar la cantidad indicada.':'Para pedir un corte con dos preparaciones, escribí su aclaración y volvé a agregarlo.'),state.catalog.produceUnavailable===true);
+      invalidate();renderCatalog();renderLines();status(state.catalog.produceUnavailable?'Los precios de Verdulería no están disponibles en este momento. Podés usar Actualizar catálogo para reintentar; los demás artículos siguen disponibles.':(isWholesale?'Carne: compra de piezas enteras, con la preparación que aclares. Verdulería: kilos, unidades, ofertas y bultos.':'Para pedir un corte con dos preparaciones, escribí su aclaración y volvé a agregarlo.'),state.catalog.produceUnavailable===true);
     }catch(e){state.quote=null;el('cartAccepted').disabled=true;el('cartAccepted').checked=false;status(e.message,true);}
   }
   async function review(){
@@ -88,14 +91,14 @@
     payload(){if(state.mode==='text'){if(!el('clientDetail').value.trim())throw new Error('Escribí los productos y cantidades de tu pedido.');return {};}if(!state.quote||!el('cartAccepted').checked)throw new Error('Revisá el total estimado y marcá que entendés que puede variar según el peso real.');return {cart:state.lines,quoteId:state.quote.quoteId,estimatedAccepted:true,requestId:state.requestId};},
     changed(){invalidate();},
     reset(){state.lines=[];invalidate();renderLines();setMode(state.mode);},
-    receipt(quote,notes){const box=node('div',undefined,'estimate-notice');box.append(node('strong',`TOTAL ESTIMADO: ${M.money(quote.total)}${quote.shippingPending?' + envío a confirmar':''}`),node('p',M.NOTICE));const lines=node('pre',M.detail(quote),'cart-receipt');box.append(lines);if(notes)box.append(node('p',`Observaciones generales: ${notes}`));el('clientSuccess').append(box);}
+    receipt(quote,notes){const box=node('div',undefined,'estimate-notice');box.append(node('strong',`TOTAL ESTIMADO: ${M.money(quote.total)}${quote.shippingPending?' + envío a confirmar':''}`),node('p',quote.notice||M.NOTICE));const lines=node('pre',M.detail(quote),'cart-receipt');box.append(lines);if(notes)box.append(node('p',`Observaciones generales: ${notes}`));el('clientSuccess').append(box);}
   };
   el('orderModeChoice').hidden=false;setMode(state.mode);
   document.querySelectorAll('input[name="orderMode"]').forEach(input=>input.addEventListener('change',()=>setMode(input.value)));
   el('clientBrandIntro').textContent='Armá tu carrito o escribí tu pedido. Elegí la forma que te resulte más cómoda.';
   if(isWholesale) {
-    el('retailCartHeading').textContent='Carrito mayorista de Verdulería';
-    el('cartHelp').textContent='Elegí kilos, unidades, bolsas o cajones completos. Las ofertas se aplican al completar la cantidad indicada. Las unidades y los bultos requieren cantidades enteras.';
+    el('retailCartHeading').textContent='Carrito mayorista';
+    el('cartHelp').textContent='Carne: precios por kilo, compra de piezas enteras. Podés pedirlas cortadas o preparadas, por ejemplo una nalga entera para milanesas. Verdulería: kilos, unidades, ofertas, bolsas y cajones completos. Las unidades y los bultos requieren cantidades enteras.';
   }
   el('cartSearch').addEventListener('input',renderCatalog);el('cartCategory').addEventListener('change',renderCatalog);
   el('cartReload').addEventListener('click',load);el('cartReview').addEventListener('click',review);el('clientDeliveryType').addEventListener('change',invalidate);
