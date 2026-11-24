@@ -200,25 +200,25 @@ function localDatePolicy() {
   const afterCutoff = Number(parts.hour) >= cutoffHour;
   const regularMinDate = nextWorkingDate(afterCutoff ? addDays(today, 1) : today);
   const minDate = cabaDelivery ? nextFriday(today, !(isFriday(today) && afterCutoff)) : regularMinDate;
-  return { today, maxDate: addDays(today, 2), afterCutoff, cutoffHour, deliveryType: selectedType, deliveryZone: cabaDelivery ? "CABA_VIERNES" : "REGULAR", minDate };
+  return { today, maxDate: addDays(today, 5), afterCutoff, cutoffHour, deliveryType: selectedType, deliveryZone: cabaDelivery ? "CABA_VIERNES" : "REGULAR", minDate };
 }
 
 function applyDatePolicy(policy, forceValue = false) {
   orderDatePolicy = policy;
-  policy.maxDate = policy.maxDate || addDays(policy.today, 2);
+  policy.maxDate = policy.maxDate || addDays(policy.today, 5);
   policy.minDate = policy.deliveryZone === "CABA_VIERNES" ? nextFriday(policy.minDate) : nextWorkingDate(policy.minDate);
   prepDate.min = policy.minDate;
   prepDate.max = policy.maxDate;
   dateHint.textContent = policy.minDate > policy.maxDate
-    ? "No hay fechas disponibles para esta modalidad dentro de los proximos 2 dias."
-    : `Podes agendar hasta ${policy.maxDate} (2 dias corridos desde hoy).`;
+    ? "No hay fechas disponibles para esta modalidad dentro de los proximos 5 dias."
+    : `Podes agendar hasta ${policy.maxDate} (5 dias corridos desde hoy).`;
   if (policy.minDate > policy.maxDate) prepDate.value = "";
   else if (forceValue || !prepDate.value || prepDate.value < policy.minDate || isSunday(prepDate.value)) prepDate.value = policy.minDate;
   validatePrepDate();
   cutoffNotice.hidden = !policy.afterCutoff;
   if (policy.afterCutoff) {
     const method = policy.deliveryZone === "CABA_VIERNES" ? "delivery CABA" : policy.deliveryType === "DELIVERY" ? "delivery" : "retiro por el local";
-    cutoffText.textContent = `Los pedidos con ${method} para hoy cerraron a las ${policy.cutoffHour}:00. Podes agendar hasta ${policy.maxDate} (2 dias corridos desde hoy).`;
+    cutoffText.textContent = `Los pedidos con ${method} para hoy cerraron a las ${policy.cutoffHour}:00. Podes agendar hasta ${policy.maxDate} (5 dias corridos desde hoy).`;
   }
 }
 
@@ -232,9 +232,9 @@ function validatePrepDate() {
     : "";
   const invalidCabaDay = isCabaDelivery() && prepDate.value && !isFriday(prepDate.value);
   const validityMessage = noDates
-    ? "No hay fechas disponibles para esta modalidad dentro de los proximos 2 dias."
+    ? "No hay fechas disponibles para esta modalidad dentro de los proximos 5 dias."
     : outsideRange
-    ? `Elegi una fecha habilitada hasta ${orderDatePolicy.maxDate} (2 dias corridos desde hoy).`
+    ? `Elegi una fecha habilitada hasta ${orderDatePolicy.maxDate} (5 dias corridos desde hoy).`
     : invalidCabaDay
     ? "El delivery CABA se realiza únicamente los viernes."
     : sundaySelected

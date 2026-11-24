@@ -870,7 +870,7 @@ function publicOrderDatePolicy(deliveryType = "RETIRO", now = new Date(), delive
   const regularMinDate = nextWorkingDate(afterCutoff ? addDaysToDate(today, 1) : today);
   return {
     today,
-    maxDate: addDaysToDate(today, 2),
+    maxDate: addDaysToDate(today, 5),
     afterCutoff,
     minDate: normalizedZone === "CABA_VIERNES" ? nextFridayDate(today, !(isFridayDate(today) && afterCutoff)) : regularMinDate,
     cutoffHour,
@@ -1534,7 +1534,7 @@ async function handleApiRequest(req, res) {
       const effectiveDeliveryType = cabaDelivery ? "DELIVERY" : payload.deliveryType;
       const datePolicy = await publicOrderPolicyWithAvailability(effectiveDeliveryType, new Date(), payload.deliveryZone);
       if (cleanText(payload.prepDate) > datePolicy.maxDate) {
-        return sendJson(res, 400, { error: `Solo podes agendar pedidos hasta ${datePolicy.maxDate} (2 dias corridos desde hoy).`, ...datePolicy });
+        return sendJson(res, 400, { error: `Solo podes agendar pedidos hasta ${datePolicy.maxDate} (5 dias corridos desde hoy).`, ...datePolicy });
       }
       if (!/^\d{4}-\d{2}-\d{2}$/.test(cleanText(payload.prepDate)) || payload.prepDate < datePolicy.minDate) {
         const error = datePolicy.afterCutoff

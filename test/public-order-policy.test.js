@@ -3,12 +3,12 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { isOrderDateUnavailable, publicOrderDatePolicy } = require("../server");
 
-test("el plazo es de dos dias corridos desde la fecha de Buenos Aires", () => {
+test("el plazo es de cinco dias corridos desde la fecha de Buenos Aires", () => {
   for (const [now, today, maxDate] of [
-    ["2026-11-24T15:00:00Z", "2026-11-24", "2026-11-26"],
-    ["2026-12-01T02:59:59Z", "2026-11-30", "2026-12-02"],
-    ["2027-01-01T03:00:00Z", "2027-01-01", "2027-01-03"],
-    ["2028-02-28T12:00:00Z", "2028-02-28", "2028-03-01"]
+    ["2026-11-24T15:00:00Z", "2026-11-24", "2026-11-29"],
+    ["2026-12-01T02:59:59Z", "2026-11-30", "2026-12-05"],
+    ["2027-01-01T03:00:00Z", "2027-01-01", "2027-01-06"],
+    ["2028-02-28T12:00:00Z", "2028-02-28", "2028-03-04"]
   ]) {
     for (const type of ["DELIVERY", "RETIRO"]) {
       for (const zone of ["REGULAR", "CABA_VIERNES"]) {
@@ -24,18 +24,18 @@ test("el formulario limita el calendario y explica cuando CABA no tiene fechas",
   const vm = require("node:vm"), fs = require("node:fs");
   const source = fs.readFileSync(require.resolve("../public/cliente.js"), "utf8");
   const code = source.slice(source.indexOf("function applyDatePolicy("), source.indexOf("async function refreshDatePolicy("));
-  const prepDate = { value: "2026-11-27", setCustomValidity(value) { this.validationMessage = value; } };
+  const prepDate = { value: "2026-11-30", setCustomValidity(value) { this.validationMessage = value; } };
   const context = vm.createContext({ prepDate, dateHint: {}, cutoffNotice: {}, cutoffText: {}, orderDatePolicy: null,
     nextWorkingDate: value => value, nextFriday: value => value, isSunday: () => false,
     isFriday: () => true, isCabaDelivery: () => false });
   vm.runInContext(code, context);
-  context.policy = { today: "2026-11-24", minDate: "2026-11-24", maxDate: "2026-11-26", deliveryZone: "REGULAR" };
+  context.policy = { today: "2026-11-24", minDate: "2026-11-24", maxDate: "2026-11-29", deliveryZone: "REGULAR" };
   vm.runInContext("applyDatePolicy(policy)", context);
-  assert.equal(prepDate.max, "2026-11-26");
-  assert.match(prepDate.validationMessage, /2026-11-26/);
-  prepDate.value = "2026-11-26";
+  assert.equal(prepDate.max, "2026-11-29");
+  assert.match(prepDate.validationMessage, /2026-11-29/);
+  prepDate.value = "2026-11-28";
   assert.equal(vm.runInContext("validatePrepDate()", context), true);
-  context.policy = { ...context.policy, minDate: "2026-11-27", deliveryZone: "CABA_VIERNES" };
+  context.policy = { ...context.policy, minDate: "2026-12-04", deliveryZone: "CABA_VIERNES" };
   vm.runInContext("applyDatePolicy(policy, true)", context);
   assert.equal(prepDate.value, "");
   assert.match(prepDate.validationMessage, /No hay fechas disponibles/);
