@@ -48,10 +48,13 @@ test('acepta credenciales verificadas y bloquea claves incorrectas o caída de R
   const backend = require('../lib/rrhh-access');
   const old = [process.env.RRHH_DATABASE_URL, process.env.ADMINISTRATION_DATABASE_URL];
   process.env.RRHH_DATABASE_URL = 'configured'; process.env.ADMINISTRATION_DATABASE_URL = 'configured';
-  const verify = t.mock.method(backend, 'authenticate', async (email, password) => email === 'empleado@example.test' && password === 'correcta');
+  const identity = { id: 'u1', name: 'Juan Prueba', email: 'empleado@example.test' };
+  const verify = t.mock.method(backend, 'authenticate', async (email, password) => email === identity.email && password === 'correcta' ? identity : false);
   const req = password => ({ method: 'GET', url: '/api/orders', headers: { authorization: `Basic ${Buffer.from(`empleado@example.test:${password}`).toString('base64')}` } });
   try {
-    assert.equal(await authorize(req('correcta'), response()), true);
+    const accepted = req('correcta');
+    assert.equal(await authorize(accepted, response()), true);
+    assert.deepEqual(accepted.authenticatedUser, identity);
     let res = response(); assert.equal(await authorize(req('incorrecta'), res), false); assert.equal(res.status, 401);
     verify.mock.mockImplementation(async () => { throw Error('Database offline'); });
     res = response(); assert.equal(await authorize(req('correcta'), res), false); assert.equal(res.status, 503);

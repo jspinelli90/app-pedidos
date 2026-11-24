@@ -14,3 +14,11 @@ Sin estas conexiones, el acceso privado responde 503 y los clientes siguen acced
 Validación focalizada: `node --test test/admin-access.test.js test/public-client-content.test.js test/client-request.test.js test/retail-cart.test.js`.
 
 Los tests de integración de negocio usan una fixture de acceso autenticado, aislada en test-support. El control real de acceso se verifica por separado en admin-access.test.js, incluyendo rechazo, aceptación y caída del servicio de identidad. No existe excepción de autenticación en el código productivo.
+
+## Identidad y trazabilidad
+
+El panel muestra el nombre de la cuenta de RR. HH. autenticada en cada solicitud (`GET /api/me`). Ya no se elige una PC ni se crean usuarios locales. Cada persona debe ingresar con su propia cuenta; una cuenta compartida seguirá identificando al titular de esa cuenta.
+
+El servidor toma el nombre y el identificador de RR. HH. del acceso verificado, e ignora nombres de usuario enviados por el navegador. Los pedidos guardan `createdByUserId` y `updatedByUserId`; los movimientos guardan `userId`. El nombre se conserva como era al realizar la acción. La carga pública sigue identificándose como `Cliente`, incluso si quien abre ese formulario también tiene acceso interno. Los registros históricos conservan sus nombres anteriores: no se puede deducir qué persona usó cada PC.
+
+`GET /api/users` se conserva para paneles ya abiertos y devuelve únicamente a la persona autenticada. `POST /api/users` responde 410 e indica que las cuentas se administran en RR. HH. No se modifica ninguna cuenta ni permiso de RR. HH.

@@ -40,5 +40,6 @@ test('despacho masivo conserva datos, limita selección, detecta cambios y no du
   const movements = (await call('/api/movements')).data.filter(item => item.action === 'Despachado en conjunto desde delivery');
   assert.equal(movements.length, 1);
   assert.equal(movements[0].orderId, a.id);
-  assert.equal(movements[0].user, 'PC JUAN');
+  assert.equal(movements[0].user, 'Persona de prueba');
+  assert.equal(movements[0].userId, 'test-user');
 });

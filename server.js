@@ -1,5 +1,5 @@
 const http = require("http");
-const { authorize } = require("./lib/admin-access");
+const { authorize, isPublicRequest } = require("./lib/admin-access");
 const { captureBody, jsonBody } = require("./lib/request-body");
 const { AsyncLocalStorage } = require("node:async_hooks");
 const documentRequestContext = new AsyncLocalStorage();
@@ -24,7 +24,6 @@ const PUBLIC_DIR = path.join(ROOT, "public");
 const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, "data");
 const ORDERS_FILE = path.join(DATA_DIR, "orders.json");
 const CUSTOMERS_FILE = path.join(DATA_DIR, "customers.json");
-const USERS_FILE = path.join(DATA_DIR, "users.json");
 const MOVEMENTS_FILE = path.join(DATA_DIR, "movements.json");
 const CLIENT_DOCUMENTS_FILE = path.join(DATA_DIR, "client-documents.json");
 const OFFER_POSTER_SETTINGS_FILE = path.join(DATA_DIR, "offer-poster-settings.json");
@@ -88,11 +87,6 @@ function ensureDataFile() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(ORDERS_FILE)) fs.writeFileSync(ORDERS_FILE, "[]\n", "utf8");
   if (!fs.existsSync(CUSTOMERS_FILE)) fs.writeFileSync(CUSTOMERS_FILE, "[]\n", "utf8");
-  if (!fs.existsSync(USERS_FILE)) {
-    const initialUsers = ["PC JUAN", "PC CAJA", "PC MINORISTA", "PC MAYORISTA"]
-      .map(name => ({ id: cryptoId(), name, active: true, createdAt: new Date().toISOString() }));
-    fs.writeFileSync(USERS_FILE, `${JSON.stringify(initialUsers, null, 2)}\n`, "utf8");
-  }
   if (!fs.existsSync(MOVEMENTS_FILE)) fs.writeFileSync(MOVEMENTS_FILE, "[]\n", "utf8");
 }
 
@@ -296,15 +290,6 @@ async function runDataMigrations() {
   migrations.push({ id: WHOLESALE_CLEANUP_MIGRATION, affected, appliedAt: now });
   await writeStore("migrations", path.join(DATA_DIR, "migrations.json"), migrations);
   console.log(`Depuracion mayoristas: ${affected} contactos desactivados.`);
-}
-
-async function readUsers() {
-  return readStore("users", USERS_FILE);
-}
-
-async function writeUsers(users) {
-  ensureDataFile();
-  await writeStore("users", USERS_FILE, users);
 }
 
 async function readMovements() {
@@ -787,7 +772,14 @@ function validateCabaDeliveryAddress(neighborhoodValue, streetValue, streetNumbe
 }
 
 function actorName(input = {}) {
+  const context = documentRequestContext.getStore();
+  if (context) return context.isPublic ? "Cliente" : context.user?.name || "Sin usuario";
   return cleanText(input.currentUser || input.user || input.updatedBy || input.createdBy) || "Sin usuario";
+}
+
+function actorId() {
+  const context = documentRequestContext.getStore();
+  return context && !context.isPublic ? context.user?.id || null : null;
 }
 
 function normalizeDeliveryType(value) {
@@ -954,7 +946,9 @@ function normalizeOrder(input, existing = {}) {
     items: legacyItems,
     ...(existing.retailCart ? { retailCart: existing.retailCart, retailRequestId: existing.retailRequestId } : {}),
     createdBy: existing.createdBy || actor,
+    createdByUserId: existing.createdBy ? existing.createdByUserId || null : actorId(),
     updatedBy: actor,
+    updatedByUserId: actorId(),
     createdAt: existing.createdAt || now,
     updatedAt: now
   };
@@ -1034,6 +1028,7 @@ async function appendMovement(order, action, user, details = "") {
     customer: order.customer,
     action,
     user: user || "Sin usuario",
+    userId: actorId(),
     details,
     createdAt: new Date().toISOString()
   };
@@ -1100,7 +1095,8 @@ function serveStatic(req, res) {
 // edits and deletes so concurrent requests in this server cannot lose updates.
 let documentQueue = Promise.resolve();
 function handleApi(req, res) {
-  return documentRequestContext.run({ version: null }, () => dispatchApi(req, res));
+  const pathname = new URL(req.url, "http://localhost").pathname;
+  return documentRequestContext.run({ version: null, user: req.authenticatedUser, isPublic: isPublicRequest(req.method, pathname) }, () => dispatchApi(req, res));
 }
 async function dispatchApi(req, res) {
   const pathname = new URL(req.url, `http://${req.headers.host || "localhost"}`).pathname;
@@ -1179,7 +1175,7 @@ async function handleApiRequest(req, res) {
       if (payload.quoteId !== quote.quoteId) return sendJson(res, 409, { error: "Cambió un precio, una oferta o el pedido de origen. Revisá nuevamente la venta." });
       const payment = POS.payment(payload.paymentMethod, payload.received, quote.total);
       if (stored.state.sales.length >= 1000) return sendJson(res, 400, { error: "Se alcanzó el límite de 1000 ventas de prueba." });
-      const sale = { ...quote, id: cryptoId(), requestId: payload.requestId, number: stored.state.sales.length + 1, createdAt: new Date().toISOString(), customer: cleanText(payload.customer).slice(0, 160), notes: cleanText(payload.notes).slice(0, 1000), payment, fiscal: false };
+      const sale = { ...quote, id: cryptoId(), requestId: payload.requestId, number: stored.state.sales.length + 1, createdAt: new Date().toISOString(), createdBy: actorName(), createdByUserId: actorId(), customer: cleanText(payload.customer).slice(0, 160), notes: cleanText(payload.notes).slice(0, 1000), payment, fiscal: false };
       await writePOS({ ...stored.state, revision: cryptoId(), sales: [...stored.state.sales, sale] }, stored.updatedAt);
       return sendJson(res, 201, sale);
     }
@@ -1480,22 +1476,17 @@ async function handleApiRequest(req, res) {
       return sendJson(res, 201, { ok: true });
     }
 
+    if (url.pathname === "/api/me" && req.method === "GET") {
+      return sendJson(res, 200, documentRequestContext.getStore().user);
+    }
+
+    // Compatibility for an already-open panel: only the authenticated identity is selectable.
     if (url.pathname === "/api/users" && req.method === "GET") {
-      const users = (await readUsers()).filter(user => user.active !== false).sort((a, b) => a.name.localeCompare(b.name, "es"));
-      return sendJson(res, 200, users);
+      return sendJson(res, 200, [documentRequestContext.getStore().user]);
     }
 
     if (url.pathname === "/api/users" && req.method === "POST") {
-      const payload = await readBody(req);
-      const name = cleanText(payload.name).toUpperCase();
-      if (!name) return sendJson(res, 400, { error: "Completa el nombre del usuario." });
-      const users = await readUsers();
-      const existing = users.find(user => user.name.toLowerCase() === name.toLowerCase());
-      if (existing) return sendJson(res, 200, existing);
-      const user = { id: cryptoId(), name, active: true, createdAt: new Date().toISOString() };
-      users.push(user);
-      await writeUsers(users);
-      return sendJson(res, 201, user);
+      return sendJson(res, 410, { error: "Los usuarios se administran en RR. HH. Cada acción usa la cuenta que inició sesión." });
     }
 
     if (url.pathname === "/api/movements" && req.method === "GET") {
@@ -1638,9 +1629,11 @@ async function handleApiRequest(req, res) {
         for (const { order } of pending) {
           const previousStatus = order.status;
           order.status = "Despachado";
+          order.updatedBy = actorName();
+          order.updatedByUserId = actorId();
           order.updatedAt = now;
           movements.push({ id: cryptoId(), orderId: order.id, orderNumber: order.number, customer: order.customer,
-            action: "Despachado en conjunto desde delivery", user: actorName(payload),
+            action: "Despachado en conjunto desde delivery", user: actorName(payload), userId: actorId(),
             details: `Estado: ${previousStatus} → Despachado`, createdAt: now });
         }
         await writeOrders(orders);

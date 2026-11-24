@@ -1,7 +1,7 @@
 const state = {
   orders: [],
   customers: [],
-  users: [],
+  currentUser: null,
   movements: [],
   dispatching: false,
   availability: [],
@@ -11,8 +11,7 @@ const state = {
 };
 
 const els = {
-  currentUserSelect: document.querySelector("#currentUserSelect"),
-  addUserBtn: document.querySelector("#addUserBtn"),
+  currentUserLabel: document.querySelector("#currentUserLabel"),
   moduleTitle: document.querySelector("#moduleTitle"),
   ordersModule: document.querySelector("#ordersModule"),
   deliveryModule: document.querySelector("#deliveryModule"),
@@ -170,11 +169,7 @@ function setMessage(text, isError = false) {
 }
 
 function currentUser() {
-  return els.currentUserSelect.value || localStorage.getItem("appPedidosUser") || "Sin usuario";
-}
-
-function rememberCurrentUser() {
-  if (els.currentUserSelect.value) localStorage.setItem("appPedidosUser", els.currentUserSelect.value);
+  return state.currentUser?.name || "Sin usuario";
 }
 
 function withAudit(payload, auditAction = "") {
@@ -352,9 +347,10 @@ function showPendingOnlineOrders() {
   els.ordersList.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-async function loadUsers() {
-  state.users = await api("/api/users");
-  renderUsers();
+async function loadCurrentUser() {
+  state.currentUser = await api("/api/me");
+  els.currentUserLabel.textContent = state.currentUser.name;
+  els.currentUserLabel.title = state.currentUser.email || state.currentUser.name;
 }
 
 async function loadMovements() {
@@ -482,39 +478,10 @@ async function uploadClientDocument(type) {
 
 async function refreshAll() {
   renderLoadingState();
-  await loadUsers();
+  await loadCurrentUser();
   await loadOrders();
   await loadCustomers();
   await loadMovements();
-}
-
-function renderUsers() {
-  const saved = localStorage.getItem("appPedidosUser");
-  els.currentUserSelect.innerHTML = "";
-  state.users.forEach(user => {
-    const option = document.createElement("option");
-    option.value = user.name;
-    option.textContent = user.name;
-    els.currentUserSelect.append(option);
-  });
-  if (saved && state.users.some(user => user.name === saved)) {
-    els.currentUserSelect.value = saved;
-  } else if (state.users.length && !els.currentUserSelect.value) {
-    els.currentUserSelect.value = state.users[0].name;
-    rememberCurrentUser();
-  }
-}
-
-async function addUser() {
-  const name = prompt("Nombre del nuevo usuario:");
-  if (!name || !name.trim()) return;
-  await api("/api/users", {
-    method: "POST",
-    body: JSON.stringify({ name: name.trim(), currentUser: currentUser() })
-  });
-  await loadUsers();
-  els.currentUserSelect.value = name.trim().toUpperCase();
-  rememberCurrentUser();
 }
 
 function renderCustomers() {
@@ -2012,8 +1979,6 @@ els.deleteBtn.addEventListener("click", async () => {
 els.clearBtn.addEventListener("click", resetForm);
 els.newBtn.addEventListener("click", resetForm);
 els.refreshBtn.addEventListener("click", refreshAll);
-els.currentUserSelect.addEventListener("change", rememberCurrentUser);
-els.addUserBtn.addEventListener("click", addUser);
 els.ordersViewBtn.addEventListener("click", () => showModule("orders"));
 els.sellerViewBtn.addEventListener("click", () => showModule("seller"));
 els.deliveryViewBtn.addEventListener("click", () => showModule("delivery"));
