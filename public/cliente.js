@@ -1,6 +1,7 @@
 const form = document.querySelector("#clientOrderForm");
 const message = document.querySelector("#clientMessage");
 const prepDate = document.querySelector("#clientPrepDate");
+const dateHint = document.querySelector("#clientDateHint");
 const customer = document.querySelector("#clientCustomer");
 const phone = document.querySelector("#clientPhone");
 const deliveryType = document.querySelector("#clientDeliveryType");
@@ -195,40 +196,52 @@ function localDatePolicy() {
   const selectedType = deliveryType.value === "RETIRO" ? "RETIRO" : "DELIVERY";
   const cabaDelivery = isCabaDelivery();
   const isSaturday = new Date(`${today}T12:00:00Z`).getUTCDay() === 6;
-  const cutoffHour = selectedType === "DELIVERY" ? (isFriday(today) || isSaturday ? 10 : 11) : isSaturday ? 8 : 13;
+  const cutoffHour = selectedType === "DELIVERY" ? 10 : isSaturday ? 8 : 13;
   const afterCutoff = Number(parts.hour) >= cutoffHour;
   const regularMinDate = nextWorkingDate(afterCutoff ? addDays(today, 1) : today);
   const minDate = cabaDelivery ? nextFriday(today, !(isFriday(today) && afterCutoff)) : regularMinDate;
-  return { today, afterCutoff, cutoffHour, deliveryType: selectedType, deliveryZone: cabaDelivery ? "CABA_VIERNES" : "REGULAR", minDate };
+  return { today, maxDate: addDays(today, 2), afterCutoff, cutoffHour, deliveryType: selectedType, deliveryZone: cabaDelivery ? "CABA_VIERNES" : "REGULAR", minDate };
 }
 
 function applyDatePolicy(policy, forceValue = false) {
   orderDatePolicy = policy;
+  policy.maxDate = policy.maxDate || addDays(policy.today, 2);
   policy.minDate = policy.deliveryZone === "CABA_VIERNES" ? nextFriday(policy.minDate) : nextWorkingDate(policy.minDate);
   prepDate.min = policy.minDate;
-  if (forceValue || !prepDate.value || prepDate.value < policy.minDate || isSunday(prepDate.value)) prepDate.value = policy.minDate;
+  prepDate.max = policy.maxDate;
+  dateHint.textContent = policy.minDate > policy.maxDate
+    ? "No hay fechas disponibles para esta modalidad dentro de los proximos 2 dias."
+    : `Podes agendar hasta ${policy.maxDate} (2 dias corridos desde hoy).`;
+  if (policy.minDate > policy.maxDate) prepDate.value = "";
+  else if (forceValue || !prepDate.value || prepDate.value < policy.minDate || isSunday(prepDate.value)) prepDate.value = policy.minDate;
   validatePrepDate();
   cutoffNotice.hidden = !policy.afterCutoff;
   if (policy.afterCutoff) {
     const method = policy.deliveryZone === "CABA_VIERNES" ? "delivery CABA" : policy.deliveryType === "DELIVERY" ? "delivery" : "retiro por el local";
-    cutoffText.textContent = `Los pedidos con ${method} para hoy cerraron a las ${policy.cutoffHour}:00. Elegi manana o cualquier fecha posterior.`;
+    cutoffText.textContent = `Los pedidos con ${method} para hoy cerraron a las ${policy.cutoffHour}:00. Podes agendar hasta ${policy.maxDate} (2 dias corridos desde hoy).`;
   }
 }
 
 function validatePrepDate() {
+  const noDates = orderDatePolicy && orderDatePolicy.minDate > orderDatePolicy.maxDate;
+  const outsideRange = orderDatePolicy && prepDate.value && (prepDate.value < orderDatePolicy.minDate || prepDate.value > orderDatePolicy.maxDate);
   const sundaySelected = prepDate.value && isSunday(prepDate.value);
   const unavailable = (orderDatePolicy?.unavailableDates || []).find(item => item.date === prepDate.value);
   const unavailableMessage = unavailable
     ? `${unavailable.type === "CLOSED" ? "El local estara cerrado" : "No tendremos delivery"} ese dia${unavailable.note ? `: ${unavailable.note}` : "."}`
     : "";
   const invalidCabaDay = isCabaDelivery() && prepDate.value && !isFriday(prepDate.value);
-  const validityMessage = invalidCabaDay
+  const validityMessage = noDates
+    ? "No hay fechas disponibles para esta modalidad dentro de los proximos 2 dias."
+    : outsideRange
+    ? `Elegi una fecha habilitada hasta ${orderDatePolicy.maxDate} (2 dias corridos desde hoy).`
+    : invalidCabaDay
     ? "El delivery CABA se realiza únicamente los viernes."
     : sundaySelected
       ? "Los domingos no se toman pedidos."
       : unavailableMessage;
   prepDate.setCustomValidity(validityMessage);
-  return !invalidCabaDay && !sundaySelected && !unavailable;
+  return !noDates && !outsideRange && !invalidCabaDay && !sundaySelected && !unavailable;
 }
 
 async function refreshDatePolicy(forceValue = false) {
@@ -253,7 +266,7 @@ function showSuccess(orderNumber, selectedDeliveryType, deliveryZone) {
   const schedule = deliveryZone === "CABA_VIERNES"
     ? "Entrega CABA el viernes. Envío gratis desde $50.000; pedidos menores abonan $15.000."
     : selectedDeliveryType === "DELIVERY"
-      ? "Horario de entrega para delivery: de 11:00 a 15:00 hs. Pedidos para el mismo día hasta las 10:00 hs los viernes y sábados; los demás días hasta las 11:00 hs."
+      ? "Horario de entrega para delivery: de 11:00 a 15:00 hs. Pedidos para el mismo día hasta las 10:00 hs todos los días."
     : "Horario de retiro: de 6:00 a 13:00 hs. Los sábados, pedidos para retirar ese día hasta las 8:00 hs.";
   message.textContent = "";
   successBox.hidden = false;
@@ -272,7 +285,7 @@ function updateAddressRequirement() {
   fulfillmentNoticeText.textContent = cabaDelivery
     ? "Delivery CABA los viernes. Pedidos hasta las 10:00 hs."
     : regularDelivery
-      ? "Horario de entrega para delivery: de 11:00 a 15:00 hs. Pedidos para el mismo día hasta las 10:00 hs los viernes y sábados; los demás días hasta las 11:00 hs."
+      ? "Horario de entrega para delivery: de 11:00 a 15:00 hs. Pedidos para el mismo día hasta las 10:00 hs todos los días."
     : "Horario de retiro: de 6:00 a 13:00 hs. Los sábados, pedidos para retirar ese día hasta las 8:00 hs.";
   addressSection.hidden = !regularDelivery;
   cabaAddressSection.hidden = !cabaDelivery;
@@ -339,13 +352,13 @@ async function sendOrder(event) {
   try { if (window.RetailCartUI) cartPayload = window.RetailCartUI.payload(); }
   catch (error) { setMessage(error.message, true); return; }
   const policy = await refreshDatePolicy();
-  if (prepDate.value < policy.minDate) {
+  if (policy.minDate <= policy.maxDate && prepDate.value < policy.minDate) {
     applyDatePolicy(policy, true);
-    setMessage("Esa fecha ya no esta disponible. Elegi manana o una fecha posterior.", true);
+    setMessage(`Esa fecha ya no esta disponible. Podes agendar hasta ${policy.maxDate}.`, true);
     return;
   }
   if (!validatePrepDate()) {
-    setMessage("Los domingos no trabajamos ni realizamos entregas. Elegi otra fecha.", true);
+    setMessage(prepDate.validationMessage, true);
     prepDate.reportValidity();
     return;
   }
@@ -417,8 +430,8 @@ deliveryType.addEventListener("change", async () => {
   await refreshDatePolicy(true);
 });
 prepDate.addEventListener("change", () => {
-  if (!validatePrepDate()) setMessage("Los domingos no trabajamos ni realizamos entregas. Elegi otra fecha.", true);
-  else if (message.textContent.includes("domingos")) setMessage("");
+  if (!validatePrepDate()) setMessage(prepDate.validationMessage, true);
+  else setMessage("");
 });
 customer.addEventListener("input", updateDeliveryTypeVisibility);
 phone.addEventListener("input", updateDeliveryTypeVisibility);

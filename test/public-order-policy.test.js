@@ -3,6 +3,44 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { isOrderDateUnavailable, publicOrderDatePolicy } = require("../server");
 
+test("el plazo es de dos dias corridos desde la fecha de Buenos Aires", () => {
+  for (const [now, today, maxDate] of [
+    ["2026-11-24T15:00:00Z", "2026-11-24", "2026-11-26"],
+    ["2026-12-01T02:59:59Z", "2026-11-30", "2026-12-02"],
+    ["2027-01-01T03:00:00Z", "2027-01-01", "2027-01-03"],
+    ["2028-02-28T12:00:00Z", "2028-02-28", "2028-03-01"]
+  ]) {
+    for (const type of ["DELIVERY", "RETIRO"]) {
+      for (const zone of ["REGULAR", "CABA_VIERNES"]) {
+        const policy = publicOrderDatePolicy(type, new Date(now), zone);
+        assert.equal(policy.today, today);
+        assert.equal(policy.maxDate, maxDate);
+      }
+    }
+  }
+});
+
+test("el formulario limita el calendario y explica cuando CABA no tiene fechas", () => {
+  const vm = require("node:vm"), fs = require("node:fs");
+  const source = fs.readFileSync(require.resolve("../public/cliente.js"), "utf8");
+  const code = source.slice(source.indexOf("function applyDatePolicy("), source.indexOf("async function refreshDatePolicy("));
+  const prepDate = { value: "2026-11-27", setCustomValidity(value) { this.validationMessage = value; } };
+  const context = vm.createContext({ prepDate, dateHint: {}, cutoffNotice: {}, cutoffText: {}, orderDatePolicy: null,
+    nextWorkingDate: value => value, nextFriday: value => value, isSunday: () => false,
+    isFriday: () => true, isCabaDelivery: () => false });
+  vm.runInContext(code, context);
+  context.policy = { today: "2026-11-24", minDate: "2026-11-24", maxDate: "2026-11-26", deliveryZone: "REGULAR" };
+  vm.runInContext("applyDatePolicy(policy)", context);
+  assert.equal(prepDate.max, "2026-11-26");
+  assert.match(prepDate.validationMessage, /2026-11-26/);
+  prepDate.value = "2026-11-26";
+  assert.equal(vm.runInContext("validatePrepDate()", context), true);
+  context.policy = { ...context.policy, minDate: "2026-11-27", deliveryZone: "CABA_VIERNES" };
+  vm.runInContext("applyDatePolicy(policy, true)", context);
+  assert.equal(prepDate.value, "");
+  assert.match(prepDate.validationMessage, /No hay fechas disponibles/);
+});
+
 test("a las 12 permite retiro para hoy pero no delivery", () => {
   const noonInBuenosAires = new Date("2026-08-12T15:00:00Z");
   const delivery = publicOrderDatePolicy("DELIVERY", noonInBuenosAires);
@@ -10,7 +48,7 @@ test("a las 12 permite retiro para hoy pero no delivery", () => {
 
   assert.equal(delivery.afterCutoff, true);
   assert.equal(delivery.minDate, "2026-08-13");
-  assert.equal(delivery.cutoffHour, 11);
+  assert.equal(delivery.cutoffHour, 10);
   assert.equal(pickup.afterCutoff, false);
   assert.equal(pickup.minDate, "2026-08-12");
   assert.equal(pickup.cutoffHour, 13);
@@ -29,12 +67,12 @@ test("delivery CABA ofrece solo viernes y cierra el viernes a las 10", () => {
   assert.equal(publicOrderDatePolicy("DELIVERY", fridayAfterCutoff, "CABA_VIERNES").minDate, "2026-11-13");
 });
 
-test("viernes y sábado delivery cierra exactamente a las 10 de Buenos Aires", () => {
-  for (const [day, next] of [["2026-11-06", "2026-11-07"], ["2026-11-07", "2026-11-09"]]) {
+test("delivery cierra exactamente a las 10 todos los dias de Buenos Aires", () => {
+  for (const [day, next] of [["2026-11-02", "2026-11-03"], ["2026-11-03", "2026-11-04"], ["2026-11-04", "2026-11-05"], ["2026-11-05", "2026-11-06"], ["2026-11-06", "2026-11-07"], ["2026-11-07", "2026-11-09"], ["2026-11-08", "2026-11-09"]]) {
     const before = publicOrderDatePolicy("DELIVERY", new Date(`${day}T12:59:59Z`));
     assert.equal(before.cutoffHour, 10);
     assert.equal(before.afterCutoff, false);
-    assert.equal(before.minDate, day);
+    assert.equal(before.minDate, day === "2026-11-08" ? "2026-11-09" : day);
     for (const time of ["13:00:00", "13:00:01", "14:00:00"]) {
       const after = publicOrderDatePolicy("DELIVERY", new Date(`${day}T${time}Z`));
       assert.equal(after.afterCutoff, true);
@@ -81,7 +119,7 @@ test("la alternativa del navegador coincide con el servidor en el límite del s�
   const vm = require("node:vm"), fs = require("node:fs");
   const source = fs.readFileSync(require.resolve("../public/cliente.js"), "utf8");
   const policyCode = source.slice(source.indexOf("function localDatePolicy()"), source.indexOf("function applyDatePolicy("));
-  for (const timestamp of ["2026-09-26T02:00:00Z", "2026-09-26T10:59:59Z", "2026-09-26T11:00:00Z", "2026-09-26T16:00:00Z", "2026-11-06T12:59:59Z", "2026-11-06T13:00:00Z", "2026-11-07T12:59:59Z", "2026-11-07T13:00:00Z"]) {
+  for (const timestamp of ["2026-09-26T02:00:00Z", "2026-09-26T10:59:59Z", "2026-09-26T11:00:00Z", "2026-09-26T16:00:00Z", "2026-11-06T12:59:59Z", "2026-11-06T13:00:00Z", "2026-11-07T12:59:59Z", "2026-11-07T13:00:00Z", "2026-11-24T12:59:59Z", "2026-11-24T13:00:00Z"]) {
     for (const type of ["RETIRO", "DELIVERY"]) {
       const date = new Date(timestamp);
       class FixedDate extends Date { constructor(...args) { super(...(args.length ? args : [date.valueOf()])); } }

@@ -186,11 +186,12 @@
 
           <label>Fecha
             <input id="clientPrepDate" type="date" required>
+            <small id="clientDateHint">Podes agendar hasta 2 dias corridos desde hoy.</small>
           </label>
 
           <div id="clientCutoffNotice" class="client-cutoff-notice" role="alert" hidden>
             <strong>PEDIDOS DE HOY CERRADOS</strong>
-            <span id="clientCutoffText">Ya no tomamos pedidos para hoy. Elegi manana o cualquier fecha posterior.</span>
+            <span id="clientCutoffText">Ya no tomamos pedidos para hoy. Podes agendar hasta 2 dias corridos desde hoy.</span>
           </div>
 
           <fieldset id="orderModeChoice" class="order-mode-choice" hidden>
@@ -255,6 +256,6 @@
     <script src="/retail-cart-model.js?v=20261119-lista-cajas"></script>
     <script src="/retail-cart.js?v=20261119-verduleria-aviso"></script>
     <script src="/produce-reminder.js?v=20261119"></script>
-    <script src="/cliente.js?v=20261119-verduleria-aviso"></script>
+    <script src="/cliente.js?v=20261124-plazo-pedidos"></script>
   </body>
 </html>
