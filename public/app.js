@@ -1640,7 +1640,6 @@ async function reviewDeliveryAddress(order) {
 }
 
 function nextStatusButton(order) {
-  if (order.deliveryType === "DELIVERY" && order.addressValidation?.status === "review") return '<button type="button" disabled>Revisar dirección antes de confirmar</button>';
   const next = {
     Provisorio: "Nuevo",
     Nuevo: "Preparado",
@@ -1648,7 +1647,9 @@ function nextStatusButton(order) {
   }[order.status];
   if (!next) return "";
   const isOnlineConfirmation = order.status === "Provisorio" && orderOrigin(order) === "cliente";
-  const label = isOnlineConfirmation
+  const label = order.deliveryType === "DELIVERY" && order.addressValidation?.status === "review"
+    ? "Comprobar dirección y confirmar"
+    : isOnlineConfirmation
     ? (whatsappPhone(order.phone) ? "Confirmar y avisar" : "Confirmar (sin WhatsApp)")
     : order.status === "Provisorio" ? "Confirmar" : `Pasar a ${next}`;
   return `<button class="primary next-status" type="button">${label}</button>`;

@@ -48,4 +48,16 @@ test('valida en el servidor y exige revisión privada antes de confirmar o despa
   assert.equal((await call('/api/public-orders', 'POST', structured)).status, 201);
   const stored = (await call('/api/orders')).data.find(item => item.addressValidation?.status === 'verified');
   assert.equal(stored.address, 'Uruguay 2409 - San Fernando - San Fernando');
+  validation = { status: 'review', reason: 'ambiguous_address', message: 'Regla anterior.' };
+  const pendingSubmission = await call('/api/public-orders', 'POST', { ...payload, address: 'Cuyo 1000 - Martinez - San Isidro' });
+  assert.equal(pendingSubmission.status, 201);
+  const pendingOrder = (await call('/api/orders')).data.find(item => item.number === pendingSubmission.data.number);
+  validation = { status: 'mismatch', message: 'No existe en el partido elegido.' };
+  assert.equal((await call(`/api/orders/${pendingOrder.id}`, 'PUT', { ...pendingOrder, status: 'Nuevo' })).status, 422);
+  assert.equal((await call('/api/orders')).data.find(item => item.id === pendingOrder.id).status, 'Provisorio');
+  validation = { status: 'verified', policy: 'district-v2', source: 'Georef' };
+  const automatic = await call(`/api/orders/${pendingOrder.id}`, 'PUT', { ...pendingOrder, status: 'Nuevo' });
+  assert.equal(automatic.status, 200);
+  assert.equal(automatic.data.status, 'Nuevo'); assert.equal(automatic.data.addressValidation.status, 'verified');
+  assert.equal(automatic.data.addressValidation.policy, 'district-v2');
 });

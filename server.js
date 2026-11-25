@@ -1682,8 +1682,14 @@ async function handleApiRequest(req, res) {
       if (index === -1) return sendJson(res, 404, { error: "Pedido no encontrado." });
       const beforeOrder = { ...orders[index] };
       const order = normalizeOrder(payload, orders[index]);
-      if (beforeOrder.addressValidation && (order.address !== beforeOrder.address || order.deliveryType !== beforeOrder.deliveryType || order.deliveryZone !== beforeOrder.deliveryZone)) {
+      const addressChanged = order.address !== beforeOrder.address || order.deliveryType !== beforeOrder.deliveryType || order.deliveryZone !== beforeOrder.deliveryZone;
+      if (beforeOrder.addressValidation && addressChanged) {
         order.addressValidation = { status: "review", reason: "address_changed", message: "La dirección o modalidad cambió. Verificá el domicilio y la cobertura antes de confirmar." };
+      }
+      if (!addressChanged && DeliveryAddress.requiresReview(order) && order.status !== "Provisorio" && order.deliveryZone !== "CABA_VIERNES") {
+        const validation = await DeliveryAddress.checkDeliveryAddress(order);
+        if (validation.status === "mismatch") return sendJson(res, 422, { error: validation.message, code: "ADDRESS_MISMATCH" });
+        order.addressValidation = validation;
       }
       if (DeliveryAddress.requiresReview(order) && order.status !== "Provisorio") {
         return sendJson(res, 409, { error: "Dirección pendiente de revisión: guardá el pedido como Provisorio y verificá el domicilio y la cobertura antes de confirmarlo." });
