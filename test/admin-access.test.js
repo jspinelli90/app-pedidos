@@ -15,6 +15,7 @@ test('solo los recursos y métodos de clientes son públicos', () => {
   for (const url of ['/cliente.html', '/pedido-mayorista.html', '/mayorista.html', '/api/public-order-policy', '/api/public-client-documents/123', '/api/public-retail-catalog']) assert.equal(isPublicRequest('GET', url), true, url);
   for (const url of ['/', '/index.html', '/pos.html', '/api/orders', '/api/customers', '/api/users', '/api/movements', '/api/client-documents', '/api/public-orders', '/%69ndex.html']) assert.equal(isPublicRequest('GET', url), false, url);
   assert.equal(isPublicRequest('POST', '/api/public-orders'), true);
+  assert.equal(isPublicRequest('POST', '/api/orders/123/review-address'), false);
   assert.equal(isPublicRequest('DELETE', '/api/public-client-documents/123'), false);
   assert.equal(isPublicRequest('PUT', '/api/public-retail-offers'), false);
 });

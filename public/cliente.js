@@ -262,7 +262,7 @@ function setMessage(text, isError = false) {
   if (text) successBox.hidden = true;
 }
 
-function showSuccess(orderNumber, selectedDeliveryType, deliveryZone) {
+function showSuccess(orderNumber, selectedDeliveryType, deliveryZone, addressValidation) {
   const schedule = deliveryZone === "CABA_VIERNES"
     ? "Entrega CABA el viernes. Envío gratis desde $50.000; pedidos menores abonan $15.000."
     : selectedDeliveryType === "DELIVERY"
@@ -276,6 +276,11 @@ function showSuccess(orderNumber, selectedDeliveryType, deliveryZone) {
     <span>El local lo va a confirmar por WhatsApp.</span>
     <span>${schedule}</span>
   `;
+  if (addressValidation?.status === "review") {
+    const warning = document.createElement("strong");
+    warning.textContent = "Dirección pendiente de revisión. El local debe comprobar el domicilio y la zona de entrega antes de confirmar el pedido.";
+    successBox.append(warning);
+  }
   successBox.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
@@ -369,7 +374,7 @@ async function sendOrder(event) {
     catch { /* A promotional notice must not prevent a valid order. */ }
     if (!proceed) return;
   }
-  setMessage("Enviando pedido...");
+  setMessage(deliveryType.value === "DELIVERY" ? "Verificando dirección y partido, y enviando pedido..." : "Enviando pedido...");
   successBox.hidden = true;
 
   const deliveryZone = isCabaDelivery() ? "CABA_VIERNES" : "REGULAR";
@@ -382,6 +387,9 @@ async function sendOrder(event) {
     phone: document.querySelector("#clientPhone").value,
     sellerCode: document.querySelector("#clientSellerCode").value.trim(),
     address: addressText,
+    streetAddress: address.value.trim(),
+    district: district.value,
+    locality: locality.value,
     saleType: publicSaleType,
     deliveryType: deliveryType.value === "RETIRO" ? "RETIRO" : "DELIVERY",
     deliveryZone,
@@ -415,7 +423,7 @@ async function sendOrder(event) {
     await refreshDatePolicy(true);
     updateLocalityOptions();
     updateDeliveryTypeVisibility();
-    showSuccess(data.number, payload.deliveryType, payload.deliveryZone);
+    showSuccess(data.number, payload.deliveryType, payload.deliveryZone, data.addressValidation);
     if (data.retailCart) window.RetailCartUI?.receipt(data.retailCart, payload.notes);
   } catch (error) {
     setMessage(error.message, true);
