@@ -60,3 +60,10 @@ test('datos originales quedan intactos y cada aporte conserva pedido y fecha', (
   assert.equal(JSON.stringify(orders), before); assert.deepEqual(result.rows[0].contributions.map(row => row.number), [22, 23]);
   assert.deepEqual(result.rows[0].contributions.map(row => row.date), ['2026-11-25', '2026-11-25']);
 });
+
+test('interpreta viñetas, abreviaturas y preparaciones explícitas sin sumar otros productos', () => {
+  const result = Totals.summarize([order('•2,5kg de tapa asado\n• 1kg nalga feteada\nSupremas x 2kg\n1kg matambre de cerdo\nHola! Les pido 2 kg de pechugas de pollo\n3kg de carre de cerdo cortado en rodajas\n1kg mila nalga finos\n1kg milanesa bola de lomo\n2kg roast beef fresco\n1kg peceto envasado\n2 maples de huevo')]);
+  assert.equal(result.totalGrams, 16500); assert.equal(result.pending.length, 0); assert.equal(result.ignored.length, 1);
+  assert.ok(result.rows.some(row => row.name === 'Matambre de cerdo'));
+  assert.ok(result.rows.some(row => row.name === 'Nalga' && row.grams === 2000));
+});

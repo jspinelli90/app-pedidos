@@ -21,7 +21,8 @@
     'Morcilla', 'Morcilla bombón', 'Morcilla vasca', 'Salamín', 'Salamín - Longaniza', 'Longaniza',
     'Salchicha', 'Bofe', 'Centro', 'Chinchulín', 'Cogotera', 'Corazón', 'Hígado', 'Lengua',
     'Librillo', 'Molleja', 'Mondongo', 'Quijada', 'Rabo', 'Riñón', 'Rueda', 'Tripa gorda',
-    'Panceta ahumada', 'Panceta salada', 'Cordero', 'Lechón', 'Conejo', 'Costillar', 'Costilla'
+    'Panceta ahumada', 'Panceta salada', 'Cordero', 'Lechón', 'Conejo', 'Costillar', 'Costilla',
+    'Matambre de cerdo', 'Roast beef fresco', 'Peceto envasado', 'Churrasco'
   ];
   const aliases = new Map(names.map(name => [normalize(name), name]));
   for (const [alias, name] of Object.entries({
@@ -31,11 +32,14 @@
     'MILANESAS DE POLLO': 'Milanesa de pollo', 'MILANESAS DE CERDO': 'Milanesa de cerdo',
     'ROSBIF': 'Roast beef', 'ROSS BEEF': 'Roast beef', 'OSSOBUCO': 'Osobuco', 'RINONES': 'Riñón',
     'CARNE PICADA': 'Picada',
+    'TAPA ASADO': 'Tapa de asado', 'PECHUGA DE POLLO': 'Pechuga', 'PECHUGAS DE POLLO': 'Pechuga',
+    'CARRE DE CERDO': 'Carré', 'MILANESA BOLA DE LOMO': 'Bola de lomo', 'MILANESAS DE BOLA DE LOMO': 'Bola de lomo',
+    'MILA BOLA DE LOMO': 'Bola de lomo', 'MILA NALGA': 'Nalga', 'MILANESA DE NALGA': 'Nalga',
     'CHINCHULINES': 'Chinchulín', 'MOLLEJAS': 'Molleja', 'CHORIZOS': 'Chorizo', 'MORCILLAS': 'Morcilla',
     'PALETA CON HUESO': 'Paleta c/hueso', 'PALETA SIN HUESO': 'Paleta s/hueso'
   })) aliases.set(normalize(alias), name);
   const sortedAliases = [...aliases].sort((a, b) => b[0].length - a[0].length);
-  const preparations = /^(?:PARA\b|EN\b|CORTAD[OA]\b|CORTAR\b|FIN[OA]\b|GRUES[OA]\b|FETEAD[OA]\b|DESGRASAD[OA]\b|SIN GRASA\b|ENTER[OA]\b|APROX\b)/;
+  const preparations = /^(?:PARA\b|EN\b|CORTAD[OA]S?\b|CORTAR\b|FIN[OA]S?\b|GRUES[OA]S?\b|FETEAD[OA]S?\b|DESGRASAD[OA]S?\b|SIN GRASA\b|ENTER[OA]S?\b|APROX\b)/;
 
   function cutName(value, structured = false) {
     const key = normalize(String(value || '').replace(/^\d{3,14}\s*[-–]\s*/, '').replace(/\(aprox\.[^)]*\)/ig, ''));
@@ -100,15 +104,16 @@
       const segments = current.split(/\r?\n|;|(?<!\d),|,(?!\d)|\s+y\s+(?=(?:\d+(?:[.,]\d+|\/\d+)?|medio|un|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s*(?:k(?:g)?s?|kilos?|kilogramos?|gr(?:s)?|g|gramos?)\b)/i).map(text => text.trim()).filter(Boolean);
       if (!segments.length) addPending(order, '(Sin detalle)', 'El pedido no tiene cantidades para totalizar.');
       for (let segment of segments) {
+        segment = segment.replace(/^\s*(?:[•*]\s*|-\s+)/, '').replace(/^(?:hola[!.,\s]*)?(?:les\s+)?(?:pido|quiero|quisiera|necesito)\s+/i, '');
         if (/^(?:oferta|aclaraci[oó]n)\s*:/i.test(segment) && cart?.lines?.length) continue;
         if (/^(?:hola|buen[oa]s? d[ií]as|muchas gracias|gracias|por favor)[.!\s]*$/i.test(segment)) continue;
         const matches = [...segment.matchAll(amountPattern)];
         const category = Category.detectText(segment);
-        if (category === 'essentials') { ignored.push({ orderId: order.id, text: segment }); continue; }
+        if (category === 'essentials' || category !== 'meat' && category !== 'mixed' && /\b(?:maples?|huevos?|carbon|aceite|pan rallado)\b/i.test(normalize(segment))) { ignored.push({ orderId: order.id, text: segment }); continue; }
         if (matches.length !== 1) { addPending(order, segment, 'Faltan kilos claros o hay varias cantidades en la misma línea.'); continue; }
         const amount = matches[0], grams = gramsOf(amount);
-        const before = segment.slice(0, amount.index).replace(/^\s*[-*•]\s+/, '').trim();
-        const after = segment.slice(amount.index + amount[0].length).replace(/^\s*aproximados\s*-\s*Compra de (?:pieza entera|caja completa)\s*/i, '').replace(/^\s*[-–:]?\s*(?:de\s+)?/i, '').trim();
+        const before = segment.slice(0, amount.index).replace(/\s+[x×]\s*$/i, '').trim();
+        const after = segment.slice(amount.index + amount[0].length).replace(/^\s*aproximados\s*-\s*Compra de (?:pieza entera|caja completa)\s*/i, '').replace(/^\s*[-–:]?\s*(?:de\s+)?/i, '').replace(/[.!]+$/, '').trim();
         let name = null;
         if (!before) name = cutName(after);
         else if (!after || preparations.test(normalize(after))) name = cutName(before.replace(/\s*[-–:]\s*$/, ''));
