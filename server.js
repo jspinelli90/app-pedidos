@@ -11,6 +11,7 @@ const { validatePriceList, importPriceList, generatePricePdf } = require("./lib/
 const RetailOffers = require("./public/retail-offers-model");
 const RetailCart = require("./public/retail-cart-model");
 const OrderCategory = require("./public/order-category");
+const DeliveryAddress = require("./lib/delivery-address");
 const POS = require("./public/pos-model");
 const SalesCatalog = require("./lib/sales-catalog");
 const ProduceCustomerPrices = require("./lib/produce-customer-prices");
@@ -922,6 +923,7 @@ function normalizeOrder(input, existing = {}) {
     address: cleanText(input.address),
     deliveryType,
     deliveryZone,
+    ...(existing.addressValidation ? { addressValidation: existing.addressValidation } : {}),
     cabaNeighborhood: deliveryZone === "CABA_VIERNES" ? normalizeCabaNeighborhood(input.cabaNeighborhood || existing.cabaNeighborhood) : "",
     cabaStreet: deliveryZone === "CABA_VIERNES" ? cleanText(input.cabaStreet || existing.cabaStreet) : "",
     cabaStreetNumber: deliveryZone === "CABA_VIERNES" ? Number.parseInt(input.cabaStreetNumber || existing.cabaStreetNumber, 10) || 0 : 0,
@@ -1521,7 +1523,7 @@ async function handleApiRequest(req, res) {
         const duplicate = (await readOrders()).find(order => order.retailRequestId === payload.requestId);
         if (duplicate) {
           if (duplicate.saleType !== normalizeSaleType(payload.saleType)) return sendJson(res, 409, { error: "Esta solicitud ya se usó para otro tipo de pedido. Volvé a revisar el carrito." });
-          return sendJson(res, 200, { ok: true, number: duplicate.number, retailCart: duplicate.retailCart });
+          return sendJson(res, 200, { ok: true, number: duplicate.number, retailCart: duplicate.retailCart, addressValidation: duplicate.addressValidation });
         }
         cartQuote = await quoteRetailCart(payload);
         if (payload.quoteId !== cartQuote.quoteId) return sendJson(res, 409, { error: "Cambió un precio, una oferta o el envío. Revisá el nuevo total estimado antes de enviar.", quote: cartQuote });
@@ -1563,6 +1565,10 @@ async function handleApiRequest(req, res) {
         payload.cabaStreetNumber = Number.parseInt(payload.cabaStreetNumber, 10);
         payload.address = [payload.cabaStreet, payload.cabaStreetNumber, cleanText(payload.cabaAddressExtra), payload.cabaNeighborhood, "CABA"].filter(Boolean).join(" - ");
       }
+      if (!cabaDelivery && normalizeDeliveryType(payload.deliveryType) === "DELIVERY") {
+        const fields = DeliveryAddress.deliveryFields(payload);
+        payload.address = [fields.streetAddress, fields.locality, fields.district].filter(Boolean).join(" - ");
+      }
       const orders = await readOrders();
       const order = normalizeOrder({
         ...payload,
@@ -1576,6 +1582,12 @@ async function handleApiRequest(req, res) {
       if (order.deliveryType === "DELIVERY" && !order.address) {
         return sendJson(res, 400, { error: "Completa el domicilio para el delivery." });
       }
+      if (order.deliveryType === "DELIVERY" && !cabaDelivery) {
+        order.addressValidation = await DeliveryAddress.checkDeliveryAddress(payload);
+        if (order.addressValidation.status === "mismatch") {
+          return sendJson(res, 422, { error: order.addressValidation.message, code: "ADDRESS_MISMATCH" });
+        }
+      }
       order.number = nextNumber(orders);
       order.sellerCode = sellerCode;
       order.sellerName = SELLER_NAMES.get(sellerCode) || "";
@@ -1588,7 +1600,25 @@ async function handleApiRequest(req, res) {
       orders.push(order);
       await writeOrders(orders);
       await appendMovement(order, "Pedido provisorio recibido", "Cliente", "Cargado desde formulario de cliente");
-      return sendJson(res, 201, { ok: true, number: order.number, ...(cartQuote ? { retailCart: order.retailCart } : {}) });
+      return sendJson(res, 201, { ok: true, number: order.number, addressValidation: order.addressValidation, ...(cartQuote ? { retailCart: order.retailCart } : {}) });
+    }
+
+    const reviewMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/review-address$/);
+    if (reviewMatch && req.method === "POST") {
+      const payload = await readBody(req);
+      const orders = await readOrders();
+      const order = orders.find(item => item.id === reviewMatch[1]);
+      if (!order) return sendJson(res, 404, { error: "Pedido no encontrado." });
+      if (!DeliveryAddress.requiresReview(order)) return sendJson(res, 409, { error: "La dirección ya no está pendiente de revisión. Actualizá el listado." });
+      if (payload.updatedAt !== order.updatedAt || payload.address !== order.address) return sendJson(res, 409, { error: "El pedido cambió. Actualizá y revisá la dirección nuevamente." });
+      if (payload.reviewed !== true) return sendJson(res, 400, { error: "Verificá el domicilio y la cobertura de entrega antes de aprobarlo." });
+      order.addressValidation = { status: "manual", message: "Dirección revisada por el local.", reviewedBy: actorName(), reviewedByUserId: actorId(), reviewedAt: new Date().toISOString() };
+      order.updatedAt = new Date().toISOString();
+      order.updatedBy = actorName();
+      order.updatedByUserId = actorId();
+      await writeOrders(orders);
+      await appendMovement(order, "Dirección revisada", actorName(), "Domicilio y cobertura de entrega verificados manualmente antes de confirmar.");
+      return sendJson(res, 200, order);
     }
 
     if (url.pathname === "/api/orders" && req.method === "POST") {
@@ -1623,6 +1653,7 @@ async function handleApiRequest(req, res) {
         return sendJson(res, 409, { error: "Algún pedido cambió o ya no está disponible. Actualizá y revisá la selección; no se despachó ningún pedido." });
       }
       const pending = selected.filter(({ order }) => order.status !== "Despachado");
+      if (pending.some(({ order }) => DeliveryAddress.requiresReview(order))) return sendJson(res, 409, { error: "Hay pedidos con dirección pendiente de revisión. Revisalos antes de despachar." });
       if (pending.length) {
         const movements = await readMovements();
         const now = new Date().toISOString();
@@ -1651,6 +1682,12 @@ async function handleApiRequest(req, res) {
       if (index === -1) return sendJson(res, 404, { error: "Pedido no encontrado." });
       const beforeOrder = { ...orders[index] };
       const order = normalizeOrder(payload, orders[index]);
+      if (beforeOrder.addressValidation && (order.address !== beforeOrder.address || order.deliveryType !== beforeOrder.deliveryType || order.deliveryZone !== beforeOrder.deliveryZone)) {
+        order.addressValidation = { status: "review", reason: "address_changed", message: "La dirección o modalidad cambió. Verificá el domicilio y la cobertura antes de confirmar." };
+      }
+      if (DeliveryAddress.requiresReview(order) && order.status !== "Provisorio") {
+        return sendJson(res, 409, { error: "Dirección pendiente de revisión: guardá el pedido como Provisorio y verificá el domicilio y la cobertura antes de confirmarlo." });
+      }
       if (!order.customer || !order.detail) {
         return sendJson(res, 400, { error: "Completa cliente y detalle del pedido." });
       }

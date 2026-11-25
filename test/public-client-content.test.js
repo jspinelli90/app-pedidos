@@ -24,7 +24,7 @@ test("el formulario informa los horarios según el tipo de entrega", () => {
 
   assert.match(html, /Horario de retiro: de 6:00 a 13:00 hs\./);
   assert.match(clientScript, /Horario de entrega para delivery: de 11:00 a 15:00 hs\./);
-  assert.match(clientScript, /showSuccess\(data\.number, payload\.deliveryType, payload\.deliveryZone\)/);
+  assert.match(clientScript, /showSuccess\(data\.number, payload\.deliveryType, payload\.deliveryZone, data\.addressValidation\)/);
 });
 
 test("el formulario ofrece delivery CABA con sus condiciones", () => {

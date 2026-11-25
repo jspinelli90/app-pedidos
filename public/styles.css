@@ -1937,3 +1937,11 @@ textarea:focus {
 #categoryPreview { font-weight:700; }
 
 #categoryFilter { min-width: 170px; }
+:root .address-review-warning {
+  margin-top: 8px;
+  padding: 12px;
+  border: 2px solid #b45309;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #78350f;
+}

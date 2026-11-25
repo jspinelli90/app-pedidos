@@ -888,6 +888,7 @@ function render() {
           </div>
           ${order.sellerCode ? `<div class="order-meta">Vendedor: ${escapeHtml(order.sellerName ? `${order.sellerName} (${order.sellerCode})` : order.sellerCode)}</div>` : ""}
           <div class="order-meta">${escapeHtml(orderDeliveryLabel(order))} | ${escapeHtml(formatDate(orderPrepDate(order)))}${timeText}${vehicleText}${escapeHtml(orderCabaCostDetail(order))}${order.phone ? ` | Tel: ${escapeHtml(order.phone)}` : ""}${order.address ? ` | ${escapeHtml(order.address)}` : ""}</div>
+          ${order.deliveryType === "DELIVERY" && order.addressValidation?.status === "review" ? `<div class="address-review-warning" role="note"><strong>Dirección pendiente de revisión</strong><br>${escapeHtml(order.addressValidation.message)}<br><button class="ghost review-address" type="button">Revisar dirección</button></div>` : ""}
         </div>
         <div class="card-actions">
           ${nextStatusButton(order)}
@@ -907,6 +908,7 @@ function render() {
     `;
 
     card.querySelector(".edit-order").addEventListener("click", () => fillForm(order));
+    card.querySelector(".review-address")?.addEventListener("click", () => reviewDeliveryAddress(order));
     card.querySelector(".print-order").addEventListener("click", () => printTicket(order));
     card.querySelector(".toggle-detail").addEventListener("click", event => {
       const expanded = card.querySelector(".order-expanded");
@@ -1628,7 +1630,17 @@ function compareOrders(a, b) {
   return aKey.localeCompare(bKey);
 }
 
+async function reviewDeliveryAddress(order) {
+  if (!confirm(`Pedido #${order.number}\nDirección: ${order.address}\n\nVerificá este domicilio con la clienta o en un mapa y comprobá que está dentro de la cobertura de entrega. Si está mal, cancelá y corregilo con Editar.\n\n¿Confirmás que ya verificaste la dirección y la cobertura?`)) return;
+  try {
+    await api(`/api/orders/${order.id}/review-address`, { method: "POST", body: JSON.stringify({ reviewed: true, updatedAt: order.updatedAt, address: order.address }) });
+    await loadOrders();
+    await loadMovements();
+  } catch (error) { alert(error.message); }
+}
+
 function nextStatusButton(order) {
+  if (order.deliveryType === "DELIVERY" && order.addressValidation?.status === "review") return '<button type="button" disabled>Revisar dirección antes de confirmar</button>';
   const next = {
     Provisorio: "Nuevo",
     Nuevo: "Preparado",
@@ -1905,6 +1917,7 @@ function printTicket(order) {
           <h1>Pedido</h1>
           <p class="sale-type ${orderSaleType(order).toLowerCase()}">${escapeHtml(orderSaleType(order))}</p>
           <p class="number">#${order.number}</p>
+          ${order.deliveryType === "DELIVERY" && order.addressValidation?.status === "review" ? '<p class="sale-type">DIRECCIÓN PENDIENTE DE REVISIÓN<br>No preparar ni despachar hasta verificar el domicilio y la cobertura.</p>' : ""}
           <div class="line"></div>
           <p class="row"><span class="label">Cliente:</span> ${escapeHtml(order.customer)}</p>
           ${order.phone ? `<p class="row"><span class="label">Telefono:</span> ${escapeHtml(order.phone)}</p>` : ""}
