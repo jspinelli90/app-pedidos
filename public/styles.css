@@ -1947,7 +1947,8 @@ textarea:focus {
 }
 
 .cut-totals-dialog { width: min(1000px, 94vw); max-height: 90vh; overflow: auto; border: 1px solid var(--line); border-radius: 14px; padding: 24px; }
-.cut-totals-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.cut-totals-heading { position: sticky; top: -24px; z-index: 1; background: #fff; padding: 8px 0; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
+.cut-totals-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .cut-total-number { font-size: 22px; font-weight: 800; }
 .cut-totals-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
 .cut-totals-table th, .cut-totals-table td { border: 1px solid var(--line); padding: 10px; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
