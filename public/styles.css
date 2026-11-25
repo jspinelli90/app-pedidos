@@ -1945,3 +1945,15 @@ textarea:focus {
   background: #fffbeb;
   color: #78350f;
 }
+
+.cut-totals-dialog { width: min(1000px, 94vw); max-height: 90vh; overflow: auto; border: 1px solid var(--line); border-radius: 14px; padding: 24px; }
+.cut-totals-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.cut-total-number { font-size: 22px; font-weight: 800; }
+.cut-totals-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+.cut-totals-table th, .cut-totals-table td { border: 1px solid var(--line); padding: 10px; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.cut-totals-table th { background: var(--surface-2); }
+.cut-totals-table .cut-kg { font-weight: 800; white-space: nowrap; }
+.cut-totals-table summary { cursor: pointer; color: var(--primary); margin-top: 8px; }
+.cut-totals-table ul { padding-left: 18px; font-size: 13px; }
+.cut-pending-table { table-layout: fixed; }
+@media (max-width: 600px) { .cut-totals-dialog { padding: 12px; } .cut-totals-table th, .cut-totals-table td { padding: 6px; font-size: 12px; } }
