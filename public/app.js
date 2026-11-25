@@ -84,7 +84,6 @@ const els = {
   sellerPdfBtn: document.querySelector("#sellerPdfBtn"),
   sellerExportMessage: document.querySelector("#sellerExportMessage"),
   prepDateFilter: document.querySelector("#prepDateFilter"),
-  prepDateToFilter: document.querySelector("#prepDateToFilter"),
   search: document.querySelector("#search"),
   saleTypeFilter: document.querySelector("#saleTypeFilter"),
   categoryFilter: document.querySelector("#categoryFilter"),
@@ -339,7 +338,6 @@ function renderOnlineOrderAlert() {
 
 function showPendingOnlineOrders() {
   els.prepDateFilter.value = "";
-  els.prepDateToFilter.value = "";
   els.search.value = "";
   els.saleTypeFilter.value = "";
   els.categoryFilter.value = "";
@@ -756,12 +754,11 @@ function matchesOrder(order, text) {
 function filteredOrders() {
   const text = els.search.value.trim().toLowerCase();
   const prepDate = els.prepDateFilter.value;
-  const toDate = els.prepDateToFilter.value || prepDate;
   const status = els.statusFilter.value;
   const saleType = els.saleTypeFilter.value;
   const category = els.categoryFilter.value;
   return state.orders.filter(order => {
-    const dateOk = (!prepDate || orderPrepDate(order) >= prepDate) && (!toDate || orderPrepDate(order) <= toDate);
+    const dateOk = !prepDate || orderPrepDate(order) === prepDate;
     const statusOk = !status || order.status === status;
     const saleTypeOk = !saleType || orderSaleType(order) === saleType;
     const textOk = !text || matchesOrder(order, text);
@@ -1735,34 +1732,23 @@ function compactPrintText(value) {
 }
 
 function summaryOrdersForPrint() {
-  return filteredOrders().sort(compareOrders);
-}
-
-function summaryDateRange() {
-  const from = els.prepDateFilter.value;
-  const to = els.prepDateToFilter.value || from;
-  if (!from || !to) { alert("Elegí una fecha Desde para el resumen. Hasta es opcional para resumir un solo día."); return null; }
-  if (from > to) { alert("La fecha Desde no puede ser posterior a Hasta."); return null; }
-  return { from, to, label: from === to ? formatDate(from) : `${formatDate(from)} al ${formatDate(to)}` };
-}
-
-function updateOrderDateRange() {
-  const from = els.prepDateFilter.value, to = els.prepDateToFilter.value;
-  const invalid = from && to && from > to;
-  const hint = document.querySelector("#dateRangeMessage");
-  hint.textContent = invalid ? "La fecha Desde no puede ser posterior a Hasta." : "Si Hasta queda vacío, se toma solo el día Desde. Los resúmenes respetan los filtros del listado.";
-  hint.style.color = invalid ? "#b83232" : "";
-  render();
+  const date = els.prepDateFilter.value || todayDate();
+  const saleType = els.saleTypeFilter.value;
+  const category = els.categoryFilter.value;
+  return state.orders
+    .filter(order => orderPrepDate(order) === date)
+    .filter(order => !saleType || orderSaleType(order) === saleType)
+    .filter(order => !category || categoryForOrder(order).value === category)
+    .sort(compareOrders);
 }
 
 function printDailySummary() {
-  const range = summaryDateRange();
-  if (!range) return;
+  const date = els.prepDateFilter.value || todayDate();
   const saleType = els.saleTypeFilter.value || "Mayorista y minorista";
   const categoryLabel = OrderCategory.labels[els.categoryFilter.value] || "Todas las etiquetas";
   const orders = summaryOrdersForPrint();
   if (!orders.length) {
-    alert("No hay pedidos para imprimir con ese rango y filtros.");
+    alert("No hay pedidos para imprimir con esa fecha y filtro.");
     return;
   }
 
@@ -1775,7 +1761,7 @@ function printDailySummary() {
   };
   const rows = orders.map(order => `
     <tr class="${orderSaleType(order).toLowerCase()}">
-      <td class="num">#${escapeHtml(order.number)}<br><small>${escapeHtml(formatDate(orderPrepDate(order)))}</small></td>
+      <td class="num">#${escapeHtml(order.number)}</td>
       <td><strong>${escapeHtml(order.customer)}</strong><br>${escapeHtml(order.phone || "")}</td>
       <td>${escapeHtml(orderSaleType(order))}</td>
       <td>${escapeHtml(order.deliveryType || "")}</td>
@@ -1797,7 +1783,7 @@ function printDailySummary() {
     <html lang="es">
       <head>
         <meta charset="utf-8">
-        <title>Resumen pedidos ${escapeHtml(range.label)} - ${escapeHtml(categoryLabel)}</title>
+        <title>Resumen pedidos ${escapeHtml(formatDate(date))} - ${escapeHtml(categoryLabel)}</title>
         <style>
           * { box-sizing: border-box; }
           html, body { margin: 0; color: #111; font-family: Arial, Helvetica, sans-serif; }
@@ -1825,17 +1811,15 @@ function printDailySummary() {
           th, td { border: 1px solid #333; padding: 2px 3px; vertical-align: top; overflow-wrap: anywhere; }
           th { background: #e9eeee; text-transform: uppercase; font-size: 7.5px; }
           .num { width: 8mm; font-weight: 800; text-align: center; }
-          th:nth-child(1) { width: 6%; }
-          th:nth-child(2) { width: 15%; }
-          th:nth-child(3) { width: 8%; }
-          th:nth-child(4) { width: 7%; }
-          th:nth-child(5) { width: 8%; }
-          th:nth-child(6) { width: 8%; }
-          th:nth-child(7) { width: 15%; }
-          th:nth-child(8) { width: 25%; }
-          th:nth-child(9) { width: 8%; }
-          thead { display: table-header-group; }
-          tr { break-inside: avoid; }
+          th:nth-child(1) { width: 9mm; }
+          th:nth-child(2) { width: 34mm; }
+          th:nth-child(3) { width: 18mm; }
+          th:nth-child(4) { width: 16mm; }
+          th:nth-child(5) { width: 17mm; }
+          th:nth-child(6) { width: 18mm; }
+          th:nth-child(7) { width: 42mm; }
+          th:nth-child(8) { width: 92mm; }
+          th:nth-child(9) { width: 37mm; }
           tr.mayorista td { border-top: 2px solid #174f91; }
           tr.minorista td { border-top: 2px solid #0f6b5f; }
           .detail { font-size: 8px; }
@@ -1851,7 +1835,7 @@ function printDailySummary() {
           <header>
             <div>
               <h1>Resumen de pedidos</h1>
-              <p class="meta">Preparación: ${escapeHtml(range.label)} | Filtro: ${escapeHtml(saleType)} | Etiqueta: ${escapeHtml(categoryLabel)} | Estado: ${escapeHtml(els.statusFilter.value || "Todos")} ${els.search.value.trim() ? `| Búsqueda: ${escapeHtml(els.search.value.trim())}` : ""} | Impreso: ${escapeHtml(dateTime(new Date().toISOString()))}</p>
+              <p class="meta">Fecha: ${escapeHtml(formatDate(date))} | Filtro: ${escapeHtml(saleType)} | Etiqueta: ${escapeHtml(categoryLabel)} | Impreso: ${escapeHtml(dateTime(new Date().toISOString()))}</p>
             </div>
             <div class="totals">
               <span>Total: ${totals.all}</span>
@@ -1864,7 +1848,7 @@ function printDailySummary() {
           <table>
             <thead>
               <tr>
-                <th>Nro / Fecha</th>
+                <th>Nro</th>
                 <th>Cliente / Tel</th>
                 <th>Cliente</th>
                 <th>Tipo</th>
@@ -1880,6 +1864,11 @@ function printDailySummary() {
         </main>
         <script>
           window.addEventListener("load", () => {
+            const sheet = document.getElementById("sheet");
+            const maxHeight = 196 * 3.78;
+            const scale = Math.min(1, maxHeight / sheet.scrollHeight);
+            sheet.style.transform = "scale(" + scale + ")";
+            sheet.style.width = (283 / scale) + "mm";
             window.focus();
             window.print();
           });
@@ -1887,60 +1876,6 @@ function printDailySummary() {
       </body>
     </html>
   `);
-  summary.document.close();
-}
-
-let currentCutReport = null;
-
-function formatCutKg(grams) {
-  return new Intl.NumberFormat("es-AR", { maximumFractionDigits: 3 }).format(grams / 1000);
-}
-
-function cutReportHtml(report, forPrint = false) {
-  const { range, totals, filters } = report;
-  const rows = totals.rows.map(row => `<tr data-cut-row>
-    <td><strong>${escapeHtml(row.name)}</strong>${row.approximate ? " <small>(incluye kilos aproximados)</small>" : ""}
-      ${forPrint ? "" : `<details><summary>Ver pedidos</summary><ul>${row.contributions.map(item => `<li>#${escapeHtml(item.number)} · ${escapeHtml(item.customer)} · ${escapeHtml(formatDate(item.date))}: <strong>${formatCutKg(item.grams)} kg</strong> · ${escapeHtml(item.source)}</li>`).join("")}</ul></details>`}</td>
-    <td class="cut-kg">${formatCutKg(row.grams)}</td><td>${row.orderCount}</td></tr>`).join("");
-  const pending = totals.pending.map(item => `<tr data-pending-cut><td>#${escapeHtml(item.number)}<br>${escapeHtml(item.customer)}<br>${escapeHtml(formatDate(item.date))}${forPrint ? "" : `<br><button class="ghost review-cut-order" data-order-id="${escapeHtml(item.orderId)}" type="button">Revisar pedido</button>`}</td><td>${escapeHtml(item.text)}</td><td>${escapeHtml(item.reason)}</td></tr>`).join("");
-  return `<p><strong>Preparación: ${escapeHtml(range.label)}</strong><br>${escapeHtml(filters)}</p>
-    <p class="cut-total-number">${formatCutKg(totals.totalGrams)} kg identificados · ${totals.orderCount} pedidos en el rango</p>
-    <p>Son kilos pedidos, no kilos pesados al preparar. Incluye los estados seleccionados. Los pesos aproximados del carrito conservan esa condición.</p>
-    ${totals.pending.length ? `<div class="address-review-warning"><strong>Total parcial: ${totals.pending.length} renglones pendientes de revisión.</strong> No están sumados a los kilos. Revisalos antes de usar el total para preparar o comprar.</div>` : ""}
-    <table class="cut-totals-table"><thead><tr><th>Corte</th><th>Kilos pedidos</th><th>Pedidos</th></tr></thead><tbody>${rows || '<tr><td colspan="3">No se identificaron kilos de cortes con certeza.</td></tr>'}</tbody><tfoot><tr><th>Total identificado</th><th>${formatCutKg(totals.totalGrams)} kg</th><th></th></tr></tfoot></table>
-    ${totals.ignored.length ? `<p>${totals.ignored.length} renglones de otros productos quedaron fuera de los totales por corte.</p>` : ""}
-    ${pending ? `<h3>Pendientes de revisión — no sumados</h3><table class="cut-totals-table cut-pending-table"><thead><tr><th>Pedido / Fecha</th><th>Texto original</th><th>Motivo</th></tr></thead><tbody>${pending}</tbody></table>` : ""}`;
-}
-
-function showCutTotals() {
-  const range = summaryDateRange();
-  if (!range) return;
-  const orders = summaryOrdersForPrint();
-  if (!orders.length) { alert("No hay pedidos para totalizar con ese rango y filtros."); return; }
-  currentCutReport = {
-    range,
-    totals: OrderCutTotals.summarize(orders.map(order => ({ ...order, detail: orderDetail(order), prepDate: orderPrepDate(order) }))),
-    filters: `${els.saleTypeFilter.value || "Mayorista y minorista"} | Etiqueta: ${OrderCategory.labels[els.categoryFilter.value] || "Todas"} | Estado: ${els.statusFilter.value || "Todos"}${els.search.value.trim() ? ` | Búsqueda: ${els.search.value.trim()}` : ""}`
-  };
-  const content = document.querySelector("#cutTotalsContent");
-  content.innerHTML = cutReportHtml(currentCutReport);
-  content.querySelectorAll(".review-cut-order").forEach(button => button.addEventListener("click", () => {
-    const order = state.orders.find(item => item.id === button.dataset.orderId);
-    if (!order) { alert("El pedido ya no está en el listado. Actualizá y volvé a calcular."); return; }
-    document.querySelector("#cutTotalsDialog").close();
-    fillForm(order);
-    els.form.scrollIntoView({ behavior: "smooth", block: "start" });
-  }));
-  document.querySelector("#cutTotalsDialog").showModal();
-}
-
-function printCutTotals() {
-  if (!currentCutReport) return;
-  const summary = window.open("", "totales-por-corte", "width=1000,height=760");
-  if (!summary) { alert("El navegador bloqueó la ventana de impresión."); return; }
-  summary.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Totales por corte ${escapeHtml(currentCutReport.range.label)}</title>
-    <style>body{font:12px Arial,sans-serif;color:#111;margin:0}h1{font-size:22px}table{width:100%;border-collapse:collapse;margin:16px 0}th,td{border:1px solid #888;padding:7px;text-align:left;vertical-align:top;overflow-wrap:anywhere}thead{display:table-header-group}tfoot{display:table-row-group}tr{break-inside:avoid}th{background:#eee}.cut-kg{font-weight:bold;white-space:nowrap}.cut-total-number{font-size:18px;font-weight:bold}.address-review-warning{border:2px solid #111;padding:10px}@page{size:A4;margin:12mm}</style></head>
-    <body><h1>Totales por corte</h1>${cutReportHtml(currentCutReport, true)}<p>Impreso: ${escapeHtml(dateTime(new Date().toISOString()))}</p><script>window.addEventListener("load",()=>{window.focus();window.print();});</script></body></html>`);
   summary.document.close();
 }
 
@@ -2080,15 +2015,11 @@ els.deliveryType.addEventListener("change", () => applyPriorityRule());
 els.phone.addEventListener("change", fillCustomerData);
 els.phone.addEventListener("blur", fillCustomerData);
 els.search.addEventListener("input", render);
-els.prepDateFilter.addEventListener("change", updateOrderDateRange);
-els.prepDateToFilter.addEventListener("change", updateOrderDateRange);
+els.prepDateFilter.addEventListener("change", render);
 els.saleTypeFilter.addEventListener("change", render);
 els.categoryFilter.addEventListener("change", render);
 els.statusFilter.addEventListener("change", render);
 els.printSummaryBtn.addEventListener("click", printDailySummary);
-document.querySelector("#cutTotalsBtn").addEventListener("click", showCutTotals);
-document.querySelector("#closeCutTotalsBtn").addEventListener("click", () => document.querySelector("#cutTotalsDialog").close());
-document.querySelector("#printCutTotalsBtn").addEventListener("click", printCutTotals);
 els.sellerExcelBtn.addEventListener("click", () => downloadSellerReport("xlsx"));
 els.sellerPdfBtn.addEventListener("click", () => downloadSellerReport("pdf"));
 [els.sellerSummaryCode, els.sellerSummaryFrom, els.sellerSummaryTo, els.sellerSummaryStatus]
