@@ -37,7 +37,7 @@ test('el formulario conserva el pedido ante dirección incorrecta e informa revi
   assert.equal(el('clientSuccess').hidden, false); assert.match(el('clientSuccess').textContent, /Dirección pendiente de revisión/); assert.match(el('clientSuccess').textContent, /#123/);
 });
 
-test('el panel impide avanzar y la revisión exige una acción expresa del operador', async t => {
+test('el panel permite comprobar automáticamente al confirmar y conserva la revisión manual expresa', async t => {
   const dom = new JSDOM('', { runScripts: 'outside-only' }); t.after(() => dom.window.close());
   const source = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
   const functions = ['nextStatusButton', 'reviewDeliveryAddress'].map(name => {
@@ -49,7 +49,8 @@ test('el panel impide avanzar y la revisión exige una acción expresa del opera
   w.orderOrigin = () => 'cliente'; w.whatsappPhone = () => '123';
   w.eval(functions);
   const pending = { id: '1', number: 1, address: 'Cabildo 3200', deliveryType: 'DELIVERY', status: 'Provisorio', addressValidation: { status: 'review' } };
-  assert.match(w.nextStatusButton(pending), /disabled/);
+  assert.match(w.nextStatusButton(pending), /Comprobar dirección y confirmar/);
+  assert.doesNotMatch(w.nextStatusButton(pending), /disabled/);
   await w.reviewDeliveryAddress(pending); assert.equal(called, 0);
   w.confirm = () => true; await w.reviewDeliveryAddress(pending); assert.equal(called, 1);
   assert.doesNotMatch(w.nextStatusButton({ ...pending, addressValidation: { status: 'manual' } }), /disabled/);
