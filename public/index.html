@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Pedidos | San Cayetano Carnes</title>
-    <link rel="stylesheet" href="/styles.css?v=20261119-resumen-etiquetas">
+    <link rel="stylesheet" href="/styles.css?v=20261125-resumen-rango-cortes">
   <link rel="stylesheet" href="/sc-loading.css">
   </head>
   <body>
@@ -177,7 +177,8 @@
         </div>
 
         <div class="filters">
-          <input id="prepDateFilter" type="date" title="Fecha de preparacion">
+          <label>Preparación desde<input id="prepDateFilter" type="date" title="Fecha de preparación desde"></label>
+          <label>Hasta (opcional)<input id="prepDateToFilter" type="date" title="Fecha de preparación hasta"></label>
           <input id="search" placeholder="Buscar por cliente, vendedor o datos del pedido">
           <select id="saleTypeFilter">
             <option value="">Mayorista y minorista</option>
@@ -198,8 +199,10 @@
             <option>Preparado</option>
             <option>Despachado</option>
           </select>
-          <button id="printSummaryBtn" class="primary" type="button">Resumen día</button>
+          <button id="printSummaryBtn" class="primary" type="button">Resumen por fechas</button>
+          <button id="cutTotalsBtn" class="ghost" type="button">Totales por corte</button>
         </div>
+        <p id="dateRangeMessage" class="message" role="status">Si Hasta queda vacío, se toma solo el día Desde. Los resúmenes respetan los filtros del listado.</p>
 
         <div id="ordersList" class="orders-list"></div>
       </section>
@@ -557,6 +560,11 @@
         </fieldset>
       </form>
     </dialog>
+    <dialog id="cutTotalsDialog" class="cut-totals-dialog" aria-labelledby="cutTotalsTitle">
+      <div class="cut-totals-heading"><h2 id="cutTotalsTitle">Totales por corte</h2><button id="closeCutTotalsBtn" class="ghost" type="button">Cerrar</button></div>
+      <div id="cutTotalsContent"></div>
+      <div class="form-actions"><button id="printCutTotalsBtn" class="primary" type="button">Imprimir / Guardar PDF</button></div>
+    </dialog>
     <script src="/offers-generator.js?v=20260814-a4-folletos-grandes"></script>
     <script src="/retail-offers-model.js?v=20260924-ofertas"></script>
     <script src="/order-ticket.js?v=20260924-ticket-resumido"></script>
@@ -564,7 +572,8 @@
     <script src="/seller-report.js"></script>
     <script src="/retail-cart-model.js?v=20261119-etiquetas"></script>
     <script src="/order-category.js?v=20261119"></script>
-    <script src="/app.js?v=20261125-validacion-direccion"></script>
+    <script src="/order-cut-totals.js?v=20261125"></script>
+    <script src="/app.js?v=20261125-resumen-rango-cortes"></script>
     <script src="/retail-offers-studio.js?v=20260924-ofertas"></script>
   </body>
 </html>
