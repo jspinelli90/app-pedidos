@@ -65,3 +65,49 @@ test('utiliza el identificador del partido elegido en cada consulta', async () =
 test('compatibilidad con el domicilio compuesto de un formulario ya abierto', () => {
   assert.deepEqual(deliveryFields({ address: 'Cabildo 3200 - Olivos - Vicente Lopez' }), { streetAddress: 'Cabildo 3200', district: 'Vicente Lopez', locality: 'Olivos' });
 });
+
+function inventoryOptions(number, streets) {
+  const address = { ...candidate('06', 'San Fernando', 'Victoria'), calle: { nombre: 'CARLOS CASARES' }, altura: { valor: number }, ubicacion: { lat: null, lon: null } };
+  return { request: async url => {
+    assert.equal(url.searchParams.get('departamento'), '06749');
+    assert.equal(url.searchParams.get('provincia'), '06');
+    if (url.pathname.endsWith('/calles')) {
+      assert.equal(url.searchParams.get('nombre'), 'Carlos Casares');
+      assert.equal(url.searchParams.has('direccion'), false);
+      return { ok: true, json: async () => ({ calles: streets, total: streets.length }) };
+    }
+    return { ok: true, json: async () => ({ direcciones: [address] }) };
+  } };
+}
+const numberedStreet = {
+  nombre: 'CARLOS CASARES', provincia: { id: '06' }, departamento: { id: '06749', nombre: 'San Fernando' }, localidad: { nombre: 'Victoria' },
+  altura: { inicio: { derecha: 0, izquierda: 0 }, fin: { derecha: 4299, izquierda: 5000 } }
+};
+const inVictoria = number => ({ streetAddress: `Carlos Casares ${number}`, district: 'San Fernando', locality: 'Victoria' });
+
+test('acepta una altura incluida en el rango oficial aunque no exista punto en el mapa', async () => {
+  const result = await checkDeliveryAddress(inVictoria(2400), inventoryOptions(2400, [numberedStreet]));
+  assert.equal(result.status, 'verified'); assert.equal(result.method, 'street-range'); assert.equal(result.policy, 'district-v3');
+});
+test('respeta ambos extremos y la paridad de los rangos por lado', async () => {
+  for (const number of [1, 2, 4299, 5000]) assert.equal((await checkDeliveryAddress(inVictoria(number), inventoryOptions(number, [numberedStreet]))).status, 'verified', String(number));
+  for (const number of [4301, 5002, 9999]) assert.equal((await checkDeliveryAddress(inVictoria(number), inventoryOptions(number, [numberedStreet]))).status, 'mismatch', String(number));
+});
+test('no usa rangos de otra calle, partido o provincia para aprobar una altura', async () => {
+  for (const other of [{ ...numberedStreet, nombre: 'OTRA CALLE' }, { ...numberedStreet, departamento: { nombre: 'San Isidro', id: '06756' } }, { ...numberedStreet, provincia: { id: '02' } }]) {
+    assert.equal((await checkDeliveryAddress(inVictoria(2400), inventoryOptions(2400, [other]))).status, 'review');
+  }
+});
+test('rangos vacíos, cero o inválidos siguen pendientes sin inventar alturas', async () => {
+  for (const altura of [undefined, { inicio: { derecha: 0 }, fin: { derecha: 0 } }, { inicio: { derecha: 5000 }, fin: { derecha: 1000 } }, { inicio: { derecha: 0 }, fin: { derecha: '5000' } }]) {
+    assert.equal((await checkDeliveryAddress(inVictoria(2400), inventoryOptions(2400, [{ ...numberedStreet, altura }]))).status, 'review');
+  }
+});
+test('si falla la consulta del callejero mantiene la revisión pendiente', async () => {
+  const working = inventoryOptions(2400, [numberedStreet]);
+  const result = await checkDeliveryAddress(inVictoria(2400), { request: async url => {
+    if (url.pathname.endsWith('/calles')) throw Error('offline');
+    return working.request(url);
+  } });
+  assert.equal(result.status, 'review');
+});
