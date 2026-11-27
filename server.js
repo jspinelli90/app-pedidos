@@ -1582,7 +1582,7 @@ async function handleApiRequest(req, res) {
       if (order.deliveryType === "DELIVERY" && !order.address) {
         return sendJson(res, 400, { error: "Completa el domicilio para el delivery." });
       }
-      if (order.deliveryType === "DELIVERY" && !cabaDelivery) {
+      if (DeliveryAddress.enabled && order.deliveryType === "DELIVERY" && !cabaDelivery) {
         order.addressValidation = await DeliveryAddress.checkDeliveryAddress(payload);
         if (order.addressValidation.status === "mismatch") {
           return sendJson(res, 422, { error: order.addressValidation.message, code: "ADDRESS_MISMATCH" });
@@ -1683,7 +1683,7 @@ async function handleApiRequest(req, res) {
       const beforeOrder = { ...orders[index] };
       const order = normalizeOrder(payload, orders[index]);
       const addressChanged = order.address !== beforeOrder.address || order.deliveryType !== beforeOrder.deliveryType || order.deliveryZone !== beforeOrder.deliveryZone;
-      if (beforeOrder.addressValidation && addressChanged) {
+      if (DeliveryAddress.enabled && beforeOrder.addressValidation && addressChanged) {
         order.addressValidation = { status: "review", reason: "address_changed", message: "La dirección o modalidad cambió. Verificá el domicilio y la cobertura antes de confirmar." };
       }
       if (!addressChanged && DeliveryAddress.requiresReview(order) && order.status !== "Provisorio" && order.deliveryZone !== "CABA_VIERNES") {
