@@ -37,7 +37,7 @@ test('el formulario conserva el pedido ante dirección incorrecta e informa revi
   assert.equal(el('clientSuccess').hidden, false); assert.match(el('clientSuccess').textContent, /Dirección pendiente de revisión/); assert.match(el('clientSuccess').textContent, /#123/);
 });
 
-test('el panel permite comprobar automáticamente al confirmar y conserva la revisión manual expresa', async t => {
+test('el panel vuelve a confirmar normalmente incluso pedidos marcados por el control retirado', async t => {
   const dom = new JSDOM('', { runScripts: 'outside-only' }); t.after(() => dom.window.close());
   const source = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
   const functions = ['nextStatusButton', 'reviewDeliveryAddress'].map(name => {
@@ -49,14 +49,15 @@ test('el panel permite comprobar automáticamente al confirmar y conserva la rev
   w.orderOrigin = () => 'cliente'; w.whatsappPhone = () => '123';
   w.eval(functions);
   const pending = { id: '1', number: 1, address: 'Cabildo 3200', deliveryType: 'DELIVERY', status: 'Provisorio', addressValidation: { status: 'review' } };
-  assert.match(w.nextStatusButton(pending), /Comprobar dirección y confirmar/);
+  assert.match(w.nextStatusButton(pending), /Confirmar y avisar/);
+  assert.doesNotMatch(w.nextStatusButton(pending), /Comprobar dirección/);
   assert.doesNotMatch(w.nextStatusButton(pending), /disabled/);
   await w.reviewDeliveryAddress(pending); assert.equal(called, 0);
   w.confirm = () => true; await w.reviewDeliveryAddress(pending); assert.equal(called, 1);
   assert.doesNotMatch(w.nextStatusButton({ ...pending, addressValidation: { status: 'manual' } }), /disabled/);
 });
 
-test('el ticket advierte que no se prepare un pedido con dirección pendiente', t => {
+test('el ticket no conserva el bloqueo de direcciones retirado', t => {
   const dom = new JSDOM('', { runScripts: 'outside-only' }); t.after(() => dom.window.close());
   const w = dom.window;
   const source = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
@@ -67,5 +68,5 @@ test('el ticket advierte que no se prepare un pedido con dirección pendiente', 
   for (const name of ['orderSaleType', 'escapeHtml', 'orderDeliveryLabel', 'orderPriority', 'formatDate', 'orderPrepDate', 'orderRouteVehicle', 'dateTime', 'orderTicketDetail', 'orderDetail']) w[name] = () => 'Prueba';
   w.orderScheduledTime = () => '';
   w.printTicket({ number: 1, deliveryType: 'DELIVERY', addressValidation: { status: 'review' } });
-  assert.match(printed, /No preparar ni despachar/);
+  assert.doesNotMatch(printed, /No preparar ni despachar|DIRECCIÓN PENDIENTE/);
 });

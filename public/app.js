@@ -888,7 +888,6 @@ function render() {
           </div>
           ${order.sellerCode ? `<div class="order-meta">Vendedor: ${escapeHtml(order.sellerName ? `${order.sellerName} (${order.sellerCode})` : order.sellerCode)}</div>` : ""}
           <div class="order-meta">${escapeHtml(orderDeliveryLabel(order))} | ${escapeHtml(formatDate(orderPrepDate(order)))}${timeText}${vehicleText}${escapeHtml(orderCabaCostDetail(order))}${order.phone ? ` | Tel: ${escapeHtml(order.phone)}` : ""}${order.address ? ` | ${escapeHtml(order.address)}` : ""}</div>
-          ${order.deliveryType === "DELIVERY" && order.addressValidation?.status === "review" ? `<div class="address-review-warning" role="note"><strong>Dirección pendiente de revisión</strong><br>${escapeHtml(order.addressValidation.message)}<br><button class="ghost review-address" type="button">Revisar dirección</button></div>` : ""}
         </div>
         <div class="card-actions">
           ${nextStatusButton(order)}
@@ -1647,9 +1646,7 @@ function nextStatusButton(order) {
   }[order.status];
   if (!next) return "";
   const isOnlineConfirmation = order.status === "Provisorio" && orderOrigin(order) === "cliente";
-  const label = order.deliveryType === "DELIVERY" && order.addressValidation?.status === "review"
-    ? "Comprobar dirección y confirmar"
-    : isOnlineConfirmation
+  const label = isOnlineConfirmation
     ? (whatsappPhone(order.phone) ? "Confirmar y avisar" : "Confirmar (sin WhatsApp)")
     : order.status === "Provisorio" ? "Confirmar" : `Pasar a ${next}`;
   return `<button class="primary next-status" type="button">${label}</button>`;
@@ -1918,7 +1915,6 @@ function printTicket(order) {
           <h1>Pedido</h1>
           <p class="sale-type ${orderSaleType(order).toLowerCase()}">${escapeHtml(orderSaleType(order))}</p>
           <p class="number">#${order.number}</p>
-          ${order.deliveryType === "DELIVERY" && order.addressValidation?.status === "review" ? '<p class="sale-type">DIRECCIÓN PENDIENTE DE REVISIÓN<br>No preparar ni despachar hasta verificar el domicilio y la cobertura.</p>' : ""}
           <div class="line"></div>
           <p class="row"><span class="label">Cliente:</span> ${escapeHtml(order.customer)}</p>
           ${order.phone ? `<p class="row"><span class="label">Telefono:</span> ${escapeHtml(order.phone)}</p>` : ""}
